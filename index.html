@@ -350,7 +350,14 @@ select,button.toggle{
   padding: 8px 12px;
   font-size: 16px;
   border-radius: 8px;
-  border: 1px solid #ccc;
+  border: 1px solid #555; /* darker border */
+  background: var(--bg);   /* match your app's bg color */
+  color: var(--text);      /* match text color */
+  outline: none;           /* remove blue focus outline */
+}
+
+#input::placeholder {
+  color: var(--muted);     /* lighter placeholder */
 }
 
 pre{
