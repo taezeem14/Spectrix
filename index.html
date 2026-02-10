@@ -2207,6 +2207,8 @@ function initEventListeners() {
 
 // ===== PWA INSTALL =====
 window.addEventListener('beforeinstallprompt', e => {
+  if (window.innerWidth > 768) return; // hide on desktop
+
   e.preventDefault();
   if (document.getElementById("installBtn")) return;
 
@@ -2233,16 +2235,11 @@ window.addEventListener('beforeinstallprompt', e => {
   };
 
   document.body.appendChild(btn);
-});
 
-const style = document.createElement('style');
-style.textContent = `
-  @keyframes bounce {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
-  }
-`;
-document.head.appendChild(style);
+  setTimeout(() => {
+    if (btn.parentNode) btn.remove();
+  }, 10000);
+});
 
 // ===== SHARE TARGET =====
 if (window.location.pathname === '/share') {
