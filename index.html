@@ -346,7 +346,7 @@ select,button.toggle{
   width: 100%;
   min-height: 40px;
   max-height: 120px;
-  resize: none; /* optional: disable manual resizing if auto-grow */
+  resize: vertical;
   padding: 8px 12px;
   font-size: 16px;
   border-radius: 8px;
@@ -354,13 +354,15 @@ select,button.toggle{
   background: var(--bg);
   color: var(--text);
   outline: none;
-  overflow-y: auto; /* scroll if content > max-height */
+  
+  /* Hide scrollbar but allow scroll */
+  overflow: auto;            /* still scrollable */
+  scrollbar-width: none;     /* Firefox */
 }
 
-#input::placeholder {
-  color: var(--muted);
+#input::-webkit-scrollbar {
+  display: none;             /* Chrome, Edge, Safari */
 }
-
 
 pre{
   position:relative;background:#020617;
