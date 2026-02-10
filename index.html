@@ -1269,8 +1269,8 @@ function speakText(text) {
   window.speechSynthesis.cancel();
   
   const cleanText = text
-    .replace(/\*\*/g, '')
-    .replace(/\*/g, '')
+    .replace(/\*\*/g, ' ')
+    .replace(/\*/g, ' ')
     .replace(/```[\s\S]*?```/g, '[code block]')
     .replace(/`[^`]+`/g, '')
     .replace(/#{1,6}\s/g, '')
