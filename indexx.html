@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -31,13 +30,13 @@
 html,body{overflow-x:hidden;}
 .container,.app,#chat{overflow-x:hidden;}
 pre,code{max-width:100%;word-break:break-word;}
-:root{--bg:#f4f4f5;--panel:#fff;--chat:#f9fafb;--border:#e5e7eb;--user:#2563eb;--bot:#e5e7eb;--text:#111827;--muted:#6b7280;--link:#2563eb;--sidebar:#f9fafb;}
+:root{--bg:#020617;--panel:#0f172a;--chat:#1e293b;--border:#1f2937;--user:#2563eb;--bot:#0f172a;--text:#e5e7eb;--muted:#94a3b8;--link:#22c55e;--sidebar:#0a0f1e;}
 pre::-webkit-scrollbar{height:8px;}
 pre::-webkit-scrollbar-track{background:#020617;border-radius:8px;}
 pre::-webkit-scrollbar-thumb{background:linear-gradient(135deg,#2563eb,#1d4ed8);border-radius:8px;box-shadow:inset 0 0 0 2px rgba(0,0,0,.4);}
 pre::-webkit-scrollbar-thumb:hover{background:linear-gradient(135deg,#3b82f6,#2563eb);}
 button.toggle:hover{background:rgba(239,68,68,.15);border-color:#ef4444;}
-body.dark{--bg:#020617;--panel:#0f172a;--chat:#1e293b;--border:#1f2937;--user:#2563eb;--bot:#0f172a;--text:#e5e7eb;--muted:#94a3b8;--link:#22c55e;--sidebar:#0a0f1e;}
+/* dark is always on — no light mode override needed */
 body{font-family:"Smooch Sans",sans-serif;font-size:25px;background:var(--bg);display:flex;justify-content:center;align-items:center;height:100vh;color:var(--text);overflow:hidden;}
 .container{width:100%;max-width:1100px;height:90vh;display:flex;gap:0;box-shadow:0 20px 40px rgba(0,0,0,.3);border-radius:14px;overflow:hidden;}
 .sidebar{width:260px;background:linear-gradient(180deg,rgba(15,23,42,.85),rgba(2,6,23,.98));border-right:1px solid var(--border);display:flex;flex-direction:column;position:relative;transition:transform .3s ease,width .3s ease;}
@@ -97,16 +96,17 @@ button.send{padding:0 18px;border-radius:8px;border:none;background:#2563eb;colo
 #chat::-webkit-scrollbar{width:8px;}
 #chat::-webkit-scrollbar-track{background:var(--panel);border-radius:8px;}
 #chat::-webkit-scrollbar-thumb{background-color:var(--user);border-radius:8px;border:2px solid var(--panel);}
-body.dark #chat::-webkit-scrollbar-thumb{background-color:#2563eb;border:2px solid #0f172a;}
+/* scrollbar always dark — handled by root vars above */
 .msg ul,.msg ol{padding-left:20px;margin:8px 0;}.msg li{margin-bottom:4px;}
 .sidebar.is-hidden{transform:translateX(-100%);}
 @media(min-width:769px){.sidebar.is-hidden{width:0;min-width:0;padding:0;border-right:none;overflow:hidden;}}
 .menu-close-btn{display:none;position:absolute;top:11px;right:12px;margin:0;background:#2563eb;color:#fff;border:none;padding:6px 8px;border-radius:8px;font-size:14px;cursor:pointer;z-index:20;}
 .bot img.ai-img{max-width:100%;border-radius:12px;margin-top:8px;display:block;}
-.controls select{background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(0,0,0,.05)),var(--panel);box-shadow:inset 0 0 0 1px rgba(255,255,255,.03);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:7px 36px 7px 12px;font-size:13px;font-weight:600;cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;-moz-appearance:none;transition:border-color .2s,box-shadow .2s,background .2s;}
-.controls select:hover{border-color:var(--user);}
-.controls select:focus{border-color:var(--user);box-shadow:0 0 0 2px rgba(37,99,235,.35);}
-.controls select option{background:var(--panel);color:var(--text);}
+.controls select{background:#0f172a;color:#e5e7eb;border:1px solid #1f2937;border-radius:10px;padding:7px 36px 7px 12px;font-size:13px;font-weight:600;cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;-moz-appearance:none;transition:border-color .2s,box-shadow .2s,background .2s;box-shadow:inset 0 0 0 1px rgba(255,255,255,.03);}
+.controls select:hover{border-color:#2563eb;}
+.controls select:focus{border-color:#2563eb;box-shadow:0 0 0 2px rgba(37,99,235,.35);}
+.controls select option{background:#0f172a;color:#e5e7eb;}
+.controls select optgroup{background:#020617;color:#94a3b8;}
 .select-wrap{position:relative;display:inline-flex;align-items:center;}
 .select-wrap::after{content:"▾";position:absolute;right:12px;pointer-events:none;font-size:12px;color:var(--muted);}
 .voice-btn{position:relative;padding:0 16px;border-radius:8px;border:none;background:#10b981;color:#fff;font-weight:600;cursor:pointer;transition:all .3s;}
@@ -172,7 +172,9 @@ body.dark #chat::-webkit-scrollbar-thumb{background-color:#2563eb;border:2px sol
 .settings-panel h2{color:#e5e7eb;font-size:22px;font-weight:700;margin-bottom:20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:14px;}
 .settings-group{margin-bottom:20px;display:flex;flex-direction:column;gap:6px;}
 .settings-group label{font-size:13px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;}
-.settings-group input,.settings-group textarea,.settings-group select{width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:#e5e7eb;padding:10px 14px;font-size:14px;outline:none;font-family:inherit;transition:border-color .2s,box-shadow .2s;box-sizing:border-box;}
+.settings-group input,.settings-group textarea,.settings-group select{width:100%;background:#0d1424;border:1px solid rgba(255,255,255,.1);border-radius:10px;color:#e5e7eb;padding:10px 14px;font-size:14px;outline:none;font-family:inherit;transition:border-color .2s,box-shadow .2s;box-sizing:border-box;}
+.settings-group select option{background:#0d1424;color:#e5e7eb;}
+.settings-group select optgroup{background:#020617;color:#94a3b8;}
 .settings-group input:focus,.settings-group textarea:focus,.settings-group select:focus{border-color:#2563eb;box-shadow:0 0 0 2px rgba(37,99,235,.25);}
 .settings-group textarea{min-height:100px;resize:vertical;scrollbar-width:thin;}
 .settings-group .hint{font-size:11px;color:#4b5563;padding:2px 2px;}
@@ -189,7 +191,7 @@ body.dark #chat::-webkit-scrollbar-thumb{background-color:#2563eb;border:2px sol
 .settings-saved-toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 </style>
 </head>
-<body class="dark">
+<body class="dark" id="appBody">
 
 <div class="container">
   <div class="sidebar" id="sidebar">
@@ -1189,7 +1191,7 @@ async function send() {
 }
 
 // ===== THEME =====
-function toggleTheme() { document.body.classList.toggle("dark"); }
+function toggleTheme() { /* always dark mode, no toggle */ }
 
 // ===== EVENT LISTENERS =====
 function initEventListeners() {
