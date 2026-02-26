@@ -1920,7 +1920,8 @@ async function newChat() {
 async function loadChatHandler(id) {
   currentId = id;
   localStorage.setItem(CURRENT_KEY, currentId);
-  loadChatMessages();
+  updateHeaderTitle();
+  await loadChatMessages();
   renderHistory();
   scrollToBottom();
 }
@@ -2065,14 +2066,27 @@ async function handleImport(e) {
 
 // ===== UI UPDATES =====
 function updateHeaderTitle() {
-  const existingTitle = document.getElementById("headerTitle");
-  if (existingTitle) {
-    existingTitle.textContent = getCurrentSession().title;
+  const session = getCurrentSession();
+  if (!session) return;
+
+  let existingTitle = document.getElementById("headerTitle");
+  if (!existingTitle) {
+    const headerRow = document.querySelector("header > div");
+    if (!headerRow) return;
+
+    existingTitle = document.createElement("span");
+    existingTitle.id = "headerTitle";
+    existingTitle.ondblclick = editTitle;
+    headerRow.appendChild(existingTitle);
   }
+
+  existingTitle.textContent = session.title || "New Chat";
 }
 
 function editTitle() {
   const session = getCurrentSession();
+  const titleNode = document.getElementById("headerTitle");
+  if (!session || !titleNode) return;
   const currentTitle = session.title;
   
   const input = document.createElement("input");
@@ -2080,7 +2094,7 @@ function editTitle() {
   input.className = "title-edit";
   input.value = currentTitle;
   
-  headerTitle.replaceWith(input);
+  titleNode.replaceWith(input);
   input.focus();
   input.select();
   

@@ -1,31 +1,54 @@
-# Spectrix AI
+# Spectrix AI ✨
 
 ![PWA](https://img.shields.io/badge/PWA-Installable-5A0FC8?logo=pwa&logoColor=white)
 ![Offline Ready](https://img.shields.io/badge/Offline-Ready-10B981)
 ![Vanilla JS](https://img.shields.io/badge/Stack-Vanilla%20JS-F7DF1E?logo=javascript&logoColor=111)
 ![Math](https://img.shields.io/badge/Math-KaTeX%20%2B%20MathJax-2563EB)
 
-Production-grade, installable AI chat web app with voice input/output, streaming replies, media generation, persistent history, and advanced PWA behavior.
+AI chat app that’s fast, clean, voice-enabled, math-friendly, and installable like a real app.
+
+Short version: **it cooks** 🔥
+
+## Why this slaps
+
+- Chat streams in real time (no boring frozen UI)
+- Voice input + TTS output = hands-free vibe
+- KaTeX + MathJax support for math-heavy responses
+- `/img` and `/vid` commands for media generation
+- Retry + Edit work properly (no cursed duplicate messages)
+- PWA mode: installable, offline-ready shell, smart caching
 
 ## Screenshots
 
 ![Spectrix Main UI](screenshots/spectrix-main.png)
-![Spectrix Chat + Math](screenshots/spectrix-math.png)
+![Spectrix Math Chat](screenshots/spectrix-math.png)
 
-## Highlights
+## Quick start (no drama)
 
-- Single-page app in vanilla HTML/CSS/JS
-- Persistent multi-session chat with IndexedDB
-- Voice input + TTS playback toggle
-- Streaming Markdown responses with syntax highlighting
-- KaTeX + MathJax rendering pipeline for math-heavy responses
-- Image (`/img`) and video (`/vid`) generation flows
-- Real Retry and Edit behavior (in-thread regeneration without duplicate user bubbles)
-- Installable PWA with offline shell, runtime caching, update lifecycle, and shortcuts
+1. Run a local server in project root:
+   - `npx serve .`
+   - or `python -m http.server 5500`
+   - or VS Code Live Server
+2. Open `http://127.0.0.1:5500`
+3. Start chatting.
 
-## Project Structure
+## Commands
 
-```
+- `/img your prompt` → generate image
+- `/vid your prompt` → generate video
+
+## Tech stack
+
+- Vanilla HTML, CSS, JavaScript
+- IndexedDB for chats + media persistence
+- Web Speech APIs (voice input + TTS)
+- Service Worker + Web Manifest (PWA)
+- Highlight.js + Markdown rendering
+- KaTeX + MathJax math pipeline
+
+## Project structure
+
+```text
 /
 ├── index.html
 ├── sw.js
@@ -34,71 +57,36 @@ Production-grade, installable AI chat web app with voice input/output, streaming
 └── README.md
 ```
 
-## Run Locally
+## PWA flex
 
-Use a local web server, then open the app in Chromium browser:
+- Installable standalone app
+- Offline fallback for core shell
+- Navigation preload + runtime cache strategies
+- Manifest shortcuts and share-target support
+- Update lifecycle handling (auto-refresh on new SW)
 
-1. Start server
-   - VS Code Live Server
-   - `npx serve .`
-   - `python -m http.server 5500`
-2. Open `http://127.0.0.1:5500`
+## Browser notes
 
-## Features
+Best experience:
 
-### Chat & UX
+- Chrome / Edge (desktop + Android)
 
-- Session sidebar (search, pin, rename, delete)
-- Export current chat to Markdown
-- Import/export full chat backups as JSON
-- Keyboard shortcuts and smooth scroll-to-latest UX
+Heads-up:
 
-### AI & Media
+- Voice input usually needs HTTPS or localhost
+- iOS Safari has platform-specific limits for install/voice features
 
-- Text generation via worker API
-- `/img ...` for image generation
-- `/vid ...` for video generation
-- Adaptive streaming renderer for long outputs
+## Deploy
 
-### Math Rendering
-
-- KaTeX auto-render + MathJax fallback
-- Auto-normalization for inconsistent model math formatting
-- Inline-code math promotion for better typesetting
-
-### Voice
-
-- Speech-to-text input
-- TTS playback with persisted state
-- Safe interruption on new responses
-
-## PWA Stack
-
-- `site.webmanifest` with shortcuts, launch handler, share target
-- `sw.js` with:
-  - navigation preload
-  - network-first pages
-  - stale-while-revalidate static assets
-  - cache-first images
-  - runtime cache trimming
-  - update/client messaging events
-
-## Browser Notes
-
-- Best on Chrome/Edge desktop and Android
-- Voice recognition typically needs HTTPS or localhost
-- iOS Safari has platform-specific voice/install limitations
-
-## Deployment
-
-Works on static hosting (GitHub Pages, Netlify, Vercel static, etc.) as long as root contains:
+Works on static hosting (GitHub Pages, Netlify, Vercel static, etc.) as long as these are in root:
 
 - `index.html`
 - `sw.js`
 - `site.webmanifest`
-- icon files referenced by the manifest
+- icon files used by the manifest
 
 ## Author
 
 Muhammad Taezeem Tariq Matta
 
+Built with caffeine, chaos, and clean UI energy ⚡
