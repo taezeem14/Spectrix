@@ -9,8 +9,6 @@ Production-grade, installable AI chat web app with voice input/output, streaming
 
 ## Screenshots
 
-> Add your screenshots in a `screenshots/` folder at project root.
-
 ![Spectrix Main UI](screenshots/spectrix-main.png)
 ![Spectrix Chat + Math](screenshots/spectrix-math.png)
 
@@ -103,3 +101,4 @@ Works on static hosting (GitHub Pages, Netlify, Vercel static, etc.) as long as 
 ## Author
 
 Muhammad Taezeem Tariq Matta
+
