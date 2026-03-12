@@ -1379,18 +1379,14 @@ const TTS_KEY = 'Spectrix_tts';
 const IOS_HINT_KEY = 'Spectrix_ios_hint_dismissed';
 const MAX_PROMPT_CHARS = 8000;
 const MATH_FORMAT_SYSTEM_PROMPT = `
-When writing mathematics, use valid MathJax LaTeX syntax.
+When writing mathematics, use valid MathJax / KaTeX LaTeX syntax.
 
-Inline math must use:
-\\( ... \\)
-
-Display equations must use:
-\\[ ... \\]
-
-Rules:
-- Never use square brackets [ ... ] for math.
+CRITICAL RULES:
+- ALWAYS wrap display equations in $$ ... $$
+- ALWAYS wrap inline math in $ ... $ or \\( ... \\)
+- NEVER leave bare LaTeX commands like \\int or \\frac without math delimiters.
+- NEVER use square brackets [ ... ] for math.
 - Never invent separators like ; or , inside formulas.
-- Use proper LaTeX commands like \\frac{}, \\sqrt{}, \\sin, \\ln.
 - Do not wrap math inside code blocks.
 - Use \\begin{aligned} ... \\end{aligned} for multi-line equations.
 `;
@@ -2194,9 +2190,10 @@ function normalizeMathMarkup(text) {
     return `$${candidate}$`;
   });
 
-  normalized = normalized.replace(/(^|\n)(\s*)(\\(?:int|sum|prod|frac|sqrt|lim|theta|alpha|beta|gamma|Delta|lambda|pi)\b[^\n]*)(?=\n|$)/gi, (full, lead, indent, expr) => {
+  // Rescue bare LaTeX commands by wrapping them to the end of the line
+  normalized = normalized.replace(/(^|\n|- |\* |(?<= ))(\\(?:int|sum|prod|frac|sqrt|lim|theta|alpha|beta|gamma|Delta|lambda|pi)\b[^\n]*)(?=\n|$)/gi, (full, lead, expr) => {
     const cleaned = expr.trim().replace(/^\$\$?|\$\$?$/g, '');
-    return `${lead}${indent}$$${cleaned}$$`;
+    return `${lead}$$${cleaned}$$`;
   });
 
   return normalized;
@@ -2529,7 +2526,7 @@ You are a smart assistant that generates short chat titles.
 - Keep it plain, punchy, and readable.
 - Summarize the essence of the conversation, not just copy words.
 - Avoid special characters or excessive punctuation.
-- Keep it under 4 characters.
+- Keep it under 30 characters.
 `
           },
           {
