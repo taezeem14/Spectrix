@@ -2186,6 +2186,16 @@ function normalizeMathMarkup(text) {
 
   let normalized = String(text);
 
+  // Fix common AI LaTeX mistakes: square brackets used where curly braces are required.
+  // \frac[a][b] → \frac{a}{b}  (all four mixed-bracket combos)
+  normalized = normalized.replace(/\\frac\[([^\]\n]*)\]\[([^\]\n]*)\]/g, '\\frac{$1}{$2}');
+  normalized = normalized.replace(/\\frac\{([^}\n]*)\}\[([^\]\n]*)\]/g, '\\frac{$1}{$2}');
+  normalized = normalized.replace(/\\frac\[([^\]\n]*)\]\{([^}\n]*)\}/g, '\\frac{$1}{$2}');
+  // _[x] → _{x}  and  ^[x] → ^{x}  (subscript / superscript with square brackets)
+  normalized = normalized.replace(/([_^])\[([^\]\n]*)\]/g, '$1{$2}');
+  // _{x]  →  _{x}  and  ^{x]  →  ^{x}  (mismatched closing bracket)
+  normalized = normalized.replace(/([_^])\{([^{}\]\n]*)\]/g, '$1{$2}');
+
   // Convert LaTeX math delimiters to dollar-sign delimiters
   // \[ and \] → $$
   normalized = normalized.replace(/\\\[/g, '$$$$').replace(/\\\]/g, '$$$$');
@@ -2304,22 +2314,74 @@ function sanitizeMarkdownHtml(rawHtml) {
   return root.innerHTML;
 }
 
+// Register a custom marked.js extension so $$...$$ and $...$ math blocks
+// are treated as first-class tokens and never mangled by the markdown renderer.
+function ensureMathExtension() {
+  if (!window.marked || window._spectrixMathExt) return;
+  try {
+    window.marked.use({
+      extensions: [
+        {
+          name: 'blockMath',
+          level: 'block',
+          start(src) {
+            const i = src.indexOf('$$');
+            return i === -1 ? Infinity : i;
+          },
+          tokenizer(src) {
+            const m = /^\$\$([\s\S]+?)\$\$/.exec(src);
+            if (m) return { type: 'blockMath', raw: m[0], math: m[1] };
+          },
+          renderer(tok) {
+            return '$$' + tok.math + '$$\n';
+          }
+        },
+        {
+          name: 'inlineMath',
+          level: 'inline',
+          start(src) {
+            let i = src.indexOf('$');
+            // Skip $$ positions (handled by blockMath)
+            while (i !== -1 && src[i + 1] === '$') i = src.indexOf('$', i + 2);
+            return i === -1 ? Infinity : i;
+          },
+          tokenizer(src) {
+            const m = /^\$(?!\$)([^\$\n]+?)\$(?!\$)/.exec(src);
+            if (m) return { type: 'inlineMath', raw: m[0], math: m[1] };
+          },
+          renderer(tok) {
+            return '$' + tok.math + '$';
+          }
+        }
+      ]
+    });
+    window._spectrixMathExt = true;
+  } catch (e) {
+    console.warn('Spectrix: marked math extension unavailable:', e);
+  }
+}
+
 function renderMarkdownSafely(content) {
   const text = preprocess(String(content));
   if (!window.marked) return text;
 
-  // Shield math blocks from the markdown parser so it cannot
-  // destroy LaTeX backslashes, underscores, braces, etc.
+  ensureMathExtension();
+
+  // If the marked math extension registered, math tokens are handled natively.
+  if (window._spectrixMathExt) {
+    const parsed = marked.parse(text);
+    return sanitizeMarkdownHtml(parsed);
+  }
+
+  // Fallback: extract all $$ / $ blocks before marked.parse() so
+  // backslashes and braces are never touched by the markdown renderer.
   const mathStore = [];
   let shielded = text;
 
-  // Shield display math $$...$$ (can span multiple lines)
   shielded = shielded.replace(/\$\$([\s\S]+?)\$\$/g, (match) => {
     mathStore.push(match);
     return 'MATHPH' + (mathStore.length - 1) + 'ENDPH';
   });
-
-  // Shield inline math $...$ (single line, non-empty)
   shielded = shielded.replace(/\$([^\$\n]+?)\$/g, (match) => {
     mathStore.push(match);
     return 'MATHPH' + (mathStore.length - 1) + 'ENDPH';
@@ -2328,7 +2390,6 @@ function renderMarkdownSafely(content) {
   const parsed = marked.parse(shielded);
   let result = sanitizeMarkdownHtml(parsed);
 
-  // Restore math blocks (HTML-escaped so innerHTML stays safe)
   for (let i = 0; i < mathStore.length; i++) {
     const escaped = mathStore[i]
       .replace(/&/g, '&amp;')
