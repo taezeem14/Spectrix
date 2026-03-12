@@ -2178,22 +2178,23 @@ function normalizeMathMarkup(text) {
 
   let normalized = String(text);
 
-  // Convert LaTeX math delimiters to markdown-friendly ones
-  // \[ and \] to $$
+  // Convert LaTeX math delimiters to dollar-sign delimiters
+  // \[ and \] → $$
   normalized = normalized.replace(/\\\[/g, '$$$$').replace(/\\\]/g, '$$$$');
-  // \( and \) to $
+  // \( and \) → $
   normalized = normalized.replace(/\\\(/g, '$$').replace(/\\\)/g, '$$');
 
+  // Promote inline code `...` to $...$ if it looks like math
   normalized = normalized.replace(/`([^`\n]+)`/g, (full, inner) => {
     if (!looksLikeMathExpression(inner)) return full;
     const candidate = inner.trim().replace(/^\$+|\$+$/g, '');
     return `$${candidate}$`;
   });
 
-  // Rescue bare LaTeX commands by wrapping them to the end of the line
-  normalized = normalized.replace(/(^|\n|- |\* |(?<= ))(\\(?:int|sum|prod|frac|sqrt|lim|theta|alpha|beta|gamma|Delta|lambda|pi)\b[^\n]*)(?=\n|$)/gi, (full, lead, expr) => {
-    const cleaned = expr.trim().replace(/^\$\$?|\$\$?$/g, '');
-    return `${lead}$$${cleaned}$$`;
+  // Rescue bare LaTeX commands at start of a line only (avoids double-wrapping)
+  normalized = normalized.replace(/(^|\n)([ \t]*(?:[-*] )?)(\\(?:int|sum|prod|frac|sqrt|lim|theta|alpha|beta|gamma|Delta|lambda|pi)\b[^\n]*)(?=\n|$)/gi, (full, lead, indent, expr) => {
+    if (/^\$/.test(expr.trim())) return full;
+    return `${lead}${indent}$$${expr.trim()}$$`;
   });
 
   return normalized;
@@ -2292,8 +2293,37 @@ function sanitizeMarkdownHtml(rawHtml) {
 function renderMarkdownSafely(content) {
   const text = preprocess(String(content));
   if (!window.marked) return text;
-  const parsed = marked.parse(text);
-  return sanitizeMarkdownHtml(parsed);
+
+  // Shield math blocks from the markdown parser so it cannot
+  // destroy LaTeX backslashes, underscores, braces, etc.
+  const mathStore = [];
+  let shielded = text;
+
+  // Shield display math $$...$$ (can span multiple lines)
+  shielded = shielded.replace(/\$\$([\s\S]+?)\$\$/g, (match) => {
+    mathStore.push(match);
+    return 'MATHPH' + (mathStore.length - 1) + 'ENDPH';
+  });
+
+  // Shield inline math $...$ (single line, non-empty)
+  shielded = shielded.replace(/\$([^\$\n]+?)\$/g, (match) => {
+    mathStore.push(match);
+    return 'MATHPH' + (mathStore.length - 1) + 'ENDPH';
+  });
+
+  const parsed = marked.parse(shielded);
+  let result = sanitizeMarkdownHtml(parsed);
+
+  // Restore math blocks (HTML-escaped so innerHTML stays safe)
+  for (let i = 0; i < mathStore.length; i++) {
+    const escaped = mathStore[i]
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    result = result.split('MATHPH' + i + 'ENDPH').join(escaped);
+  }
+
+  return result;
 }
 
 function decorateCodeBlocks(container) {
