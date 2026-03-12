@@ -1373,31 +1373,27 @@ const TTS_KEY = 'Spectrix_tts';
 const IOS_HINT_KEY = 'Spectrix_ios_hint_dismissed';
 const MAX_PROMPT_CHARS = 8000;
 const MATH_FORMAT_SYSTEM_PROMPT = `
-When writing mathematical expressions, always format them using LaTeX so they can render with MathJax.
+When writing mathematics, always use LaTeX wrapped in MathJax delimiters.
 
 Rules:
-- Inline math must use: $...$
-- Display equations must use: $$...$$
-- Multi-step calculations should place each major equation in its own $$...$$ block.
-- Fractions must use \\frac{a}{b}.
-- Exponents must use ^.
-- Square roots must use \\sqrt{}.
+- Inline math must be written as $...$
+- Display equations must be written as $$...$$
+- Every LaTeX expression must be inside one of these delimiters
+- Never output raw LaTeX like \\frac{a}{b} without $ or $$
 
-Formatting rules:
-- Never wrap math expressions in backticks.
-- Never use [ ... ] for math.
-- Only use fenced code blocks for actual programming code.
-- Explanations should be plain text, while equations appear in LaTeX blocks.
+Never use:
+( \\frac{a}{b} )
+[ \\frac{a}{b} ]
 
-Example format:
+Correct examples:
 
-Explanation text.
+Inline:
+$\\frac{1}{4}$
 
+Display:
 $$
-x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}
+\\frac{13}{16} > \\frac{6}{9}
 $$
-
-Continue explanation normally.
 `;
 const API_WORKER_HOST = ['hac', 'koai-worker.tariqmtaezeem.workers.dev'].join('');
 const CHAT_API_URL = `https://${API_WORKER_HOST}/chat`;
