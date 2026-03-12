@@ -2182,6 +2182,12 @@ function normalizeMathMarkup(text) {
 
   let normalized = String(text);
 
+  // Convert LaTeX math delimiters to markdown-friendly ones
+  // \[ and \] to $$
+  normalized = normalized.replace(/\\\[/g, '$$$$').replace(/\\\]/g, '$$$$');
+  // \( and \) to $
+  normalized = normalized.replace(/\\\(/g, '$$').replace(/\\\)/g, '$$');
+
   normalized = normalized.replace(/`([^`\n]+)`/g, (full, inner) => {
     if (!looksLikeMathExpression(inner)) return full;
     const candidate = inner.trim().replace(/^\$+|\$+$/g, '');
