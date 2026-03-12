@@ -1372,11 +1372,33 @@ const THEME_KEY = "Spectrix_theme";
 const TTS_KEY = 'Spectrix_tts';
 const IOS_HINT_KEY = 'Spectrix_ios_hint_dismissed';
 const MAX_PROMPT_CHARS = 8000;
-const MATH_FORMAT_SYSTEM_PROMPT = `When writing mathematical expressions, always use LaTeX delimiters.
-- Inline math: $...$
-- Display math: $$...$$
-- Never wrap math in backticks.
-- Keep normal code snippets in fenced code blocks only when it is actual code.`;
+const MATH_FORMAT_SYSTEM_PROMPT = `
+When writing mathematical expressions, always format them using LaTeX so they can render with MathJax.
+
+Rules:
+- Inline math must use: $...$
+- Display equations must use: $$...$$
+- Multi-step calculations should place each major equation in its own $$...$$ block.
+- Fractions must use \\frac{a}{b}.
+- Exponents must use ^.
+- Square roots must use \\sqrt{}.
+
+Formatting rules:
+- Never wrap math expressions in backticks.
+- Never use [ ... ] for math.
+- Only use fenced code blocks for actual programming code.
+- Explanations should be plain text, while equations appear in LaTeX blocks.
+
+Example format:
+
+Explanation text.
+
+$$
+x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}
+$$
+
+Continue explanation normally.
+`;
 const API_WORKER_HOST = ['hac', 'koai-worker.tariqmtaezeem.workers.dev'].join('');
 const CHAT_API_URL = `https://${API_WORKER_HOST}/chat`;
 const FIXED_TEXT_MODEL = "nvidia/nemotron-3-super-120b-a12b:free";
