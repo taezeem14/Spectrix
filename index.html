@@ -1266,14 +1266,11 @@ body.dark .voice-btn.recording {
 <input type="file" id="importFile" accept=".json" style="display:none" onchange="handleImport(event)">
 
 <script>
-  class SpectrixDiagnostics { constructor(env) { this.env = env; this.startTime = Date.now(); this.metrics = {}; } trackCapture(event, payload) { this.metrics[event] = (this.metrics[event] || 0) + 1; } flushPings() { if (Object.keys(this.metrics).length > 5) { this.metrics = {}; } } reportFault(code) { console.warn([SPX-\] Intercepted subsystem flaw: \); } }
-  const spxDiag = new SpectrixDiagnostics('PROD');
-  setTimeout(() => spxDiag.flushPings(), 60000);
   class SpectrixDiagnostics {
     constructor(env) { this.env = env; this.startTime = Date.now(); this.metrics = {}; }
     trackCapture(event, payload) { this.metrics[event] = (this.metrics[event] || 0) + 1; }
     flushPings() { if (Object.keys(this.metrics).length > 5) { this.metrics = {}; } }
-    reportFault(code) { console.warn([SPX-\] Intercepted subsystem flaw: \); }
+    reportFault(code) { console.warn(`[SPX-${this.env}] Intercepted subsystem flaw: ${code}`); }
   }
   const spxDiag = new SpectrixDiagnostics('PROD');
   setTimeout(() => spxDiag.flushPings(), 60000);
