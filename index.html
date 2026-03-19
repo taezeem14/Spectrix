@@ -890,6 +890,35 @@ body.dark .voice-btn.recording {
   cursor: not-allowed;
 }
 
+/* ===== SEARCH TOGGLE ===== */
+.search-toggle-btn {
+  position: relative;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--chat);
+  color: var(--text);
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.search-toggle-btn:hover {
+  border-color: var(--user);
+}
+
+.search-toggle-btn.active {
+  background: var(--user);
+  color: #fff;
+  border-color: var(--user);
+  box-shadow: 0 4px 12px var(--accent-glow);
+}
+
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.6; }
@@ -1072,6 +1101,12 @@ body.dark .voice-btn.recording {
     padding: 0 12px;
     font-size: 14px;
   }
+
+  .search-toggle-btn {
+    min-height: 38px;
+    padding: 0 10px;
+    font-size: 14px;
+  }
 }
 
 @media(max-width:375px){
@@ -1108,6 +1143,12 @@ body.dark .voice-btn.recording {
   .voice-btn {
     min-height: 36px;
     padding: 0 10px;
+    font-size: 14px;
+  }
+
+  .search-toggle-btn {
+    min-height: 36px;
+    padding: 0 8px;
     font-size: 14px;
   }
 }
@@ -1252,6 +1293,7 @@ body.dark .voice-btn.recording {
     <button class="scroll-bottom" id="scrollBottom" onclick="scrollToBottom()" aria-label="Scroll to latest message">↓</button>
 
     <footer>
+      <button class="search-toggle-btn" id="searchToggleBtn" onclick="toggleWebSearch()" aria-label="Toggle web search" title="Web Search: OFF">🌐</button>
       <button class="voice-btn" id="voiceBtn" onclick="toggleVoiceInput()" aria-label="Start voice input">🎤</button>
       <div class="input-container">
         <textarea id="input" placeholder="Type or speak... (Ctrl+B for new chat)" aria-label="Message input"></textarea>
@@ -1391,7 +1433,7 @@ CRITICAL RULES:
 `;
 const API_WORKER_HOST = ['hac', 'koai-worker.tariqmtaezeem.workers.dev'].join('');
 const CHAT_API_URL = `https://${API_WORKER_HOST}/chat`;
-const FIXED_TEXT_MODEL = "nvidia/nemotron-3-super-120b-a12b:free";
+const FIXED_TEXT_MODEL = "stepfun/step-3.5-flash:free";
 const FIXED_VIDEO_MODEL = "ByteDance/Seedance-1.0-lite";
 
 let sessions = {};
@@ -1399,6 +1441,7 @@ let currentId = localStorage.getItem(CURRENT_KEY) || null;
 let lastUserPrompt = null;
 let isGenerating = false;
 let installPrompt;
+let webSearchEnabled = false;
 const themeColorMeta = document.getElementById('themeColorMeta');
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -2003,6 +2046,18 @@ function toggleSidebar() {
 
 if (window.innerWidth <= 768) {
   sidebar.classList.add("is-hidden");
+}
+
+function toggleWebSearch() {
+  webSearchEnabled = !webSearchEnabled;
+  const btn = document.getElementById("searchToggleBtn");
+  if (webSearchEnabled) {
+    btn.classList.add("active");
+    btn.title = "Web Search: ON";
+  } else {
+    btn.classList.remove("active");
+    btn.title = "Web Search: OFF";
+  }
 }
 
 // ===== EXPORT/IMPORT =====
@@ -2819,23 +2874,26 @@ async function send(options = {}) {
         messages.push({ role: "user", content: prompt });
       }
 
-// 🧠 FIRECRAWL SEARCH ENABLED PAYLOAD
+// 🧠 DYNAMIC SEARCH PAYLOAD
 const payload = {
-  model: model + ":online",
-  messages: messages,
-  plugins: [
+  model: webSearchEnabled ? model + ":online" : model,
+  messages: messages
+};
+
+if (webSearchEnabled) {
+  payload.plugins = [
     {
       id: "web",
       engine: "firecrawl",
       max_results: 5
     }
-  ]
-};
+  ];
+}
 
 const res = await fetchWithTimeoutRetry(CHAT_API_URL, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
-  timeoutMs: 30000,
+  timeoutMs: 90000,
   body: JSON.stringify(payload)
 }, 1);
 
