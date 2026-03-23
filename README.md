@@ -6,13 +6,13 @@
 ![Math](https://img.shields.io/badge/Math-KaTeX%20%2B%20MathJax-2563EB)
 
 > ⚡ **Fast. Smart. Offline-ready.**
-> Spectrix AI is a next-gen AI chat app built for **students, developers, and productivity nerds**.
+> Spectrix AI is a next-gen AI chat app built for **students, developers, and productivity nerds** by **student**.
 
 ---
 
 ## 🚀 What is Spectrix?
 
-**Spectrix AI** is a **high-performance AI chat application** designed for:
+**Spectrix AI** is a **high-performance AI-Driven ChatBot application** designed for:
 
 * 📚 Homework & learning
 * 💻 Coding & problem solving
