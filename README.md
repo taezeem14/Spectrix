@@ -5,42 +5,87 @@
 ![Vanilla JS](https://img.shields.io/badge/Stack-Vanilla%20JS-F7DF1E?logo=javascript\&logoColor=111)
 ![Math](https://img.shields.io/badge/Math-KaTeX%20%2B%20MathJax-2563EB)
 
-**Spectrix AI** is a fast, clean, and powerful AI chat application designed for **homework, learning, and general productivity**.
-It supports **real-time streaming responses, voice interaction, math rendering, and PWA installation**, making it feel like a real desktop/mobile app.
-
-Short version: **it cooks. 🔥**
+> ⚡ **Fast. Smart. Offline-ready.**
+> Spectrix AI is a next-gen AI chat app built for **students, developers, and productivity nerds**.
 
 ---
 
-# Why Spectrix Slaps 🚀
+## 🚀 What is Spectrix?
 
-Spectrix is designed to feel **fast, modern, and smooth**, not like a slow academic tool.
+**Spectrix AI** is a **high-performance AI chat application** designed for:
 
-Key features:
+* 📚 Homework & learning
+* 💻 Coding & problem solving
+* 🧠 Math-heavy workflows
+* ⚡ Everyday productivity
 
-* ⚡ **Real-time streaming responses** with 60 FPS guaranteed math-rendering optimizations`n* 💬 **Real-time streaming responses** – messages appear instantly instead of waiting
-* 🎤 **Voice input** + 🔊 **Text-to-speech output** for hands-free interaction
-* 🧠 **Math-friendly chat** with KaTeX + MathJax rendering`n* 📋 **Smart Math UI** featuring floating "Copy LaTeX" functionality directly on equations
-* 🎨 `/img` and 🎬 `/vid` commands for media generation
-* ✏️ **Retry + Edit system** that avoids duplicate or broken messages
-* 📦 **Progressive Web App (PWA)** – install Spectrix like a native app
-* 📡 **Offline-ready shell** with smart caching
+It delivers a **real-time, app-like experience** with streaming responses, voice interaction, and advanced math rendering — all inside a lightweight PWA.
 
-Basically: **AI chat that feels fast and modern instead of clunky.**
+👉 **Short version:** *it cooks. 🔥*
 
 ---
 
-# Screenshots 📸
+## ⚡ Why Spectrix Hits Different
+
+Spectrix isn’t just another AI wrapper.
+It’s engineered for **speed, control, and real-world usability**.
+
+### 🧠 Core Features
+
+* ⚡ **Real-time streaming responses**
+  Messages render instantly — no waiting, no blocking.
+
+* 🎤 **Voice input + 🔊 Text-to-Speech**
+  Fully hands-free interaction.
+
+* 🧮 **Advanced Math Engine**
+  Powered by **KaTeX + MathJax** with:
+
+  * smooth 60 FPS rendering
+  * floating **Copy LaTeX** UI
+
+* 🌐 **Optional Web Search Mode**
+  Toggle live search when you need **fresh, real-time data**.
+
+* 🎨 **Media Generation Commands**
+
+  * `/img` → generate images
+  * `/vid` → generate videos
+
+* ✏️ **Retry + Edit System**
+  Fix prompts without breaking chat flow.
+
+* 📦 **Installable PWA**
+  Works like a real app on desktop & mobile.
+
+* 📡 **Offline-ready architecture**
+  Core UI loads even without internet.
+
+---
+
+## 🧠 Under the Hood (What Makes It Powerful)
+
+Spectrix is not just UI — it’s a **full AI system**:
+
+* ⚡ **Cloudflare Worker backend**
+* 🔑 **API key rotation system** (better reliability under limits)
+* 🌐 **Web search integration** (Firecrawl via OpenRouter)
+* 🤖 **High-performance LLM routing (OpenRouter)**
+
+👉 Result: **fast, stable, real-time AI responses**
+
+---
+
+## 📸 Screenshots
 
 ![Spectrix Main UI](screenshots/spectrix-main.png)
-
 ![Spectrix Math Chat](screenshots/spectrix-math.png)
 
 ---
 
-# Quick Start (No Drama) ⚡
+## ⚡ Quick Start
 
-Run a local server in the project root:
+Run locally:
 
 ```bash
 npx serve .
@@ -52,112 +97,104 @@ or
 python -m http.server 5500
 ```
 
-or use **VS Code Live Server**.
-
 Then open:
 
 ```
 http://127.0.0.1:5500
 ```
 
-Boom. Spectrix is live. 🔥
+🔥 Done. Spectrix is live.
 
 ---
 
-# Commands 🧠
+## 🧠 Commands
 
-Spectrix supports simple command-style prompts:
+Simple command system:
 
-`/img your prompt`
+```bash
+/img your prompt
+```
+
 → generate an image
 
-`/vid your prompt`
+```bash
+/vid your prompt
+```
+
 → generate a video
 
-These commands trigger the media generation pipeline.
+---
+
+## 💻 Tech Stack
+
+Built for **performance + simplicity**:
+
+* Vanilla **HTML, CSS, JavaScript**
+* **IndexedDB** (persistent storage)
+* **Service Workers** (offline + caching)
+* **Web Speech API** (voice + TTS)
+* **Highlight.js** (code rendering)
+* **Markdown pipeline**
+* **KaTeX + MathJax** (math rendering)
+
+👉 **No heavy frameworks. No bloat. Just speed.**
 
 ---
 
-# Tech Stack 💻
-
-Spectrix intentionally uses **minimal dependencies** to stay lightweight.
-
-Core technologies:
-
-* **Vanilla HTML, CSS, JavaScript**
-* **IndexedDB** for persistent chat and media storage
-* **Web Speech API** for voice input and TTS output
-* **Service Worker + Web Manifest** for PWA support
-* **Highlight.js** for syntax highlighting
-* **Markdown rendering pipeline**
-* **KaTeX + MathJax** for advanced math display
-
-Result: **fast load times and zero heavy frameworks.**
-
----
-
-# Project Structure 📂
+## 📂 Project Structure
 
 ```
 /
 ├── index.html
 ├── sw.js
+├── worker.js
 ├── site.webmanifest
 ├── robots.txt
-├── worker.js
 └── README.md
 ```
 
-Minimal structure → easier to maintain and deploy.
+Minimal = maintainable.
 
 ---
 
-# PWA Features 📱
+## 📱 PWA Capabilities
 
-Spectrix runs like a **real installable app**.
-
-Capabilities include:
-
-* Installable standalone experience
-* Offline-ready application shell
-* Navigation preload for faster page loads
-* Runtime caching strategies
+* Installable standalone app
+* Offline-first UI shell
+* Smart caching strategies
+* Navigation preload
 * Manifest shortcuts
 * Share-target support
-* Automatic service worker update handling
 
-Once installed, Spectrix behaves almost like a **native app**.
+👉 Feels like a native app.
 
 ---
 
-# Browser Support 🌐
+## 🌐 Browser Support
 
-Best experience:
+**Best:**
 
 * Chrome
-* Microsoft Edge
+* Edge
 * Chromium-based browsers
-* Android browsers with PWA support
 
-Notes:
+**Notes:**
 
-* Voice input usually requires **HTTPS or localhost**
-* iOS Safari has **limited PWA and voice support**
+* Voice requires HTTPS or localhost
+* iOS Safari = limited PWA support
 
 ---
 
-# Deployment 🚀
+## 🚀 Deployment
 
-Spectrix works on **any static hosting platform**.
-
-Examples:
+Works on any static host:
 
 * GitHub Pages
 * Netlify
-* Vercel (static mode)
+* Vercel (static)
 * Cloudflare Pages
 
-Make sure these files are in the root:
+Required files:
 
 ```
 index.html
@@ -165,16 +202,22 @@ sw.js
 site.webmanifest
 ```
 
-Also include the icons referenced in the manifest.
-
 ---
 
-# Author 👨‍💻
+## 👨‍💻 Author
 
 **Muhammad Taezeem Tariq Matta**
 
-Student developer, builder, and experimenter in AI tools.
+Student developer building fast, modern AI tools.
 
-Built with **caffeine, chaos, and clean UI energy. ⚡🔥**
+> Built with caffeine, chaos, and clean UI energy ⚡🔥
 
+---
 
+## ⭐ Final Note
+
+Spectrix isn’t trying to be another chatbot.
+
+It’s trying to be:
+
+> **the fastest, cleanest AI experience you’ve ever used.**
