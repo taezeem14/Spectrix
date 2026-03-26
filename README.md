@@ -6,6 +6,7 @@
 ![Math](https://img.shields.io/badge/Math-KaTeX%20%2B%20MathJax-2563EB)
 
 > ⚡ **Fast. Smart. Offline-ready.**
+> A next-gen AI chat app engineered for **students, developers, and productivity nerds**.
 > Spectrix AI is a next-gen AI chat app built for **students, developers, and productivity nerds** — combining **AI-assisted engineering** with human design and direction.
 
 ---
@@ -13,20 +14,20 @@
 ## 🌐 Live Demo
 
 🚀 **Try it now:**
-👉 [https://spectrix.netlify.app](https://spectrix.netlify.app)
+👉 https://spectrix.netlify.app
 
-🌍 **Custom Domain (Vanity URL):**
-👉 [https://taezeem.is-a.dev/spectrix](https://taezeem.is-a.dev/Spectrix)
+🌍 **Custom Domain:**
+👉 https://taezeem.is-a.dev/spectrix
 
 ---
 
 ## 🚀 What is Spectrix?
 
-**Spectrix AI** is a **high-performance AI-driven chatbot application** designed for:
+**Spectrix AI** is a **high-performance AI chatbot** built for real-world workflows:
 
 * 📚 Homework & learning
-* 💻 Coding & problem solving
-* 🧠 Math-heavy workflows
+* 💻 Coding & debugging
+* 🧠 Math-heavy problem solving
 * ⚡ Everyday productivity
 
 It delivers a **real-time, app-like experience** with streaming responses, voice interaction, and advanced math rendering — all inside a lightweight PWA.
@@ -35,25 +36,48 @@ It delivers a **real-time, app-like experience** with streaming responses, voice
 
 ---
 
-## 💡 How It Was Built
+## 🎯 Why I Built This
 
-Spectrix was developed using an **AI-assisted workflow**:
+Most AI tools are:
 
-* 🧠 Core logic and systems were generated using AI
-* 🛠️ Refined, edited, and debugged manually
-* 🎯 Directed with a strong focus on performance, UX, and real-world usability
+* slow
+* bloated
+* or not designed for actual workflows
 
-> This project reflects a modern development approach:
-> **leveraging AI as a tool, not a replacement for thinking.**
+Spectrix was built to fix that:
+
+⚡ fast responses
+🧠 powerful reasoning
+📱 app-like experience
+
+All in one place.
 
 ---
 
-## ⚡ Why Spectrix Hits Different
+## 📊 Development Stats
 
-Spectrix isn’t just another AI wrapper.
-It’s engineered for **speed, control, and real-world usability**.
+* 🗓️ Built over **3 months**
+* 🧠 **467 commits**
+* 🚀 **228 deployments**
+* 🔁 Continuous iteration cycle
 
-### 🧠 Core Features
+> build → test → deploy → refine
+
+---
+
+## 💡 How It Was Built
+
+Spectrix follows an **AI-assisted engineering workflow**:
+
+* 🧠 AI generates core logic
+* 🛠️ Code is manually refined & debugged
+* 🎯 Designed with performance + UX in mind
+
+> **AI is the tool — not the brain.**
+
+---
+
+## ⚡ Core Features
 
 * ⚡ **Real-time streaming responses**
 * 🎤 **Voice input + 🔊 Text-to-Speech**
@@ -63,26 +87,37 @@ It’s engineered for **speed, control, and real-world usability**.
 * ✏️ **Retry + Edit System**
 * 📦 **Installable PWA**
 * 📡 **Offline-ready architecture**
+* 💾 **Persistent chat storage (IndexedDB)**
 
 ---
 
 ## 🧠 Under the Hood
 
-* ⚡ Cloudflare Worker backend
-* 🔑 API key rotation system
-* 🌐 Web search (Firecrawl via OpenRouter)
-* 🤖 LLM routing via OpenRouter
+* ⚡ Cloudflare Workers (edge backend)
+* 🔑 Smart API key rotation
+* 🌐 Firecrawl web search (via OpenRouter)
+* 🤖 Multi-model routing (OpenRouter)
 
-👉 Result: **fast, stable, real-time AI responses**
+👉 Result:
+**low latency, high reliability, real-time AI responses**
+
+---
+
+## 🧪 Use Cases
+
+* 📚 Solve math problems with clean LaTeX rendering
+* 💻 Debug and generate code
+* 🧠 Research topics with optional web access
+* ⚡ Daily productivity & quick answers
 
 ---
 
 ## 📸 Screenshots
 
-![Spectrix Main UI](screenshots/spectrix-main.png)
+![Main UI](screenshots/spectrix-main.png)
 *⚡ Real-time streaming interface*
 
-![Spectrix Math Chat](screenshots/spectrix-math.png)
+![Math Chat](screenshots/spectrix-math.png)
 *🧮 Math rendering in action*
 
 ---
@@ -109,50 +144,31 @@ http://127.0.0.1:5500
 
 ## 💻 Tech Stack
 
-* Framework-free HTML, CSS, JavaScript
+* HTML, CSS, JavaScript (framework-free)
 * IndexedDB
-* Service Workers
+* Service Workers (PWA)
 * Web Speech API
-* Highlight.js
-* Markdown pipeline
+* Markdown + Highlight.js
 * KaTeX + MathJax
 
 ---
 
-## 🧠 Model Control (Pick Your Brain ⚡)
+## 🧠 Model Control
 
-Spectrix lets you switch between different AI “modes” right from the header — depending on what you need.
+Switch between AI modes directly in the app:
 
 ### ⚡ Quick Mode
 
 `stepfun/step-3.5-flash:free`
-Fast. Snappy. Gets things done instantly.
-Perfect for chats, quick answers, and everyday use.
+Fast and responsive — perfect for everyday use.
 
 ### 🧠 Reasoning Mode
 
 `nvidia/nemotron-3-super-120b-a12b:free`
-Slower, but way smarter.
-Built for deep thinking, coding, and complex problems.
+Slower, but more powerful — ideal for complex tasks.
 
----
-
-💾 Your selected model is saved automatically in your browser
-(`localStorage → Spectrix_text_model`)
-
-🛠️ Want to tweak it manually?
-You can change the default in `index.html` via:
-
-```js
-FIXED_TEXT_MODEL
-```
-
----
-
-👉 **Quick = speed ⚡** <br>
-👉 **Reasoning = power 🧠**
-
-*choose your weapon.*
+💾 Model preference is saved locally:
+`localStorage → Spectrix_text_model`
 
 ---
 
@@ -160,10 +176,11 @@ FIXED_TEXT_MODEL
 
 **Muhammad Taezeem Tariq Matta**
 
-> Built with AI, refined with intent ⚡🔥
+> Built with AI. Refined with intent. ⚡🔥
 
 ---
 
 ## ⭐ Final Note
 
-> **the fastest, cleanest AI experience you’ve ever used.**
+> Not just another AI wrapper.
+> A system built for speed, control, and real-world use. ⚡
