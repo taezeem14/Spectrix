@@ -53,16 +53,23 @@ All in one place.
 
 ---
 
-## 📊 Development Stats
+## 📊 Development Stats (Live)
 
-* 🗓️ Built over **3 months**<br>
-![Commits](https://img.shields.io/github/commit-activity/m/taezeem14/Spectrix)<br>
-![Last Commit](https://img.shields.io/github/last-commit/taezeem14/Spectrix)<br>
-![Deploy Status](https://api.netlify.com/api/v1/badges/ffee7a14-ee63-4633-b49f-388084446cdb/deploy-status)<br>
-* 🔁 Continuous iteration cycle
+* 🗓️ Built over **3 months**
+
+<div align="center">
+
+![Commits](https://img.shields.io/github/commit-activity/m/taezeem14/Spectrix?style=for-the-badge&color=7C3AED)
+![Last Commit](https://img.shields.io/github/last-commit/taezeem14/Spectrix?style=for-the-badge&color=10B981)
+![Repo Size](https://img.shields.io/github/repo-size/taezeem14/Spectrix?style=for-the-badge&color=2563EB)
+
+![Deploy Status](https://api.netlify.com/api/v1/badges/ffee7a14-ee63-4633-b49f-388084446cdb/deploy-status)
+
+</div>
+
+* 🔁 Continuous iteration cycle  
 
 > build → test → deploy → refine
-
 ---
 
 ## 💡 How It Was Built
