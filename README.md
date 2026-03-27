@@ -52,7 +52,6 @@ Spectrix was built to fix that:
 All in one place.
 
 ---
-
 ## 📊 Development Stats (Live)
 
 * 🗓️ Built over **3 months**
@@ -62,6 +61,7 @@ All in one place.
 ![Commits](https://img.shields.io/github/commit-activity/m/taezeem14/Spectrix?style=for-the-badge&color=7C3AED)
 ![Last Commit](https://img.shields.io/github/last-commit/taezeem14/Spectrix?style=for-the-badge&color=10B981)
 ![Repo Size](https://img.shields.io/github/repo-size/taezeem14/Spectrix?style=for-the-badge&color=2563EB)
+![Stars](https://img.shields.io/github/stars/taezeem14/Spectrix?style=for-the-badge&color=FACC15)
 
 ![Deploy Status](https://api.netlify.com/api/v1/badges/ffee7a14-ee63-4633-b49f-388084446cdb/deploy-status)
 
