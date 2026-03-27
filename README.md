@@ -55,7 +55,7 @@ All in one place.
 
 ## 📊 Development Stats
 
-* 🗓️ Built over **3 months**
+* 🗓️ Built over **3 months**<br>
 ![Commits](https://img.shields.io/github/commit-activity/m/taezeem14/Spectrix)<br>
 ![Last Commit](https://img.shields.io/github/last-commit/taezeem14/Spectrix)<br>
 ![Deploy Status](https://api.netlify.com/api/v1/badges/ffee7a14-ee63-4633-b49f-388084446cdb/deploy-status)<br>
