@@ -3303,16 +3303,29 @@ const res = await fetchWithTimeoutRetry(CHAT_API_URL, {
       isGenerating = false;
 
       if (shouldAutoTitle) {
-        try {
-          const title = await generateTitle(firstUserPrompt, answer);
-          session.title = title;
-          session.autoTitled = true;
-          await saveSessions();
-          updateHeaderTitle();
-        } catch (err) {
-          console.error("Auto-title fallback:", err);
-        }
+  // Fallback title immediately from prompt words
+  const quickTitle = firstUserPrompt
+    .replace(/\s+/g, ' ').trim()
+    .split(' ').slice(0, 5).join(' ');
+  session.title = quickTitle;
+  session.autoTitled = true;
+  await saveSessions();
+  updateHeaderTitle();
+
+  // Then try to generate a better title after a delay
+  setTimeout(async () => {
+    try {
+      const betterTitle = await generateTitle(firstUserPrompt, answer);
+      if (betterTitle && betterTitle !== 'New Chat') {
+        session.title = betterTitle;
+        await saveSessions();
+        updateHeaderTitle();
       }
+    } catch (err) {
+      console.warn('Better title generation failed, keeping quick title:', err);
+    }
+  }, 6000); // 6s — after memory extraction (3s) finishes
+}
 
       // 🧠 Extract memories from this exchange
       if (memoryEnabled) {
