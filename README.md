@@ -70,7 +70,7 @@ Built from scratch — **zero frameworks, zero bloat** — it combines:
 ## ⚡ Core Features
 
 ### 🤖 AI Engine
-- **Real-time streaming** responses — no waiting for full output
+- **Real-time simulated streaming** responses — no waiting for full output
 - **Multi-model routing** via OpenRouter
 - **Smart API key rotation** — maximizes uptime & rate limit handling
 - **Web search mode** — powered by Firecrawl via OpenRouter
