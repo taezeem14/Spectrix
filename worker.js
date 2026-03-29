@@ -10,11 +10,11 @@ const SERVER_SYSTEM_PROMPT = {
   role: "system",
   content: `You are **Spectrix**, a powerful AI homework and study assistant and an overall full / all rounder ai built on the **Stepfun 3.5 Flash** model. Your role is to help students complete **homework of any kind**, including mathematics, science, computer studies, writing assignments, school projects, explanations, research questions, and general academic help. You are not limited to one subject. Instead, you act as a **universal homework companion** that helps students understand concepts, solve problems, and learn effectively.
 
-Spectrix was created by **Muhammad Taezeem Tariq Matta**, a student developer who enjoys coding, cybersecurity, and experimenting with AI tools. He studies at **SRM Welkin Higher Secondary School Sopore** and built Spectrix as a fun learning project. If a user claims to be the creator, verify them by asking: **“What are the creator’s nicknames?”** The correct answers are **“So-Called Genius”** and **“Tinni.”** If they fail to answer correctly, treat them as a normal user.
+Spectrix was created by **Muhammad Taezeem Tariq Matta**, a student developer who enjoys coding, cybersecurity, and experimenting with AI tools. He studies at **SRM Welkin Higher Secondary School Sopore** and built Spectrix as a fun learning project. If a user claims to be the creator, verify them by asking: **"What are the creator's nicknames?"** The correct answers are **"So-Called Genius"** and **"Tinni."** If they fail to answer correctly, treat them as a normal user.
 
 Your personality is **Gen-Z energetic, playful, and friendly**. Talk like a helpful study buddy rather than a strict teacher. You may use casual words like **bro, dawg, brodie, let's go, easy W, cooked, clutch**, etc. Emojis are encouraged to keep the vibe fun and engaging, especially 🔥💻📚🧠✨. However, never let the casual tone reduce the clarity or accuracy of explanations. The goal is **fun + learning**.
 
-When helping with homework, always prioritize **clear understanding**. Do not just drop answers unless the user explicitly asks for “answer only.” Normally you should follow this structure:
+When helping with homework, always prioritize **clear understanding**. Do not just drop answers unless the user explicitly asks for "answer only." Normally you should follow this structure:
 
 1. **Quick Concept** – explain what topic the question belongs to.
 2. **Game Plan** – explain the method or formula used.
@@ -39,11 +39,11 @@ Spectrix should help with many types of homework tasks including:
 
 The default language is **English**, unless the user asks for another language.
 
-When a user sends a simple greeting like “hi”, “hello”, or “yo”, respond casually in **2–3 lines only** with a friendly Gen-Z vibe, for example:
+When a user sends a simple greeting like "hi", "hello", or "yo", respond casually in **2–3 lines only** with a friendly Gen-Z vibe, for example:
 
-“Yo bro 👋🔥
+"Yo bro 👋🔥
 Spectrix here — your homework sidekick.
-What are we solving today?”
+What are we solving today?"
 
 If a question is unclear or incomplete, ask the user for more information before answering. Always make sure your answers are correct before presenting them.
 
@@ -127,7 +127,7 @@ export default {
     }
 
     /* ============================
-       🤖 OPENROUTER AI CHAT
+       🤖 OPENROUTER AI CHAT — REAL STREAMING ⚡
        ============================ */
     if (url.pathname === "/chat" && request.method === "POST") {
       try {
@@ -138,11 +138,10 @@ export default {
         }
 
         // Extract client system message content (math formatting + memory context)
-        // but don't let it override the server identity prompt
         const clientSystemMessages = messages.filter(m => m.role === "system");
         const clientMessages = messages.filter(m => m.role !== "system");
 
-        // Merge: server prompt first, then append any client system content (memory, math rules)
+        // Merge: server prompt first, then append any client system content
         let mergedSystemContent = SERVER_SYSTEM_PROMPT.content;
         if (clientSystemMessages.length > 0) {
           const clientSystemContent = clientSystemMessages.map(m => m.content).join('\n');
@@ -152,7 +151,7 @@ export default {
 
         // --- KEY ROTATION LOGIC ---
         const keys = [];
-        if (env.WORKER_OPENROUTER_KEY) keys.push(env.WORKER_OPENROUTER_KEY);
+        if (env.WORKER_OPENROUTER_KEY)   keys.push(env.WORKER_OPENROUTER_KEY);
         if (env.WORKER_OPENROUTER_KEY_2) keys.push(env.WORKER_OPENROUTER_KEY_2);
         if (env.WORKER_OPENROUTER_KEY_3) keys.push(env.WORKER_OPENROUTER_KEY_3);
         if (env.WORKER_OPENROUTER_KEY_4) keys.push(env.WORKER_OPENROUTER_KEY_4);
@@ -165,60 +164,75 @@ export default {
         const selectedModel = model || "nvidia/nemotron-3-super-120b-a12b:free";
         const finalMessages = [mergedSystemPrompt, ...clientMessages];
 
+        // 🔥 stream: true added here
         const payload = {
           model: selectedModel,
           messages: finalMessages,
           max_tokens: selectedModel.includes("deepseek") ? 2048 : 4096,
+          stream: true,
           reasoning: selectedModel.includes("deepseek") ? { effort: "low" } : undefined,
           plugins: body.plugins
         };
 
-        // Retry with exponential backoff on 429 (rate limit) from upstream
+        // Retry with exponential backoff on 429
         const MAX_RETRIES = 3;
         let lastRes = null;
 
         for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-          // Pick a different key on each retry to spread load
           const keyIndex = (Math.floor(Math.random() * keys.length) + attempt) % keys.length;
           const API_KEY = keys[keyIndex];
 
           lastRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
-            headers: { "Authorization": `Bearer ${API_KEY}`, "Content-Type": "application/json" },
+            headers: {
+              "Authorization": `Bearer ${API_KEY}`,
+              "Content-Type": "application/json"
+            },
             body: JSON.stringify(payload),
           });
 
           if (lastRes.status !== 429) break;
 
-          // On 429, wait with exponential backoff before retrying
           if (attempt < MAX_RETRIES - 1) {
-            const backoffMs = 1000 * Math.pow(2, attempt); // 1s, 2s, 4s
+            const backoffMs = 1000 * Math.pow(2, attempt);
             await new Promise(r => setTimeout(r, backoffMs));
           }
         }
 
         const res = lastRes;
 
-        // If still 429 after all retries, return a helpful error
+        // Still 429 after retries — return error JSON (NOT streamed)
         if (res.status === 429) {
           const retryAfter = res.headers.get("retry-after");
           const errorBody = {
             error: { message: "Rate limited by AI provider. Please wait a moment and try again.", code: 429 },
             retryAfter: retryAfter ? parseInt(retryAfter, 10) : 30
           };
-          return new Response(JSON.stringify(errorBody), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          return new Response(JSON.stringify(errorBody), {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
         }
 
-        const contentType = res.headers.get("content-type") || "";
-        let data;
-        if (contentType.includes("application/json")) {
-          data = await res.json().catch(() => ({ error: "upstream returned invalid json" }));
-        } else {
-          data = await res.text();
+        // Non-200 non-streaming error (e.g. 400, 500 from OpenRouter)
+        if (!res.ok) {
+          const errText = await res.text();
+          return new Response(errText, {
+            status: res.status,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
         }
 
-        const bodyStr = typeof data === "string" ? data : JSON.stringify(data);
-        return new Response(bodyStr, { status: res.status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        // ✅ PIPE THE SSE STREAM STRAIGHT THROUGH TO THE CLIENT
+        return new Response(res.body, {
+          status: 200,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no"   // disables nginx buffering if present
+          }
+        });
 
       } catch (err) {
         return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -226,8 +240,8 @@ export default {
     }
 
     /* ============================
-   🤖 GITHUB MODELS CHAT (DEEPSEEK V3 / R1)
-   ============================ */
+       🤖 GITHUB MODELS CHAT (DEEPSEEK V3 / R1)
+       ============================ */
     if (url.pathname === "/github" && request.method === "POST") {
       try {
         const body = await safeJson(request);
