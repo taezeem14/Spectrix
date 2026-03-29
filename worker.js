@@ -156,6 +156,7 @@ export default {
         if (env.WORKER_OPENROUTER_KEY_2) keys.push(env.WORKER_OPENROUTER_KEY_2);
         if (env.WORKER_OPENROUTER_KEY_3) keys.push(env.WORKER_OPENROUTER_KEY_3);
         if (env.WORKER_OPENROUTER_KEY_4) keys.push(env.WORKER_OPENROUTER_KEY_4);
+        if (env.WORKER_OPENROUTER_KEY_5) keys.push(env.WORKER_OPENROUTER_KEY_5);
 
         if (keys.length === 0) {
           return new Response(JSON.stringify({ error: "OpenRouter API keys not configured" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
