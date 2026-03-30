@@ -1787,7 +1787,7 @@ const THEME_KEY = "Spectrix_theme";
 const TTS_KEY = 'Spectrix_tts';
 const IOS_HINT_KEY = 'Spectrix_ios_hint_dismissed';
 const MEMORY_ENABLED_KEY = 'Spectrix_memory_enabled';
-const MAX_PROMPT_CHARS = 8000;
+const MAX_PROMPT_CHARS = 10000;
 const MATH_FORMAT_SYSTEM_PROMPT = `
 When writing mathematics, use valid MathJax / KaTeX LaTeX syntax.
 
@@ -1920,6 +1920,22 @@ async function saveMessage(role, content) {
 }
 
 // ===== VOICE SETUP =====
+let isTTSUnlocked = false;
+function unlockAudioEngine() {
+  if (isTTSUnlocked || !('speechSynthesis' in window)) return;
+  // Use a real character at 1% volume so mobile browsers don't skip it
+  const u = new SpeechSynthesisUtterance('a');
+  u.volume = 0.01;
+  u.rate = 10;
+  window.speechSynthesis.speak(u);
+  isTTSUnlocked = true;
+  document.removeEventListener('click', unlockAudioEngine);
+  document.removeEventListener('touchstart', unlockAudioEngine);
+}
+// Attach to first interaction anywhere on the page
+document.addEventListener('click', unlockAudioEngine);
+document.addEventListener('touchstart', unlockAudioEngine);
+
 function initVoice() {
   if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1937,21 +1953,18 @@ function initVoice() {
     };
 
     recognition.onerror = (event) => {
-  console.error('Speech recognition error:', event.error);
-  const btn = document.getElementById('voiceBtn');
-  btn.classList.remove('recording');
-  btn.textContent = '🎤';
-  
-  if (event.error === 'no-speech') {
-    // Don't alert for "no speech detected" - it's annoying
-    return;
-  }
-  if (event.error === 'not-allowed') {
-    alert('Mic permission denied, dawg. Check browser settings 🎤❌');
-  } else {
-    alert(`Voice input error: ${event.error}`);
-  }
-};
+      console.error('Speech recognition error:', event.error);
+      const btn = document.getElementById('voiceBtn');
+      btn.classList.remove('recording');
+      btn.textContent = '🎤';
+      
+      if (event.error === 'no-speech') return;
+      if (event.error === 'not-allowed') {
+        alert('Mic permission denied, dawg. Check browser settings 🎤❌');
+      } else {
+        alert(`Voice input error: ${event.error}`);
+      }
+    };
     recognition.onend = () => {
       document.getElementById('voiceBtn').classList.remove('recording');
       document.getElementById('voiceBtn').textContent = '🎤';
@@ -1963,6 +1976,12 @@ function initVoice() {
     btn.classList.toggle('active', ttsEnabled);
     btn.textContent = ttsEnabled ? '🔊' : '🔇';
   }
+
+  // Force voices to load immediately in the background
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.getVoices();
+    window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+  }
 }
 
 function toggleVoiceInput() {
@@ -1972,7 +1991,6 @@ function toggleVoiceInput() {
   }
 
   const btn = document.getElementById('voiceBtn');
-  
   if (btn.classList.contains('recording')) {
     recognition.stop();
     btn.classList.remove('recording');
@@ -1991,19 +2009,24 @@ function toggleTTS() {
   btn.classList.toggle('active', ttsEnabled);
   btn.textContent = ttsEnabled ? '🔊' : '🔇';
   
-if (!ttsEnabled && currentUtterance) {
+  if (!ttsEnabled && currentUtterance) {
     window.speechSynthesis.cancel();
   } else if (ttsEnabled && 'speechSynthesis' in window) {
-    // ADD THIS:
-const u = new SpeechSynthesisUtterance(' ');
-u.volume = 0;
-window.speechSynthesis.speak(u);
-if (window.speechSynthesis.state === 'paused') window.speechSynthesis.resume();
+    // 🗣️ Speak a confirmation! This physically proves to the browser 
+    // that the user clicked a button to request audio.
+    const u = new SpeechSynthesisUtterance('Voice enabled');
+    u.volume = 1;
+    window.speechSynthesis.speak(u);
   }
 }
 
 function speakText(text) {
   if (!ttsEnabled || !('speechSynthesis' in window)) return;
+
+  // Clear any stuck queue, but only if it's currently busy
+  if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+    window.speechSynthesis.cancel();
+  }
 
   const cleanText = text
     .replace(/\*\*/g, ' ')
@@ -2013,7 +2036,7 @@ function speakText(text) {
     .replace(/#{1,6}\s/g, '')
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     .replace(/<[^>]+>/g, '')
-    .replace(/[\$\\]/g, '') // strip math symbols so it doesn't read them weirdly
+    .replace(/[\$\\]/g, '') // strip math formatting so it doesn't read formulas weirdly
     .trim();
 
   if (!cleanText) return;
@@ -2028,26 +2051,18 @@ function speakText(text) {
   currentUtterance.pitch = 1;
   currentUtterance.volume = 1;
 
-  const attemptSpeak = () => {
-    const voices = window.speechSynthesis.getVoices();
-    // Prioritize local voice to prevent mobile network dropouts
-    const enVoice = voices.find(v => v.lang.startsWith('en') && v.localService)
-                 || voices.find(v => v.lang.startsWith('en'))
-                 || voices[0];
-    if (enVoice) currentUtterance.voice = enVoice;
-    
-    window.speechSynthesis.speak(currentUtterance);
-    
-    // Force resume if mobile browser tries to pause it
-    if (window.speechSynthesis.state === 'paused') {
-      window.speechSynthesis.resume();
-    }
-  };
-
-  if (window.speechSynthesis.getVoices().length > 0) {
-    attemptSpeak();
-  } else {
-    window.speechSynthesis.onvoiceschanged = attemptSpeak;
+  // Synchronously grab voices (already preloaded by Step 1)
+  const voices = window.speechSynthesis.getVoices();
+  const enVoice = voices.find(v => v.lang.startsWith('en') && v.localService)
+               || voices.find(v => v.lang.startsWith('en'))
+               || voices[0];
+  if (enVoice) currentUtterance.voice = enVoice;
+  
+  window.speechSynthesis.speak(currentUtterance);
+  
+  // Force resume if mobile browser tries to automatically pause background audio
+  if (window.speechSynthesis.state === 'paused') {
+    window.speechSynthesis.resume();
   }
 }
 
@@ -3229,11 +3244,13 @@ async function send(options = {}) {
     return;
   }
 
-	if (ttsEnabled && 'speechSynthesis' in window) {
-	const u = new SpeechSynthesisUtterance(' ');
-	u.volume = 0;
-	window.speechSynthesis.speak(u);
-	if (window.speechSynthesis.state === 'paused') window.speechSynthesis.resume();
+if (ttsEnabled && 'speechSynthesis' in window) {
+    // Speak physical character 'a' at 1% volume. Mobile browsers won't skip it.
+    const u = new SpeechSynthesisUtterance('a');
+    u.volume = 0.01;
+    u.rate = 10;
+    window.speechSynthesis.speak(u);
+    if (window.speechSynthesis.state === 'paused') window.speechSynthesis.resume();
   }
 
   let prompt = String(promptOverride ?? input.value).trim();
