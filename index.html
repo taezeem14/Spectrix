@@ -2024,11 +2024,21 @@ function speakText(text) {
   currentUtterance.pitch = 1;
   currentUtterance.volume = 0.9;
   
+const speak = () => {
   const voices = speechSynthesis.getVoices();
   const enVoice = voices.find(v => v.lang.startsWith('en')) || voices[0];
   if (enVoice) currentUtterance.voice = enVoice;
-
   window.speechSynthesis.speak(currentUtterance);
+};
+
+if (speechSynthesis.getVoices().length > 0) {
+  speak();
+} else {
+  speechSynthesis.onvoiceschanged = () => {
+    speechSynthesis.onvoiceschanged = null;
+    speak();
+  };
+}
 }
 
 // ===== MATH RENDERING =====
