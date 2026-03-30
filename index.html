@@ -1998,9 +1998,10 @@ function toggleTTS() {
 
 function speakText(text) {
   if (!ttsEnabled || !('speechSynthesis' in window)) return;
-  
+
+  // Force-clear any stuck queue
   window.speechSynthesis.cancel();
-  
+
   const cleanText = text
     .replace(/\*\*/g, ' ')
     .replace(/\*/g, ' ')
@@ -2012,33 +2013,35 @@ function speakText(text) {
     .trim();
 
   if (!cleanText) return;
-  
-  // 🔥 Limit TTS to first 500 chars for sanity
+
   const maxLength = 500;
-  const finalText = cleanText.length > maxLength 
+  const finalText = cleanText.length > maxLength
     ? cleanText.slice(0, maxLength) + '... response truncated for audio'
     : cleanText;
 
-  currentUtterance = new SpeechSynthesisUtterance(finalText);
-  currentUtterance.rate = 1.1;
-  currentUtterance.pitch = 1;
-  currentUtterance.volume = 0.9;
-  
-const speak = () => {
-  const voices = speechSynthesis.getVoices();
-  const enVoice = voices.find(v => v.lang.startsWith('en')) || voices[0];
-  if (enVoice) currentUtterance.voice = enVoice;
-  window.speechSynthesis.speak(currentUtterance);
-};
+  // Chrome bug: cancel() is async internally, need a small delay before speaking
+  setTimeout(() => {
+    currentUtterance = new SpeechSynthesisUtterance(finalText);
+    currentUtterance.rate = 1.1;
+    currentUtterance.pitch = 1;
+    currentUtterance.volume = 0.9;
 
-if (speechSynthesis.getVoices().length > 0) {
-  speak();
-} else {
-  speechSynthesis.onvoiceschanged = () => {
-    speechSynthesis.onvoiceschanged = null;
-    speak();
-  };
-}
+    const speak = () => {
+      const voices = speechSynthesis.getVoices();
+      const enVoice = voices.find(v => v.lang.startsWith('en')) || voices[0];
+      if (enVoice) currentUtterance.voice = enVoice;
+      window.speechSynthesis.speak(currentUtterance);
+    };
+
+    if (speechSynthesis.getVoices().length > 0) {
+      speak();
+    } else {
+      speechSynthesis.onvoiceschanged = () => {
+        speechSynthesis.onvoiceschanged = null;
+        speak();
+      };
+    }
+  }, 150);
 }
 
 // ===== MATH RENDERING =====
