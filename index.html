@@ -2005,19 +2005,15 @@ if (window.speechSynthesis.state === 'paused') window.speechSynthesis.resume();
 function speakText(text) {
   if (!ttsEnabled || !('speechSynthesis' in window)) return;
 
-  // Force-clear any stuck queue
-  if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
-  window.speechSynthesis.cancel();
-  }
-
   const cleanText = text
     .replace(/\*\*/g, ' ')
     .replace(/\*/g, ' ')
-    .replace(/```[\s\S]*?```/g, '[code block]')
+    .replace(/```[\s\S]*?```/g, ' code snippet ')
     .replace(/`[^`]+`/g, '')
     .replace(/#{1,6}\s/g, '')
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     .replace(/<[^>]+>/g, '')
+    .replace(/[\$\\]/g, '') // strip math symbols so it doesn't read them weirdly
     .trim();
 
   if (!cleanText) return;
@@ -2027,31 +2023,32 @@ function speakText(text) {
     ? cleanText.slice(0, maxLength) + '... response truncated for audio'
     : cleanText;
 
-  // Chrome bug: cancel() is async internally, need a small delay before speaking
-  setTimeout(() => {
-    currentUtterance = new SpeechSynthesisUtterance(finalText);
-    currentUtterance.rate = 1.1;
-    currentUtterance.pitch = 1;
-    currentUtterance.volume = 0.9;
+  currentUtterance = new SpeechSynthesisUtterance(finalText);
+  currentUtterance.rate = 1.05;
+  currentUtterance.pitch = 1;
+  currentUtterance.volume = 1;
 
-	const speak = () => {
-  	const voices = speechSynthesis.getVoices();
-  	const enVoice = voices.find(v => v.lang.startsWith('en') && v.localService)
-               	|| voices.find(v => v.lang.startsWith('en'))
-               	|| voices[0];
-  	if (enVoice) currentUtterance.voice = enVoice;
-  	window.speechSynthesis.speak(currentUtterance);
-	};
-
-    if (speechSynthesis.getVoices().length > 0) {
-      speak();
-    } else {
-      speechSynthesis.onvoiceschanged = () => {
-        speechSynthesis.onvoiceschanged = null;
-        speak();
-      };
+  const attemptSpeak = () => {
+    const voices = window.speechSynthesis.getVoices();
+    // Prioritize local voice to prevent mobile network dropouts
+    const enVoice = voices.find(v => v.lang.startsWith('en') && v.localService)
+                 || voices.find(v => v.lang.startsWith('en'))
+                 || voices[0];
+    if (enVoice) currentUtterance.voice = enVoice;
+    
+    window.speechSynthesis.speak(currentUtterance);
+    
+    // Force resume if mobile browser tries to pause it
+    if (window.speechSynthesis.state === 'paused') {
+      window.speechSynthesis.resume();
     }
-  }, 150);
+  };
+
+  if (window.speechSynthesis.getVoices().length > 0) {
+    attemptSpeak();
+  } else {
+    window.speechSynthesis.onvoiceschanged = attemptSpeak;
+  }
 }
 
 // ===== MATH RENDERING =====
@@ -3110,6 +3107,9 @@ async function streamBotInChunks(fullText, baseChunkSize = 50) {
   await saveMessage("bot", "");
   const botIndex = session.messages.length - 1;
 
+  // 🗣️ PLAY AUDIO IMMEDIATELY! Do not wait for the visual typing loop to finish.
+  speakText(fullText);
+
   const totalLength = fullText.length;
   let chunkSize = baseChunkSize;
   
@@ -3139,8 +3139,6 @@ async function streamBotInChunks(fullText, baseChunkSize = 50) {
 
     await new Promise(r => setTimeout(r, totalLength > 5000 ? 5 : 15));
   }
-
-  speakText(renderedText)
   
   setTimeout(() => decorateCodeBlocks(d), 80);
 
