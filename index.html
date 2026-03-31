@@ -2551,18 +2551,9 @@ function updateHeaderTitle() {
   const session = getCurrentSession();
   if (!session) return;
 
-  let existingTitle = document.getElementById("headerTitle");
-  if (!existingTitle) {
-    const headerRow = document.querySelector("header > div");
-    if (!headerRow) return;
-
-    existingTitle = document.createElement("span");
-    existingTitle.id = "headerTitle";
-    existingTitle.ondblclick = editTitle;
-    headerRow.appendChild(existingTitle);
-  }
-
-  existingTitle.textContent = session.title || "New Chat";
+  const titleEl = document.getElementById("headerTitle");
+  if (!titleEl) return;
+  titleEl.textContent = session.title || "New Chat";
 }
 
 function editTitle() {
