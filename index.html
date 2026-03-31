@@ -2473,7 +2473,7 @@ function exportChat() {
   let text = `# ${session.title}\n\n`;
   session.messages.forEach(m => {
     if (typeof m.content === "string") {
-      text += `**${m.role.toUpperCase()}:**\n${m.content}\n\n`;
+      text += `**${m.role === "bot" ? "SPECTRIX" : "YOU"}:**\n${m.content}\n\n`;
     } else {
       text += `**${m.role.toUpperCase()}:**\n[${m.content.type.toUpperCase()}]\n\n`;
     }
