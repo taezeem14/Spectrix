@@ -13,6 +13,8 @@
 [![Models](https://img.shields.io/badge/Models-OpenRouter%20Multi--Model-7C3AED?style=for-the-badge&logo=openai&logoColor=white)](https://spectrix.netlify.app)
 [![Storage](https://img.shields.io/badge/Storage-IndexedDB%20%2B%20Firebase%20Backup-0EA5E9?style=for-the-badge&logo=databricks&logoColor=white)](https://spectrix.netlify.app)
 [![Memory](https://img.shields.io/badge/AI%20Memory-Persistent-7C3AED?style=for-the-badge&logo=brain&logoColor=white)](https://spectrix.netlify.app)
+[![Auth](https://img.shields.io/badge/Auth-Firebase%20Google%20Sign--In-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)](https://spectrix.netlify.app)
+[![Sync](https://img.shields.io/badge/Sync-Realtime%20Firestore-FF6F00?style=for-the-badge&logo=firebase&logoColor=white)](https://spectrix.netlify.app)
 
 <br/>
 
@@ -48,6 +50,7 @@ Built from scratch — **zero frameworks, zero bloat** — it combines:
 - 📡 Offline-first architecture with IndexedDB persistence
 - 🎤 Voice I/O with Web Speech API
 - 🧠 **Persistent AI Memory** — remembers you across conversations
+- 🔐 **Google Sign-In** — cloud backup + real-time multi-device sync
 
 > **Short version:** *it cooks. consistently. 🔥*
 
@@ -57,7 +60,7 @@ Built from scratch — **zero frameworks, zero bloat** — it combines:
 
 | Stat | Value |
 |------|-------|
-| 🗓️ Build Duration | 3 months |
+| 🗓️ Build Duration | 3+ months |
 | 🔁 Commits | 530+ |
 | 🚀 Deployments | 280+ |
 | 📦 Framework | None (Vanilla JS) |
@@ -70,12 +73,13 @@ Built from scratch — **zero frameworks, zero bloat** — it combines:
 ## ⚡ Core Features
 
 ### 🤖 AI Engine
-- **Real-time simulated streaming** responses — no waiting for full output
+- **Simulated streaming** responses — deliberate UX choice over real SSE for smoother perceived output
 - **Multi-model routing** via OpenRouter
 - **Smart API key rotation** — maximizes uptime & rate limit handling
-- **Web search mode** — powered by Firecrawl via OpenRouter
+- **Web search mode** — powered by Firecrawl via OpenRouter plugins
+- **Rate limit handling** — user-friendly messages with retry hints, no mystery crashes
 
-### 🧠 AI Memory (NEW)
+### 🧠 AI Memory
 - **Persistent memory** across conversations — the AI remembers you
 - **Auto-extraction** — learns your name, preferences, interests, goals automatically
 - **Manual memory** — add facts yourself via the 🧠 memory panel
@@ -83,34 +87,48 @@ Built from scratch — **zero frameworks, zero bloat** — it combines:
 - **Full control** — view, delete individual memories, or clear all
 - **Toggle on/off** — enable or disable auto-learning anytime
 - **IndexedDB-powered** — zero server dependency, fully local & private
+- **Memory badge** — live count on the 🧠 button so you always know what's stored
+
+### 🔐 Auth & Cloud Sync
+- **Google Sign-In** via Firebase Auth — popup with redirect fallback
+- **Realtime Firestore sync** — chats update across devices the moment you change them
+- **Auto-sync loop** — 30-second interval fallback ensures nothing falls through the cracks
+- **Local-first delete safety** — tombstone system prevents deleted chats from resurrecting on sync
+- **Offline-safe** — IndexedDB is the source of truth; cloud is the mirror
+- **Manual backup** — one-tap "Backup Chats to Google" from the profile menu
+- **Incognito mode** 🕶️ — zero persistence: no chat history, no memory, no profile changes saved locally or to cloud
+
+### 👤 Profile System
+- **Profile actions hub** — backup, edit name/photo URL, upload picture from device, sign out — all in one modal
+- **Persistent custom profile** — name and avatar stored locally and injected into AI memory context
+- **Profile photo from device** — upload directly, no URL needed
+- **Profile name auto-memorized** — AI remembers your name as a memory fact
 
 ### 🎤 Voice & Interaction
 - **Voice input** (Web Speech API)
-- **Text-to-Speech** output
+- **Text-to-Speech** output with audio pre-warming for iOS Safari / Mobile Chrome
 - **Retry + Edit system** for messages
-- **Keyboard shortcuts** — `Ctrl+B` / `Cmd+B` starts a new chat
-- **No crusty browser popups** — clean in-app modals for alerts, confirms, and prompts
+- **Keyboard shortcuts** — `Ctrl+B` / `Cmd+B` starts a new chat, `Ctrl+/` focuses search
+- **In-app modal system** — no browser `alert()` / `confirm()` / `prompt()` — clean custom modals with "Do not ask again" support on confirmations
 
 ### 🧮 Math & Code
 - **KaTeX + MathJax** dual-engine math rendering
-- **Syntax highlighting** via Highlight.js
-- **Markdown** full support
+- **Copy LaTeX button** — appears on hover over any display math block, extracts raw TeX
+- **Custom marked.js math extension** — `$` and `$$` tokens are shielded before markdown parsing, zero mangling
+- **`normalizeMathMarkup()`** — auto-converts `\[...\]`, `\(...\)`, square-bracket LaTeX mistakes, and bare commands to proper delimiters
+- **Syntax highlighting** via Highlight.js with collapse/expand for long code blocks
+- **Full Markdown** support
 
 ### 📱 App Experience
-- **Google Sign-In via Firebase Auth** (launch popup + top-nav profile/backup control)
-- **Top-nav profile actions** — backup chats, edit profile, or sign out from one button
-- **Single-file app architecture** (monolithic `index.html`, zero framework)
-- **Installable PWA** — works like a native app
-- **Offline-ready** — service worker caching
-- **Local-first chat history** — IndexedDB is primary source of truth
-- **Automatic cloud chat sync** — Firebase Firestore mirrors create/update/delete when logged in
-- **Auto-sync loop** — signed-in chats refresh from cloud every ~30s for multi-device continuity
-- **Local-first delete safety** — deleted chats do not resurrect from stale cloud snapshots
-- **Persistent custom profile** — name/photo stored locally and injected into AI memory context
-- **Profile control hub** — backup, edit profile, sign out, and image upload in one place
-- **Incognito mode** — no chat/memory/profile persistence (local or cloud) while active
+- **Installable PWA** — works like a native app on all platforms
+- **Offline-ready** — service worker caching with auto-update on new deploy
+- **Single-file architecture** — monolithic `index.html`, zero build step, zero config
 - **Smart confirmations** — delete-chat supports one-tap "Do not ask again"
-- **/img & /vid commands** — media generation
+- **Auto-title generation** — AI names your chats based on the first exchange
+- **Grouped chat history** — Pinned / Today / Yesterday / This Week / Older
+- **Safe Area support** — proper insets for notched iOS devices
+- **`/img` command** — AI image generation (Imagen 4, FLUX, GPT Image, Gemini)
+- **`/vid` command** — AI video generation via Seedance 1.0 Lite
 
 ---
 
@@ -121,20 +139,20 @@ User sends message
     │
     ├── AI responds normally
     │
-    └── Background: Memory Extraction
+    └── Background: Memory Extraction (3s delay, non-blocking)
           │
           ├── Analyzes conversation for user facts
-          ├── Deduplicates against existing memories
-          ├── Categorizes (personal/preference/technical/etc.)
+          ├── Deduplicates against existing memories (80% word overlap check)
+          ├── Categorizes (personal / preference / technical / interest / context)
           └── Saves to IndexedDB → 'memories' store
                 │
                 └── Next conversation
                       │
-                      └── Memories injected into system prompt
-                            → AI uses context naturally
+                      └── Top 30 memories injected into system prompt
+                            → AI uses context naturally, never parrots facts back
 ```
 
-> 🔒 All memories stored **locally in your browser**. Nothing leaves your device. Period.
+> 🔒 All memories stored **locally in your browser**. Nothing leaves your device unless you're syncing chats to Firestore — and memories are never included in that sync.
 
 ---
 
@@ -143,8 +161,8 @@ User sends message
 | Mode | Model | Best For |
 |------|-------|----------|
 | ⚡ Quick | `stepfun/step-3.5-flash:free` | Everyday use, fast replies |
-| 🧠 Reasoning | `nvidia/nemotron-3-super-120b-a12b:free` | Complex problems, deep reasoning |
 | 🚀 Smart | `qwen/qwen3.6-plus-preview:free` | Agentic tasks, frontend dev, fast + smart |
+| 🧠 Reasoning | `nvidia/nemotron-3-super-120b-a12b:free` | Complex problems, deep reasoning (slow) |
 
 > 💾 Preference saved to `localStorage → Spectrix_text_model`
 
@@ -155,20 +173,22 @@ User sends message
 ```
 User Browser
     │
-    ├── PWA (HTML/CSS/JS)
-    │     ├── IndexedDB  →  Chat persistence
-    │     ├── IndexedDB  →  AI Memory (persistent user context)
-    │     ├── Service Worker  →  Offline support
-    │     ├── Web Speech API  →  Voice I/O
-    │     └── KaTeX + MathJax  →  Math rendering
+    ├── PWA (HTML/CSS/JS — single file)
+    │     ├── IndexedDB         → Chat persistence (primary source of truth)
+    │     ├── IndexedDB         → AI Memory (persistent user context)
+    │     ├── Service Worker    → Offline support + auto-update
+    │     ├── Firebase Auth     → Google Sign-In
+    │     ├── Firebase Firestore → Realtime cloud chat sync + backup
+    │     ├── Web Speech API    → Voice I/O
+    │     └── KaTeX + MathJax   → Dual-engine math rendering
     │
     └── Cloudflare Workers (Edge Backend)
           ├── API key rotation
           ├── Request proxying
           └── OpenRouter  →  Multi-model AI routing
-                              ├── step-3.5-flash (Quick)
-                              ├── qwen 3.6 plus (fast)
-                              └── nemotron-120b (Reasoning)
+                              ├── stepfun/step-3.5-flash (Quick)
+                              ├── qwen/qwen3.6-plus-preview (Smart)
+                              └── nvidia/nemotron-120b (Reasoning)
 ```
 
 ---
@@ -197,8 +217,8 @@ http://127.0.0.1:5500
 | Layer | Tech |
 |-------|------|
 | Frontend | HTML, CSS, Vanilla JavaScript |
-| Storage | IndexedDB (primary) + Firebase Firestore (chat backup/multi-device sync) |
-| Auth | Firebase Auth |
+| Storage | IndexedDB (primary) + Firebase Firestore (cloud backup + realtime sync) |
+| Auth | Firebase Auth (Google Sign-In) |
 | PWA | Service Workers |
 | Voice | Web Speech API |
 | Math | KaTeX + MathJax |
@@ -206,6 +226,8 @@ http://127.0.0.1:5500
 | Backend | Cloudflare Workers |
 | AI Routing | OpenRouter |
 | Web Search | Firecrawl |
+| Image Gen | Puter.js (Imagen 4, FLUX, GPT Image, Gemini) |
+| Video Gen | Puter.js (Seedance 1.0 Lite) |
 
 ---
 
