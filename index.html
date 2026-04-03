@@ -338,7 +338,8 @@ body.dark header {
   box-shadow:0 0 0 3px var(--accent-glow);
 }
 
-.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.controls{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+.controls > * { flex-shrink: 0; }
 
 .menu-btn{
   background:transparent;border:1px solid var(--border);
@@ -807,34 +808,111 @@ body.dark .msg code:not(pre code) {
 }
 
 .controls select {
-  background: linear-gradient(180deg, var(--chat), var(--panel));
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0)) ,
+    linear-gradient(180deg, var(--chat), var(--panel));
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 7px 34px 7px 12px;
+  padding: 8px 38px 8px 12px;
+  min-height: 36px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 650;
+  letter-spacing: 0.01em;
   font-family: inherit;
   cursor: pointer;
   outline: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 4px 14px rgba(2, 6, 23, 0.18);
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  backdrop-filter: blur(8px);
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
 }
 
 .controls select:hover {
   border-color: var(--user);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.1),
+    0 8px 20px rgba(2, 6, 23, 0.24);
+  transform: translateY(-1px);
 }
 
 .controls select:focus {
   border-color: var(--user);
-  box-shadow: 0 0 0 3px var(--accent-glow);
+  box-shadow: 0 0 0 3px var(--accent-glow), 0 10px 26px rgba(2, 6, 23, 0.3);
+}
+
+.controls select:focus-visible {
+  border-color: var(--user);
+  box-shadow: 0 0 0 3px var(--accent-glow), 0 10px 26px rgba(2, 6, 23, 0.3);
 }
 
 .controls select option {
   background: var(--panel);
   color: var(--text);
+}
+
+body.dark .controls select {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.1), rgba(255,255,255,0.02)),
+    linear-gradient(180deg, rgba(21,24,36,0.98), rgba(14,16,28,0.98));
+}
+
+.auth-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(180deg, var(--chat), var(--panel));
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 7px 12px;
+  min-height: 34px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  line-height: 1;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  white-space: nowrap;
+}
+
+.controls .auth-pill {
+  margin-left: 0 !important;
+}
+
+.auth-pill:hover {
+  border-color: var(--user);
+}
+
+.auth-pill:focus-visible {
+  border-color: var(--user);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.auth-pill.signed-in {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.auth-pill.signed-out {
+  max-width: 138px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.auth-pill-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 .select-wrap {
@@ -843,13 +921,166 @@ body.dark .msg code:not(pre code) {
   align-items: center;
 }
 
+.native-select-hidden {
+  display: none !important;
+}
+
+.custom-select-wrap::after {
+  display: none;
+}
+
+.custom-select-trigger {
+  min-height: 36px;
+  max-width: 158px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0)),
+    linear-gradient(180deg, var(--chat), var(--panel));
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 4px 14px rgba(2, 6, 23, 0.18);
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+}
+
+.custom-select-trigger:hover {
+  border-color: var(--user);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.1),
+    0 8px 20px rgba(2, 6, 23, 0.24);
+  transform: translateY(-1px);
+}
+
+.custom-select-wrap.open .custom-select-trigger,
+.custom-select-trigger:focus-visible {
+  border-color: var(--user);
+  box-shadow: 0 0 0 3px var(--accent-glow), 0 10px 26px rgba(2, 6, 23, 0.3);
+}
+
+.custom-select-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.custom-select-caret {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(127,127,127,0.16);
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.custom-select-wrap.open .custom-select-caret {
+  color: var(--user);
+}
+
+.custom-select-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: max(100%, 280px);
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, var(--panel), var(--chat));
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(14px);
+  z-index: 90;
+  opacity: 0;
+  transform: translateY(-6px) scale(0.98);
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.custom-select-wrap.open .custom-select-panel {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.custom-select-option {
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 550;
+  text-align: left;
+  padding: 9px 10px;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.custom-select-option:hover {
+  background: var(--accent-glow);
+  border-color: rgba(59,130,246,0.34);
+}
+
+.custom-select-option.active {
+  background: rgba(59,130,246,0.18);
+  border-color: rgba(59,130,246,0.44);
+  color: #dbeafe;
+}
+
+.custom-select-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-select-panel::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 6px;
+}
+
+body.dark .custom-select-trigger {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.1), rgba(255,255,255,0.02)),
+    linear-gradient(180deg, rgba(21,24,36,0.98), rgba(14,16,28,0.98));
+}
+
+body.dark .custom-select-panel {
+  background: linear-gradient(180deg, rgba(18,20,31,0.98), rgba(14,16,26,0.98));
+}
+
 .select-wrap::after {
   content: "▾";
   position: absolute;
-  right: 12px;
+  right: 10px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(127,127,127,0.16);
+  display: grid;
+  place-items: center;
   pointer-events: none;
-  font-size: 12px;
+  font-size: 10px;
+  font-weight: 700;
   color: var(--muted);
+}
+
+.select-wrap:hover::after {
+  color: var(--user);
 }
 
 /* ===== VOICE CONTROLS ===== */
@@ -920,6 +1151,60 @@ body.dark .voice-btn.recording {
   box-shadow: 0 4px 12px var(--accent-glow);
 }
 
+.chat-search-bar {
+  position: sticky;
+  top: 0;
+  z-index: 35;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  box-shadow: var(--shadow-sm);
+}
+
+.chat-search-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--chat);
+  color: var(--text);
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+}
+
+.chat-search-input:focus {
+  border-color: var(--user);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.chat-search-close {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--chat);
+  color: var(--text);
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.chat-search-close:hover {
+  border-color: var(--user);
+  background: var(--accent-glow);
+}
+
+.msg.chat-search-match {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.25), var(--shadow-sm);
+}
+
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.6; }
@@ -949,14 +1234,14 @@ body.dark .voice-btn.recording {
 }
 
 #imageModel {
-  max-width: 145px;
+  max-width: 158px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 #textModelSelect {
-  max-width: 145px;
+  max-width: 158px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1039,13 +1324,55 @@ body.dark .voice-btn.recording {
 }
   
   .controls select {
-    padding: 5px 20px 5px 8px;
+    padding: 6px 26px 6px 9px;
+    min-height: 32px;
     font-size: 11px;
+  }
+
+  .custom-select-trigger {
+    min-height: 32px;
+    max-width: 140px;
+    padding: 6px 8px;
+    font-size: 11px;
+    gap: 8px;
+  }
+
+  .custom-select-caret {
+    width: 14px;
+    height: 14px;
+    font-size: 8px;
+  }
+
+  .custom-select-panel {
+    width: max(100%, 220px);
+    max-height: 220px;
+    padding: 5px;
+  }
+
+  .custom-select-option {
+    font-size: 12px;
+    padding: 8px 9px;
+  }
+
+  .auth-pill {
+    padding: 5px 10px;
+    font-size: 11px;
+    min-height: 30px;
+  }
+
+  .auth-pill.signed-in {
+    max-width: 150px;
+  }
+
+  .auth-pill.signed-out {
+    max-width: 118px;
   }
   
   .select-wrap::after {
     right: 6px;
-    font-size: 10px;
+    width: 14px;
+    height: 14px;
+    font-size: 8px;
   }
   
   #chat {
@@ -1120,6 +1447,17 @@ body.dark .voice-btn.recording {
     min-height: 38px;
     padding: 0 10px;
     font-size: 14px;
+  }
+
+  .chat-search-bar {
+    padding: 6px;
+    gap: 6px;
+  }
+
+  .chat-search-input,
+  .chat-search-close {
+    font-size: 12px;
+    padding: 7px 9px;
   }
 }
 
@@ -1593,6 +1931,21 @@ body.dark .voice-btn.recording {
   cursor: pointer;
 }
 
+.app-modal-aux input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  margin: 0;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--chat);
+  flex-shrink: 0;
+}
+
+.app-modal-aux span {
+  white-space: nowrap;
+}
+
 .app-modal-footer {
   padding: 12px 16px 16px;
   border-top: 1px solid var(--border);
@@ -1624,7 +1977,8 @@ body.dark .voice-btn.recording {
 
 #profileActionsModal .app-modal-body {
   color: var(--muted);
-  padding-bottom: 10px;
+  padding: 12px 16px 8px;
+  white-space: normal;
 }
 
 #profileActionsModal .app-modal-footer {
@@ -1679,6 +2033,12 @@ body.dark .voice-btn.recording {
       font-family:'Raleway', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;letter-spacing:0.01em;transition:all 0.2s;
       width:100%;
     ">Sign in with Google</button>
+    <button id="continueGuestBtn" onclick="continueAsGuest()" style="
+      margin-top:10px;background:transparent;color:#e8e8ed;padding:10px 16px;border:1px solid rgba(255,255,255,0.24);
+      border-radius:12px;font-weight:600;font-size:14px;cursor:pointer;
+      font-family:'Raleway', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;letter-spacing:0.01em;transition:all 0.2s;
+      width:100%;
+    ">Continue as Guest</button>
     </div>
   </div>
 
@@ -1783,9 +2143,7 @@ body.dark .voice-btn.recording {
 <div class="app-modal-overlay" id="profileActionsOverlay" onclick="closeProfileActions()"></div>
 <div class="app-modal" id="profileActionsModal" role="dialog" aria-modal="true" aria-labelledby="profileActionsTitle">
   <div class="app-modal-header" id="profileActionsTitle">Profile Actions</div>
-  <div class="app-modal-body">
-    Choose what you want to do:
-  </div>
+  <div class="app-modal-body">Choose what you want to do:</div>
   <div class="app-modal-footer">
     <button class="app-modal-btn primary" type="button" onclick="handleProfileAction('backup')">Backup Chats to Google</button>
     <button class="app-modal-btn" type="button" onclick="handleProfileAction('edit')">Edit Name / Photo URL</button>
@@ -1980,11 +2338,14 @@ const THEME_KEY = "Spectrix_theme";
 const TTS_KEY = 'Spectrix_tts';
 const IOS_HINT_KEY = 'Spectrix_ios_hint_dismissed';
 const MEMORY_ENABLED_KEY = 'Spectrix_memory_enabled';
+const LAST_MEMORY_EXTRACT_KEY = 'Spectrix_last_memory_extract';
 const PROFILE_KEY = 'Spectrix_user_profile';
 const DELETE_CONFIRM_SKIP_KEY = 'Spectrix_skip_delete_confirm';
 const DELETED_CHAT_TOMBSTONES_KEY = 'Spectrix_deleted_chat_ids';
 const INCOGNITO_KEY = 'Spectrix_incognito_mode';
 const MAX_PROMPT_CHARS = 10000;
+const MEMORY_EXTRACT_MIN_CHARS = 100;
+const MEMORY_EXTRACT_COOLDOWN_MS = 5 * 60 * 1000;
 const MATH_FORMAT_SYSTEM_PROMPT = `
 When writing mathematics, use valid MathJax / KaTeX LaTeX syntax.
 
@@ -2035,6 +2396,7 @@ let recognition = null;
 let ttsEnabled = localStorage.getItem(TTS_KEY) === 'true';
 let currentUtterance = null;
 let signInInProgress = false;
+let chatSearchBar = null;
 
 function getStoredProfile() {
   if (incognitoEnabled) return { name: '', avatarUrl: '' };
@@ -2200,6 +2562,7 @@ async function initApp() {
   initVoice();
   initEventListeners();
   initTextModelDropdown();
+  initCustomSelectDropdowns();
   initCompatibilityEnhancements();
   updateThemeColorMeta();
   initMemorySystem();
@@ -2458,6 +2821,15 @@ function renderMath(d) {
 
 // ===== CLEAR PUTER =====
 async function clearPuter() {
+  try {
+    const auth = firebase?.auth?.();
+    if (auth?.currentUser) {
+      await auth.signOut();
+    }
+  } catch (err) {
+    console.warn('Firebase sign-out skipped during clear:', err);
+  }
+
   [CURRENT_KEY, PREPOPUP_KEY, THEME_KEY, TTS_KEY, IOS_HINT_KEY, PROFILE_KEY, DELETED_CHAT_TOMBSTONES_KEY].forEach((key) => {
     localStorage.removeItem(key);
   });
@@ -2753,6 +3125,7 @@ async function loadChatHandler(id) {
 }
 
 async function loadChatMessages() {
+  hideChatSearchBar();
   cleanupActiveMediaUrls();
   chat.innerHTML = "";
   const session = getCurrentSession();
@@ -3390,23 +3763,18 @@ function render(role, content, saveIt = true, messageIndex = null) {
     const actions = document.createElement("div");
     actions.className = "msg-actions";
 
+    let resolvedIndex = Number.isInteger(messageIndex) ? messageIndex : null;
+    if (!Number.isInteger(resolvedIndex) && saveIt) {
+      const session = getCurrentSession();
+      if (session?.messages) {
+        resolvedIndex = session.messages.length;
+      }
+    }
+
     const editBtn = document.createElement("button");
     editBtn.className = "msg-btn";
     editBtn.textContent = "✏️ Edit";
     editBtn.onclick = () => {
-      let resolvedIndex = messageIndex;
-      if (!Number.isInteger(resolvedIndex)) {
-        const session = getCurrentSession();
-        if (session?.messages) {
-          for (let i = session.messages.length - 1; i >= 0; i--) {
-            const msg = session.messages[i];
-            if (msg.role === "user" && msg.content === content) {
-              resolvedIndex = i;
-              break;
-            }
-          }
-        }
-      }
       editMessage(resolvedIndex, content);
     };
 
@@ -3449,9 +3817,7 @@ async function streamBotInChunks(fullText, baseChunkSize = 50) {
 
   let renderedText = "";
   const session = getCurrentSession();
-  session.messages.push({ role: "bot", content: "" });
-  session.timestamp = Date.now();
-  const botIndex = session.messages.length - 1;
+  if (!session) return;
 
   // 🗣️ PLAY AUDIO IMMEDIATELY! Do not wait for the visual typing loop to finish.
   speakText(fullText);
@@ -3476,13 +3842,13 @@ async function streamBotInChunks(fullText, baseChunkSize = 50) {
     renderMath(d);
     chat.scrollTop = chat.scrollHeight;
 
-    session.messages[botIndex].content = renderedText;
-
     await new Promise(r => setTimeout(r, totalLength > 5000 ? 5 : 15));
   }
   
   setTimeout(() => decorateCodeBlocks(d), 80);
 
+  session.messages.push({ role: "bot", content: renderedText });
+  session.timestamp = Date.now();
   await saveChat(session);
   renderHistory();
   updateHeaderTitle();
@@ -3764,8 +4130,8 @@ isGenerating = false;
   }, 6000);
 }
 
-      // 🧠 Extract memories from this exchange
-      if (memoryEnabled && !incognitoEnabled) {
+      // 🧠 Extract memories from this exchange (length + cooldown throttled)
+      if (memoryEnabled && !incognitoEnabled && shouldExtractMemories(prompt)) {
   			setTimeout(() => {
     		extractMemories(prompt, answer).catch(err => console.warn('Memory extraction failed:', err));
  		 }, 3000);
@@ -3993,6 +4359,93 @@ async function applyLaunchParams() {
   }
 }
 
+function clearChatSearchHighlights() {
+  chat.querySelectorAll('.msg.chat-search-match').forEach((node) => {
+    node.classList.remove('chat-search-match');
+  });
+}
+
+function updateChatSearchHighlights(query) {
+  clearChatSearchHighlights();
+  const needle = String(query || '').trim().toLowerCase();
+  if (!needle) return 0;
+
+  let firstMatch = null;
+  let count = 0;
+  chat.querySelectorAll('.msg').forEach((node) => {
+    const hay = (node.innerText || node.textContent || '').toLowerCase();
+    if (hay.includes(needle)) {
+      node.classList.add('chat-search-match');
+      if (!firstMatch) firstMatch = node;
+      count++;
+    }
+  });
+
+  if (firstMatch) {
+    firstMatch.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  return count;
+}
+
+function hideChatSearchBar() {
+  if (!chatSearchBar) return;
+  clearChatSearchHighlights();
+  chatSearchBar.remove();
+  chatSearchBar = null;
+}
+
+function showChatSearchBar() {
+  if (chatSearchBar && !chat.contains(chatSearchBar)) {
+    chatSearchBar = null;
+  }
+
+  if (chatSearchBar) {
+    const inputEl = chatSearchBar.querySelector('.chat-search-input');
+    if (inputEl) {
+      inputEl.focus();
+      inputEl.select();
+    }
+    return;
+  }
+
+  chatSearchBar = document.createElement('div');
+  chatSearchBar.className = 'chat-search-bar';
+
+  const inputEl = document.createElement('input');
+  inputEl.type = 'text';
+  inputEl.className = 'chat-search-input';
+  inputEl.placeholder = 'Search messages...';
+  inputEl.setAttribute('aria-label', 'Search messages in chat');
+
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'chat-search-close';
+  closeBtn.textContent = 'X';
+  closeBtn.setAttribute('aria-label', 'Close message search');
+
+  inputEl.addEventListener('input', () => {
+    updateChatSearchHighlights(inputEl.value);
+  });
+
+  inputEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      hideChatSearchBar();
+    }
+  });
+
+  closeBtn.addEventListener('click', () => {
+    hideChatSearchBar();
+  });
+
+  chatSearchBar.appendChild(inputEl);
+  chatSearchBar.appendChild(closeBtn);
+  chat.prepend(chatSearchBar);
+
+  inputEl.focus();
+}
+
 // ===== EVENT LISTENERS =====
 function initEventListeners() {
   function resizeInput() {
@@ -4030,9 +4483,25 @@ function initEventListeners() {
 
   document.addEventListener("keydown", (e) => {
     const key = String(e.key || '').toLowerCase();
+    if ((e.ctrlKey || e.metaKey) && key === "f") {
+      e.preventDefault();
+      showChatSearchBar();
+      return;
+    }
+    if (key === "escape" && chatSearchBar) {
+      e.preventDefault();
+      hideChatSearchBar();
+      return;
+    }
     if ((e.ctrlKey || e.metaKey) && key === "b") {
       e.preventDefault();
       newChat();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && key === "s") {
+      e.preventDefault();
+      toggleWebSearch();
+      return;
     }
     if ((e.ctrlKey || e.metaKey) && key === "/") {
       e.preventDefault();
@@ -4216,6 +4685,18 @@ ${combinedLines}
   }
 }
 
+function shouldExtractMemories(userMessage) {
+  const message = String(userMessage || '').trim();
+  if (message.length <= MEMORY_EXTRACT_MIN_CHARS) return false;
+
+  const last = Number(localStorage.getItem(LAST_MEMORY_EXTRACT_KEY) || 0);
+  const now = Date.now();
+  if (now - last < MEMORY_EXTRACT_COOLDOWN_MS) return false;
+
+  localStorage.setItem(LAST_MEMORY_EXTRACT_KEY, String(now));
+  return true;
+}
+
 async function extractMemories(userMessage, botReply) {
   try {
     const existingMemories = await getAllMemories();
@@ -4329,6 +4810,139 @@ function initTextModelDropdown() {
   });
 }
 
+let customSelectDropdownEventsBound = false;
+
+function closeAllCustomSelectDropdowns() {
+  document.querySelectorAll('.custom-select-wrap.open').forEach((wrap) => {
+    wrap.classList.remove('open');
+    const trigger = wrap.querySelector('.custom-select-trigger');
+    if (trigger) trigger.setAttribute('aria-expanded', 'false');
+  });
+}
+
+function enhanceCustomSelectDropdown(selectId) {
+  const select = document.getElementById(selectId);
+  if (!select || select.dataset.customEnhanced === 'true') return;
+
+  const wrap = select.closest('.select-wrap');
+  if (!wrap) return;
+
+  select.dataset.customEnhanced = 'true';
+  select.classList.add('native-select-hidden');
+  wrap.classList.add('custom-select-wrap', `custom-select-${selectId}`);
+
+  const trigger = document.createElement('button');
+  trigger.type = 'button';
+  trigger.className = 'custom-select-trigger';
+  trigger.setAttribute('aria-haspopup', 'listbox');
+  trigger.setAttribute('aria-expanded', 'false');
+
+  const label = document.createElement('span');
+  label.className = 'custom-select-label';
+
+  const caret = document.createElement('span');
+  caret.className = 'custom-select-caret';
+  caret.textContent = '▾';
+
+  trigger.appendChild(label);
+  trigger.appendChild(caret);
+
+  const panel = document.createElement('div');
+  panel.className = 'custom-select-panel';
+  panel.setAttribute('role', 'listbox');
+  panel.setAttribute('aria-label', select.title || select.id || 'Options');
+
+  const updateLabel = () => {
+    const activeOption = select.options[select.selectedIndex] || select.options[0];
+    const text = activeOption ? activeOption.textContent.trim() : '';
+    label.textContent = text;
+    trigger.title = text;
+  };
+
+  const syncActiveOption = () => {
+    panel.querySelectorAll('.custom-select-option').forEach((btn) => {
+      const isActive = btn.dataset.value === select.value;
+      btn.classList.toggle('active', isActive);
+      btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+  };
+
+  const renderOptions = () => {
+    panel.innerHTML = '';
+    Array.from(select.options).forEach((opt) => {
+      const optBtn = document.createElement('button');
+      optBtn.type = 'button';
+      optBtn.className = 'custom-select-option';
+      optBtn.textContent = opt.textContent.trim();
+      optBtn.dataset.value = opt.value;
+      optBtn.setAttribute('role', 'option');
+      optBtn.disabled = !!opt.disabled;
+
+      optBtn.addEventListener('click', () => {
+        if (opt.disabled) return;
+        if (select.value !== opt.value) {
+          select.value = opt.value;
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        updateLabel();
+        syncActiveOption();
+        closeAllCustomSelectDropdowns();
+      });
+
+      panel.appendChild(optBtn);
+    });
+    syncActiveOption();
+  };
+
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const shouldOpen = !wrap.classList.contains('open');
+    closeAllCustomSelectDropdowns();
+    if (shouldOpen) {
+      wrap.classList.add('open');
+      trigger.setAttribute('aria-expanded', 'true');
+    }
+  });
+
+  trigger.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeAllCustomSelectDropdowns();
+    }
+  });
+
+  select.addEventListener('change', () => {
+    updateLabel();
+    syncActiveOption();
+  });
+
+  wrap.appendChild(trigger);
+  wrap.appendChild(panel);
+  renderOptions();
+  updateLabel();
+}
+
+function initCustomSelectDropdowns() {
+  enhanceCustomSelectDropdown('imageModel');
+  enhanceCustomSelectDropdown('textModelSelect');
+
+  if (!customSelectDropdownEventsBound) {
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.custom-select-wrap')) {
+        closeAllCustomSelectDropdowns();
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeAllCustomSelectDropdowns();
+      }
+    });
+
+    customSelectDropdownEventsBound = true;
+  }
+}
+
 // ===== PWA INSTALL =====
 window.addEventListener('beforeinstallprompt', e => {
   if (window.innerWidth > 768) return; // hide on desktop
@@ -4400,6 +5014,14 @@ if ('launchQueue' in window) {
 // ===== PRE-POPUP =====
 const prePopup = document.getElementById("prePopup");
 const goToPuter = document.getElementById("goToPuter");
+
+function continueAsGuest() {
+  localStorage.setItem(PREPOPUP_KEY, 'true');
+  if (prePopup) {
+    prePopup.style.display = 'none';
+  }
+  showStatus('Continuing as guest. Sign in anytime from the header.');
+}
 
 if (prePopup && localStorage.getItem(PREPOPUP_KEY) === "true") {
   prePopup.style.display = "none";
@@ -4632,9 +5254,11 @@ async function signInWithGoogle() {
         return;
       } catch (redirectErr) {
         await showAppAlert(String(redirectErr?.message || redirectErr || msg), 'Sign-In Error');
+        showStatus('Sign-in failed. You can continue as guest.');
       }
     } else {
       await showAppAlert(msg, 'Sign-In Error');
+      showStatus('Sign-in failed. You can continue as guest.');
     }
   } finally {
     signInInProgress = false;
@@ -4801,20 +5425,29 @@ function updateUserUI(user) {
     pill = document.createElement('button');
     pill.type = 'button';
         pill.className = 'auth-pill';
-      pill.style.cssText = 'display:flex;align-items:center;gap:8px;padding:4px 12px;cursor:pointer;background:var(--bg-card);border-radius:100px;border:1px solid var(--border);margin-left:auto;font-family:\'Raleway\', -apple-system, BlinkMacSystemFont, \'Segoe UI\', sans-serif;';
     parent.appendChild(pill);
     }
+      // Remove stale inline styles from older UI versions.
+      pill.removeAttribute('style');
     
     if (user) {
       const profile = getStoredProfile();
       const safeName = (profile.name || user.displayName || user.email || 'Account').split(' ')[0];
       const avatar = profile.avatarUrl || user.photoURL || '';
+      pill.classList.add('signed-in');
+      pill.classList.remove('signed-out');
       pill.onclick = openProfileActions;
       pill.oncontextmenu = null;
       pill.title = 'Profile actions: backup, edit profile, sign out';
-    pill.innerHTML = `<img src="${avatar}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;"> ${safeName} · Backup`;
+      if (avatar) {
+        pill.innerHTML = `<img src="${avatar}" class="auth-pill-avatar" alt="Profile"> ${safeName} · Backup`;
+      } else {
+        pill.innerHTML = `<span>${safeName} · Backup</span>`;
+      }
     } else {
-    pill.oncontextmenu = null;
+      pill.classList.remove('signed-in');
+      pill.classList.add('signed-out');
+      pill.oncontextmenu = null;
         pill.onclick = signInWithGoogle;
         pill.innerHTML = `<span>Sign in with Google</span>`;
     pill.title = 'Sign in with Google';
@@ -4942,22 +5575,10 @@ async function syncChats(uid) {
     const localIds = Object.keys(sessions);
     for (const localId of localIds) {
        if (!cloudIds.has(localId) && !deletedChatTombstones.has(String(localId))) {
-          // If a chat exists locally but not in cloud, it was either:
-          // 1) Deleted on another device (which means we should delete it here unless we are offline and created it)
-          // 2) Created offline locally and never synced (we should push it)
-          // Without complex vector clocks, we'll assume if it's older than 5 minutes and not in cloud, it was remotely deleted.
-          // Otherwise, maybe it's just a newly created chat that failed to upload.
           const local = sessions[localId];
-          const localTs = Number(local.timestamp || 0);
-          if (Date.now() - localTs < 300000) {
-              await syncChatToCloud(local); // Push to cloud again
-          } else {
-              // Delete locally
-              delete sessions[localId];
-              await deleteChatFromDB(localId);
-              deletedChatTombstones.add(String(localId));
-              persistDeletedChatTombstones();
-              changed = true;
+        if (local) {
+          // Never aggressively delete local chats on transient cloud mismatches.
+          await syncChatToCloud(local);
           }
        }
     }
