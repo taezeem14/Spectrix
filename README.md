@@ -177,7 +177,7 @@ User sends message
 | Mode | Model | Best For |
 |------|-------|----------|
 | ⚡ Quick | `stepfun/step-3.5-flash:free` | Everyday use, fast replies |
-| 🚀 Smart | `qwen/qwen3.6-plus-preview:free` | Frontend dev, agentic tasks, fast + smart |
+| 🚀 Smart | `qwen/qwen3.6-plus:free` | Frontend dev, agentic tasks, fast + smart |
 | 🧠 Reasoning | `nvidia/nemotron-3-super-120b-a12b:free` | Deep reasoning, hard problems (slower) |
 
 > 💾 Model preference saved to `localStorage → Spectrix_text_model` and persists across sessions.
