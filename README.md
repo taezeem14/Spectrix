@@ -32,6 +32,7 @@
 | Link | Description |
 |------|-------------|
 | 🚀 [spectrix.netlify.app](https://spectrix.netlify.app) | Primary deployment |
+| ⚡ [spectrix-ai.vercel.app](https://spectrix-ai.vercel.app) | Vercel deployment (better long streamed responses) |
 | 🌍 [taezeem.is-a.dev/spectrix](https://taezeem.is-a.dev/spectrix) | Custom domain mirror |
 
 > ⚡ Local-first by default. Sign in with Google to unlock cloud backup + real-time multi-device sync.
@@ -76,7 +77,9 @@ Built from scratch — **zero frameworks, zero bloat** — it combines:
 ## ⚡ Core Features
 
 ### 🤖 AI Engine
-- **Real-time simulated streaming** — no waiting for full output
+- **Real-time SSE streaming** via `/chat/stream` — no waiting for full output
+- **Legacy simulated streamer kept commented** in `index.html` as fallback reference
+- **Animated Thinking... state** appears instantly while stream is warming up
 - **Multi-model routing** via OpenRouter — switch models from the header
 - **Smart API key rotation** — maximizes uptime and handles rate limits gracefully
 - **Rate-limit UX** — friendly in-app message, not a dead crash
@@ -108,6 +111,7 @@ Built from scratch — **zero frameworks, zero bloat** — it combines:
 
 ### 🧮 Math & Code
 - **KaTeX + MathJax dual-engine** — renders inline `$...$`, display `$$...$$`, and complex environments
+- **Lazy math engine loading** — KaTeX + MathJax load only when math is detected
 - **Auto-rescue** — bare LaTeX commands wrapped in delimiters automatically
 - **Copy LaTeX button** — hover any math block to copy the raw TeX
 - **Code blocks** — syntax highlighting via Highlight.js, copy button, collapse toggle
@@ -133,6 +137,8 @@ Built from scratch — **zero frameworks, zero bloat** — it combines:
 - **Chat pinning** — pin important conversations to the top
 - **Chat search** — fuzzy search across all history titles + message content
 - **In-chat message search** — highlight matching messages with `Ctrl+F`
+- **Smart auto-scroll follow** — sticks to latest while near bottom, pauses when you scroll up
+- **Smooth manual jump + high-FPS stream scroll** — responsive even during long streaming replies
 - **Export/Import** — download chats as `.md` or `.json`, re-import anytime
 - **No browser popups** — clean custom modals for all alerts, confirms, and prompts
 - **Custom select dropdowns** — animated, keyboard-navigable, beautiful
@@ -203,6 +209,7 @@ User Browser
     └── Cloudflare Workers (Edge Backend)
           ├── API key rotation
           ├── Rate limit handling
+          ├── SSE stream relay (`/chat/stream`)
           ├── Request proxying
           └── OpenRouter  →  Multi-model AI routing
                               ├── Stepfun 3.5 Flash (Quick)

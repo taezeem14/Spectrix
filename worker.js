@@ -236,6 +236,115 @@ export default {
     }
 
     /* ============================
+       🤖 OPENROUTER AI CHAT (SSE)
+       ============================ */
+    if (url.pathname === "/chat/stream" && request.method === "POST") {
+      try {
+        const body = await safeJson(request);
+        const { messages, model } = body;
+        if (!Array.isArray(messages) || messages.length === 0) {
+          return new Response(JSON.stringify({ error: "No messages provided" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+
+        const clientSystemMessages = messages.filter(m => m.role === "system");
+        const clientMessages = messages.filter(m => m.role !== "system");
+
+        let mergedSystemContent = SERVER_SYSTEM_PROMPT.content;
+        if (clientSystemMessages.length > 0) {
+          const clientSystemContent = clientSystemMessages.map(m => m.content).join('\n');
+          mergedSystemContent += '\n\n' + clientSystemContent;
+        }
+        const mergedSystemPrompt = { role: "system", content: mergedSystemContent };
+
+        const keys = [];
+        if (env.WORKER_OPENROUTER_KEY)   keys.push(env.WORKER_OPENROUTER_KEY);
+        if (env.WORKER_OPENROUTER_KEY_2) keys.push(env.WORKER_OPENROUTER_KEY_2);
+        if (env.WORKER_OPENROUTER_KEY_3) keys.push(env.WORKER_OPENROUTER_KEY_3);
+        if (env.WORKER_OPENROUTER_KEY_4) keys.push(env.WORKER_OPENROUTER_KEY_4);
+        if (env.WORKER_OPENROUTER_KEY_5) keys.push(env.WORKER_OPENROUTER_KEY_5);
+
+        if (keys.length === 0) {
+          return new Response(JSON.stringify({ error: "OpenRouter API keys not configured" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+
+        const selectedModel = model || "nvidia/nemotron-3-super-120b-a12b:free";
+        const finalMessages = [mergedSystemPrompt, ...clientMessages];
+
+        const isDeepseek = selectedModel.includes("deepseek");
+        const isThinkingModel = selectedModel.includes("thinking") || selectedModel.includes("r1") || selectedModel.includes("qwq");
+        const maxTokens = isThinkingModel ? 1500 : isDeepseek ? 2048 : 3072;
+
+        const payload = {
+          model: selectedModel,
+          messages: finalMessages,
+          max_tokens: maxTokens,
+          stream: true,
+          ...(isDeepseek && { reasoning: { effort: "low" } }),
+          plugins: body.plugins
+        };
+
+        const MAX_RETRIES = 3;
+        let lastRes = null;
+
+        for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+          const keyIndex = (Math.floor(Math.random() * keys.length) + attempt) % keys.length;
+          const API_KEY = keys[keyIndex];
+
+          lastRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${API_KEY}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload),
+          });
+
+          if (lastRes.status !== 429) break;
+
+          if (attempt < MAX_RETRIES - 1) {
+            const backoffMs = 1000 * Math.pow(2, attempt);
+            await new Promise(r => setTimeout(r, backoffMs));
+          }
+        }
+
+        const res = lastRes;
+        if (res.status === 429) {
+          const retryAfter = res.headers.get("retry-after");
+          const errorBody = {
+            error: { message: "Rate limited by AI provider. Please wait a moment and try again.", code: 429 },
+            retryAfter: retryAfter ? parseInt(retryAfter, 10) : 30
+          };
+          return new Response(JSON.stringify(errorBody), {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
+
+        if (!res.ok) {
+          const errText = await res.text();
+          return new Response(errText, {
+            status: res.status,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
+
+        return new Response(res.body, {
+          status: 200,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "text/event-stream; charset=utf-8",
+            "Cache-Control": "no-cache, no-transform",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+          }
+        });
+
+      } catch (err) {
+        return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
+    /* ============================
        🤖 GITHUB MODELS CHAT (DEEPSEEK V3 / R1)
        ============================ */
     if (url.pathname === "/github" && request.method === "POST") {

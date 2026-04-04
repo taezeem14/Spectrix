@@ -26,11 +26,6 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/go.min.js"></script>
-
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/contrib/auto-render.min.js"
-		onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true},{left: '\\(', right: '\\)', display: false},{left: '$', right: '$', display: false}], throwOnError: false, strict: 'ignore'});"></script>
 <script>
 window.MathJax = {
   tex: {
@@ -46,7 +41,6 @@ window.MathJax = {
   }
 };
 </script>
-<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Raleway:ital,wght@0,100..900;1,100..900&display=swap');
@@ -223,6 +217,7 @@ body{
 .history-list{
   flex:1;overflow-y:auto;padding:8px;
   display:flex;flex-direction:column;gap:4px;
+  scroll-behavior: smooth;
 }
 
 .history-group{
@@ -364,6 +359,7 @@ select,button.toggle{
     linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.04)),
     var(--chat);
   position:relative;
+  scroll-behavior: smooth;
 }
 
 .msg{
@@ -660,8 +656,35 @@ button.send:active{
   animation:spin 0.8s linear infinite;
 }
 
+.stream-placeholder {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.stream-dots {
+  display: inline-block;
+  min-width: 1.6em;
+  text-align: left;
+}
+
+.stream-dots::after {
+  content: '';
+  animation: thinkingDots 1.1s steps(4, end) infinite;
+}
+
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes fadeIn{to{opacity:1;}}
+@keyframes thinkingDots {
+  0% { content: ''; }
+  25% { content: '.'; }
+  50% { content: '..'; }
+  75% { content: '...'; }
+  100% { content: ''; }
+}
 
 #chat::-webkit-scrollbar {width: 6px;}
 #chat::-webkit-scrollbar-track {background: transparent;}
@@ -2360,6 +2383,7 @@ CRITICAL RULES:
 `;
 const API_WORKER_HOST = ['hac', 'koai-worker.tariqmtaezeem.workers.dev'].join('');
 const CHAT_API_URL = `https://${API_WORKER_HOST}/chat`;
+const CHAT_STREAM_API_URL = `https://${API_WORKER_HOST}/chat/stream`;
 let FIXED_TEXT_MODEL = localStorage.getItem('Spectrix_text_model') || "stepfun/step-3.5-flash:free";
 const FIXED_VIDEO_MODEL = "ByteDance/Seedance-1.0-lite";
 
@@ -2375,6 +2399,9 @@ let activeMediaObjectUrls = [];
 let cloudSyncTimer = null;
 let cloudSyncUnsubscribe = null;
 let cloudSyncInFlight = false;
+let autoScrollToLatest = true;
+let lastAutoScrollTs = 0;
+const AUTO_SCROLL_NEAR_BOTTOM_PX = 80;
 const deletedChatTombstones = new Set(
   (() => {
     try {
@@ -2782,19 +2809,98 @@ function speakText(text) {
 }
 
 // ===== MATH RENDERING =====
-function renderMath(d) {
+const MATH_RENDER_DELIMITERS = [
+  { left: "$$", right: "$$", display: true },
+  { left: "\\(", right: "\\)", display: false },
+  { left: "$", right: "$", display: false }
+];
+const KATEX_CSS_URL = 'https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css';
+const KATEX_JS_URL = 'https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.js';
+const KATEX_AUTORENDER_JS_URL = 'https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/contrib/auto-render.min.js';
+const MATHJAX_JS_URL = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+let mathEngineLoadPromise = null;
+
+function hasMathSyntax(text) {
+  return /(\$\$[\s\S]+?\$\$|\\\([\s\S]+?\\\)|\\\[[\s\S]+?\\\]|\$[^$\n]+\$)/.test(text);
+}
+
+function ensureStylesheetLoaded(href) {
+  const existing = document.querySelector(`link[rel="stylesheet"][href="${href}"]`);
+  if (existing) return Promise.resolve();
+
+  return new Promise((resolve, reject) => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = href;
+    link.onload = () => resolve();
+    link.onerror = () => reject(new Error(`Failed to load stylesheet: ${href}`));
+    document.head.appendChild(link);
+  });
+}
+
+function ensureScriptLoaded(src) {
+  const existing = document.querySelector(`script[src="${src}"]`);
+  if (existing) {
+    if (existing.dataset.loaded === 'true') return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      existing.addEventListener('load', () => resolve(), { once: true });
+      existing.addEventListener('error', () => reject(new Error(`Failed to load script: ${src}`)), { once: true });
+    });
+  }
+
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = src;
+    script.defer = true;
+    script.onload = () => {
+      script.dataset.loaded = 'true';
+      resolve();
+    };
+    script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+    document.head.appendChild(script);
+  });
+}
+
+async function ensureMathEnginesLoaded() {
+  if (window.renderMathInElement && window.MathJax?.typesetPromise) return;
+  if (mathEngineLoadPromise) {
+    await mathEngineLoadPromise;
+    return;
+  }
+
+  mathEngineLoadPromise = (async () => {
+    await ensureStylesheetLoaded(KATEX_CSS_URL);
+    await ensureScriptLoaded(KATEX_JS_URL);
+    await ensureScriptLoaded(KATEX_AUTORENDER_JS_URL);
+    await ensureScriptLoaded(MATHJAX_JS_URL);
+    if (window.MathJax?.startup?.promise) {
+      await window.MathJax.startup.promise;
+    }
+  })();
+
+  try {
+    await mathEngineLoadPromise;
+  } finally {
+    mathEngineLoadPromise = null;
+  }
+}
+
+async function renderMath(d) {
   if (!d || !d.textContent) return;
-  const hasMath = /(\$\$[\s\S]+?\$\$|\\\([\s\S]+?\\\)|\\\[[\s\S]+?\\\]|\$[^$\n]+\$)/.test(d.textContent);
+  const hasMath = hasMathSyntax(d.textContent);
   if (!hasMath) return;
+
+  try {
+    await ensureMathEnginesLoaded();
+  } catch (error) {
+    console.warn('Math engine lazy-load warning:', error);
+    return;
+  }
 
   if (window.renderMathInElement) {
     try {
       renderMathInElement(d, {
-        delimiters: [
-          { left: "$$", right: "$$", display: true },
-          { left: "\\(", right: "\\)", display: false },
-          { left: "$", right: "$", display: false }
-        ],
+        delimiters: MATH_RENDER_DELIMITERS,
         throwOnError: false,
         strict: "ignore"
       });
@@ -3364,8 +3470,25 @@ function editTitle() {
   };
 }
 
+function isChatNearBottom(threshold = AUTO_SCROLL_NEAR_BOTTOM_PX) {
+  if (!chat) return true;
+  return chat.scrollHeight - chat.scrollTop - chat.clientHeight < threshold;
+}
+
+function scrollChatToLatest({ smooth = false, force = false } = {}) {
+  if (!chat) return;
+  if (!force && !autoScrollToLatest) return;
+
+  const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+  if (smooth && !force && now - lastAutoScrollTs < 120) return;
+  lastAutoScrollTs = now;
+
+  chat.scrollTo({ top: chat.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+}
+
 function scrollToBottom() {
-  chat.scrollTo({ top: chat.scrollHeight, behavior: "smooth" });
+  autoScrollToLatest = true;
+  scrollChatToLatest({ smooth: true, force: true });
 }
 
 function time() {
@@ -3803,13 +3926,17 @@ function render(role, content, saveIt = true, messageIndex = null) {
   d.appendChild(t);
 
   chat.appendChild(d);
-  chat.scrollTop = chat.scrollHeight;
+  scrollChatToLatest({ smooth: false });
 
   if (saveIt) saveMessage(role, content);
   return d;
 }
 
 // ===== STREAMING =====
+/*
+Legacy simulated streaming kept for reference.
+Replaced by real SSE streaming through /chat/stream.
+
 async function streamBotInChunks(fullText, baseChunkSize = 50) {
   const d = document.createElement("div");
   d.className = "msg bot";
@@ -3819,20 +3946,17 @@ async function streamBotInChunks(fullText, baseChunkSize = 50) {
   const session = getCurrentSession();
   if (!session) return;
 
-  // 🗣️ PLAY AUDIO IMMEDIATELY! Do not wait for the visual typing loop to finish.
   speakText(fullText);
 
   const totalLength = fullText.length;
   let chunkSize = baseChunkSize;
-  
-  // 🔥 Adaptive chunking - bigger chunks for long responses
   if (totalLength > 5000) chunkSize = 100;
   if (totalLength > 10000) chunkSize = 200;
 
   for (let i = 0; i < fullText.length; i += chunkSize) {
     const chunk = fullText.slice(i, i + chunkSize);
     renderedText += chunk;
-    
+
     if (window.marked) {
       d.innerHTML = renderMarkdownSafely(renderedText);
       promoteInlineCodeMath(d);
@@ -3841,17 +3965,138 @@ async function streamBotInChunks(fullText, baseChunkSize = 50) {
     }
     renderMath(d);
     chat.scrollTop = chat.scrollHeight;
-
     await new Promise(r => setTimeout(r, totalLength > 5000 ? 5 : 15));
   }
-  
+
   setTimeout(() => decorateCodeBlocks(d), 80);
+  session.messages.push({ role: "bot", content: renderedText });
+  session.timestamp = Date.now();
+  await saveChat(session);
+  renderHistory();
+  updateHeaderTitle();
+}
+*/
+
+async function streamBotFromSSE(payload) {
+  const res = await fetchWithTimeoutRetry(CHAT_STREAM_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    timeoutMs: 120000,
+    body: JSON.stringify(payload)
+  }, 1);
+
+  if (!res.body) {
+    throw new Error("Streaming is not supported in this browser.");
+  }
+
+  const d = document.createElement("div");
+  d.className = "msg bot";
+  d.innerHTML = '<span class="stream-placeholder">Thinking<span class="stream-dots" aria-hidden="true"></span></span>';
+  chat.appendChild(d);
+  scrollChatToLatest({ smooth: false, force: true });
+
+  const session = getCurrentSession();
+  if (!session) throw new Error("No active chat session");
+
+  let renderedText = "";
+  let buffer = "";
+  let streamDone = false;
+  let frameScheduled = false;
+
+  const decoder = new TextDecoder();
+  const reader = res.body.getReader();
+
+  const renderCurrentState = () => {
+    if (window.marked) {
+      d.innerHTML = renderMarkdownSafely(renderedText);
+      promoteInlineCodeMath(d);
+    } else {
+      d.textContent = renderedText;
+    }
+    scrollChatToLatest({ smooth: false });
+  };
+
+  const scheduleRender = () => {
+    if (frameScheduled) return;
+    frameScheduled = true;
+    requestAnimationFrame(() => {
+      frameScheduled = false;
+      renderCurrentState();
+    });
+  };
+
+  while (!streamDone) {
+    const chunk = await reader.read();
+    if (chunk.done) break;
+
+    buffer += decoder.decode(chunk.value, { stream: true });
+    buffer = buffer.replace(/\r\n/g, "\n");
+
+    let boundaryIndex = buffer.indexOf("\n\n");
+    while (boundaryIndex !== -1) {
+      const rawEvent = buffer.slice(0, boundaryIndex).trim();
+      buffer = buffer.slice(boundaryIndex + 2);
+
+      if (rawEvent) {
+        const dataLines = rawEvent
+          .split("\n")
+          .filter((line) => line.startsWith("data:"))
+          .map((line) => line.slice(5).trimStart());
+
+        if (dataLines.length > 0) {
+          const dataRaw = dataLines.join("\n").trim();
+
+          if (dataRaw === "[DONE]") {
+            streamDone = true;
+            break;
+          }
+
+          let eventData = null;
+          try {
+            eventData = JSON.parse(dataRaw);
+          } catch {
+            eventData = null;
+          }
+
+          if (eventData?.type === "error") {
+            throw new Error(eventData.message || "Streaming failed");
+          }
+
+          if (eventData?.type === "delta" && typeof eventData.delta === "string") {
+            renderedText += eventData.delta;
+            scheduleRender();
+          }
+
+          if (eventData?.type === "done") {
+            streamDone = true;
+            break;
+          }
+        }
+      }
+
+      boundaryIndex = buffer.indexOf("\n\n");
+    }
+  }
+
+  if (!renderedText.trim()) {
+    throw new Error("Empty response from model");
+  }
+
+  renderCurrentState();
+  await renderMath(d);
+
+  setTimeout(() => decorateCodeBlocks(d), 80);
+
+  // Play TTS once final text is complete.
+  speakText(renderedText);
 
   session.messages.push({ role: "bot", content: renderedText });
   session.timestamp = Date.now();
   await saveChat(session);
   renderHistory();
   updateHeaderTitle();
+
+  return renderedText;
 }
 
 // ===== FULL AUTO TITLE =====
@@ -3938,15 +4183,6 @@ async function send(options = {}) {
     return;
   }
 
-if (ttsEnabled && 'speechSynthesis' in window) {
-    // Speak physical character 'a' at 1% volume. Mobile browsers won't skip it.
-    const u = new SpeechSynthesisUtterance('a');
-    u.volume = 0.01;
-    u.rate = 10;
-    window.speechSynthesis.speak(u);
-    if (window.speechSynthesis.state === 'paused') window.speechSynthesis.resume();
-  }
-
   let prompt = String(promptOverride ?? input.value).trim();
   if (!prompt) return;
   if (prompt.length > MAX_PROMPT_CHARS) {
@@ -3978,13 +4214,24 @@ if (ttsEnabled && 'speechSynthesis' in window) {
 
   if (!skipUserRender) {
     render("user", prompt);
+    // Yield one frame so the user bubble paints immediately.
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+  }
+
+  if (ttsEnabled && 'speechSynthesis' in window) {
+    // Warm up TTS after UI paint so speech setup never delays first bubble render.
+    const u = new SpeechSynthesisUtterance('a');
+    u.volume = 0.01;
+    u.rate = 10;
+    window.speechSynthesis.speak(u);
+    if (window.speechSynthesis.state === 'paused') window.speechSynthesis.resume();
   }
 
   const loading = document.createElement("div");
   loading.className = "msg bot";
   loading.innerHTML = "<div class='spinner'></div>";
   chat.appendChild(loading);
-  chat.scrollTop = chat.scrollHeight;
+  scrollChatToLatest({ smooth: false, force: true });
 
   try {
     if (isImage) {
@@ -4009,7 +4256,7 @@ if (ttsEnabled && 'speechSynthesis' in window) {
         div.className = "msg bot";
         div.appendChild(img);
         chat.appendChild(div);
-        chat.scrollTop = chat.scrollHeight;
+        scrollChatToLatest({ smooth: false, force: true });
       } catch (err) {
         console.error("Send error:", err);
         isGenerating = false;
@@ -4043,7 +4290,7 @@ if (ttsEnabled && 'speechSynthesis' in window) {
 
           div.appendChild(savedVideo);
           chat.appendChild(div);
-          chat.scrollTop = chat.scrollHeight;
+          scrollChatToLatest({ smooth: false, force: true });
 
           const mediaId = `vid_${Date.now()}`;
           await saveMedia(mediaId, blob);
@@ -4092,20 +4339,8 @@ if (webSearchEnabled) {
   ];
 }
 
-const res = await fetchWithTimeoutRetry(CHAT_API_URL, {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  timeoutMs: 90000,
-  body: JSON.stringify(payload)
-}, 1);
-
-    const text = await res.text();
-let data;
-try { data = JSON.parse(text); } catch { throw new Error("Server returned invalid response"); }
-
-const answer = data.choices?.[0]?.message?.content || `💀 Empty response from ${model}`;
 loading.remove();
-await streamBotInChunks(answer);
+const answer = await streamBotFromSSE(payload);
 isGenerating = false;
 
      if (shouldAutoTitle) {
@@ -4476,10 +4711,17 @@ function initEventListeners() {
     searchTimeout = setTimeout(renderHistory, 200);
   });
 
+  let scrollTicking = false;
   chat.addEventListener("scroll", () => {
-    const atBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 50;
-    scrollBottom.classList.toggle("visible", !atBottom);
-  });
+    if (scrollTicking) return;
+    scrollTicking = true;
+    requestAnimationFrame(() => {
+      const atBottom = isChatNearBottom();
+      autoScrollToLatest = atBottom;
+      scrollBottom.classList.toggle("visible", !atBottom);
+      scrollTicking = false;
+    });
+  }, { passive: true });
 
   document.addEventListener("keydown", (e) => {
     const key = String(e.key || '').toLowerCase();
