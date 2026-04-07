@@ -2396,8 +2396,8 @@ body.dark .voice-btn.recording {
           <div class="select-wrap">
             <select id="textModelSelect" title="Choose text model">
               <option value="stepfun/step-3.5-flash:free">Stepfun 3.5 Flash (Quick • Smart • Often Rate-Limited)</option>
-			  <option value="qwen/qwen3.6-plus:free">Qwen 3.6 Plus (Fast • Coding)</option>
-              <option value="nvidia/nemotron-3-super-120b-a12b:free">Nemotron 3 Super (Reasoning • Slow • Math)</option>
+			  <option value="qwen/qwen3.6-plus:free">Qwen 3.6 Plus (Fast • Smart)</option>
+              <option value="nvidia/nemotron-3-super-120b-a12b:free">Nemotron 3 Super (Reasoning • Slow)</option>
             </select>
           </div>
       </div>
@@ -2726,6 +2726,8 @@ function buildChatApiCandidates(pathSuffixes) {
 }
 
 function parseHttpStatusFromError(error) {
+  const directStatus = Number.parseInt(String(error?.status ?? ''), 10);
+  if (Number.isFinite(directStatus)) return directStatus;
   const match = /HTTP\s+(\d{3})/i.exec(String(error?.message || ''));
   if (!match) return null;
   const status = Number.parseInt(match[1], 10);
@@ -2888,6 +2890,7 @@ async function fetchChatApiWithFallback(options = {}, retryCount = 1) {
 }
 let FIXED_TEXT_MODEL = localStorage.getItem('Spectrix_text_model') || "stepfun/step-3.5-flash:free";
 const FIXED_VIDEO_MODEL = "ByteDance/Seedance-1.0-lite";
+const FIXED_MEMORY_TITLE_MODEL = "liquid/lfm-2.5-1.2b-instruct:free";
 
 let sessions = {};
 let currentId = localStorage.getItem(CURRENT_KEY) || null;
@@ -4697,18 +4700,36 @@ async function fetchWithTimeoutRetry(url, options = {}, retryCount = 1) {
       // Special handling for 429 — don't retry, the worker already retried
       if (response.status === 429) {
         let retryAfter = 30;
+        let providerMessage = '';
         try {
           const errBody = await response.clone().json();
           if (errBody.retryAfter) retryAfter = errBody.retryAfter;
+          providerMessage = String(errBody?.error?.message || errBody?.message || '').trim();
         } catch {}
-        const err = new Error(`Rate limited — please wait ~${retryAfter}s and try again.`);
+        const message = providerMessage
+          ? `HTTP 429: ${providerMessage}`
+          : `HTTP 429: Rate limited — please wait ~${retryAfter}s and try again.`;
+        const err = new Error(message);
         err.isRateLimit = true;
+        err.status = 429;
         err.retryAfter = retryAfter;
+        err.providerMessage = providerMessage;
         throw err;
       }
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        let detail = '';
+        try {
+          const errBody = await response.clone().json();
+          detail = String(errBody?.error?.message || errBody?.message || '').trim();
+        } catch {
+          try {
+            detail = String(await response.clone().text() || '').trim().slice(0, 220);
+          } catch {}
+        }
+        const err = new Error(detail ? `HTTP ${response.status}: ${detail}` : `HTTP ${response.status}`);
+        err.status = response.status;
+        throw err;
       }
 
       return response;
@@ -5162,7 +5183,7 @@ async function generateTitle(userPrompt, botReply) {
       headers: { "Content-Type": "application/json" },
       timeoutMs: 22000,
       body: JSON.stringify({
-        model: localStorage.getItem('Spectrix_text_model') || "stepfun/step-3.5-flash:free",
+        model: FIXED_MEMORY_TITLE_MODEL,
         messages: [
           {
             role: "system",
@@ -6051,7 +6072,7 @@ async function extractMemories(userMessage, botReply) {
       headers: { 'Content-Type': 'application/json' },
       timeoutMs: 18000,
       body: JSON.stringify({
-        model: localStorage.getItem('Spectrix_text_model') || "stepfun/step-3.5-flash:free",
+        model: FIXED_MEMORY_TITLE_MODEL,
         messages: [
           {
             role: 'system',
@@ -6129,6 +6150,24 @@ ${existingFacts.slice(0, 20).join('\n')}`
       console.log(`🧠 Saved ${saved} new memories`);
     }
   } catch (err) {
+    const status = parseHttpStatusFromError(err);
+    const isRateLimited = Boolean(err?.isRateLimit) || status === 429;
+
+    if (isRateLimited) {
+      const retryAfterSec = Math.max(5, Number.parseInt(String(err?.retryAfter || 30), 10) || 30);
+      const retryAfterMs = retryAfterSec * 1000;
+      const adjustedLast = Date.now() - MEMORY_EXTRACT_COOLDOWN_MS + retryAfterMs;
+      localStorage.setItem(LAST_MEMORY_EXTRACT_KEY, String(adjustedLast));
+
+      const providerMessage = String(err?.providerMessage || '').trim();
+      const rateMsg = providerMessage
+        ? `Memory extraction hit provider rate limit (429): ${providerMessage}`
+        : `Memory extraction hit provider rate limit (429). Retrying in ~${retryAfterSec}s.`;
+      showStatus(rateMsg, 4200);
+      console.warn('Memory extraction rate-limited (429):', { retryAfterSec, providerMessage, err });
+      return;
+    }
+
     console.warn('Memory extraction error:', err);
   }
 }
