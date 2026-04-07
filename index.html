@@ -6057,13 +6057,14 @@ function shouldExtractMemories(userMessage) {
   const last = Number(localStorage.getItem(LAST_MEMORY_EXTRACT_KEY) || 0);
   const now = Date.now();
   if (now - last < MEMORY_EXTRACT_COOLDOWN_MS) return false;
-
-  localStorage.setItem(LAST_MEMORY_EXTRACT_KEY, String(now));
   return true;
 }
 
 async function extractMemories(userMessage, botReply) {
   try {
+    const requestStartedAt = Date.now();
+    localStorage.setItem(LAST_MEMORY_EXTRACT_KEY, String(requestStartedAt));
+
     const existingMemories = await getAllMemories();
     const existingFacts = existingMemories.map(m => m.content.toLowerCase());
 
@@ -6168,6 +6169,10 @@ ${existingFacts.slice(0, 20).join('\n')}`
       return;
     }
 
+    const retryAfterSec = 60;
+    const adjustedLast = Date.now() - MEMORY_EXTRACT_COOLDOWN_MS + (retryAfterSec * 1000);
+    localStorage.setItem(LAST_MEMORY_EXTRACT_KEY, String(adjustedLast));
+    showStatus('Memory extraction failed temporarily. Retrying soon.', 3200);
     console.warn('Memory extraction error:', err);
   }
 }

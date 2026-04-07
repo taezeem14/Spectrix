@@ -6,6 +6,45 @@ function arrayBufferToBase64(buffer) {
   return btoa(binary);
 }
 
+function parseRetryAfterValue(value) {
+  const asNumber = value ? parseInt(value, 10) : NaN;
+  return Number.isFinite(asNumber) ? asNumber : 30;
+}
+
+async function buildRateLimitBody(response) {
+  let retryAfter = parseRetryAfterValue(response.headers.get("retry-after"));
+  let providerMessage = "";
+  let upstreamCode = 429;
+
+  try {
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      const body = await response.clone().json();
+      providerMessage = String(body?.error?.message || body?.message || "").trim();
+
+      const parsedCode = parseInt(String(body?.error?.code ?? body?.code ?? ""), 10);
+      if (Number.isFinite(parsedCode)) upstreamCode = parsedCode;
+
+      const parsedRetryAfter = parseInt(String(body?.retryAfter ?? body?.retry_after ?? ""), 10);
+      if (Number.isFinite(parsedRetryAfter) && parsedRetryAfter > 0) {
+        retryAfter = parsedRetryAfter;
+      }
+    } else {
+      const raw = String(await response.clone().text() || "").trim();
+      if (raw) providerMessage = raw.slice(0, 260);
+    }
+  } catch {}
+
+  const message = providerMessage || "Rate limited by AI provider. Please wait a moment and try again.";
+  const payload = {
+    error: { message, code: 429, upstreamCode },
+    retryAfter
+  };
+
+  if (providerMessage) payload.providerMessage = providerMessage;
+  return payload;
+}
+
 // ============================================================
 //  SPECTRIX SYSTEM PROMPT  (compact — avoids token bleed)
 // ============================================================
@@ -161,7 +200,7 @@ export default {
         };
 
         // Retry with exponential backoff on 429
-        const MAX_RETRIES = 3;
+        const MAX_RETRIES = Math.min(Math.max(keys.length, 3), 5);
         let lastRes = null;
 
         for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
@@ -189,11 +228,7 @@ export default {
 
         // Still 429 after retries — return error JSON
         if (res.status === 429) {
-          const retryAfter = res.headers.get("retry-after");
-          const errorBody = {
-            error: { message: "Rate limited by AI provider. Please wait a moment and try again.", code: 429 },
-            retryAfter: retryAfter ? parseInt(retryAfter, 10) : 30
-          };
+          const errorBody = await buildRateLimitBody(res);
           return new Response(JSON.stringify(errorBody), {
             status: 429,
             headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -283,7 +318,7 @@ export default {
           plugins: body.plugins
         };
 
-        const MAX_RETRIES = 3;
+        const MAX_RETRIES = Math.min(Math.max(keys.length, 3), 5);
         let lastRes = null;
 
         for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
@@ -309,11 +344,7 @@ export default {
 
         const res = lastRes;
         if (res.status === 429) {
-          const retryAfter = res.headers.get("retry-after");
-          const errorBody = {
-            error: { message: "Rate limited by AI provider. Please wait a moment and try again.", code: 429 },
-            retryAfter: retryAfter ? parseInt(retryAfter, 10) : 30
-          };
+          const errorBody = await buildRateLimitBody(res);
           return new Response(JSON.stringify(errorBody), {
             status: 429,
             headers: { ...corsHeaders, "Content-Type": "application/json" }
