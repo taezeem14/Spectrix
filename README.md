@@ -51,7 +51,7 @@
 **Spectrix AI** is a high-performance, PWA-first AI chatbot engineered for students, developers, and power users.
 
 Built from scratch — **zero frameworks, zero bloat** — it combines:
-- 🤖 Multi-model AI routing via **OpenRouter** (Stepfun, Qwen, Nemotron, and more)
+- 🤖 Multi-model AI routing via **OpenRouter** (GPT-OSS 120B, MiniMax M2.5, Nemotron 3 Super)
 - ⚡ Edge-speed backend on **Cloudflare Workers** with smart key rotation
 - 🧮 **Full LaTeX math rendering** via KaTeX + MathJax with copy-to-clipboard
 - 📡 **Offline-first** architecture with IndexedDB local persistence
@@ -92,11 +92,14 @@ Built from scratch — **zero frameworks, zero bloat** — it combines:
 - **Rate-limit UX** — friendly in-app message, not a dead crash
 - **Web search mode** — powered by Firecrawl via OpenRouter (`Ctrl+Shift+S` to toggle)
 - **Auto-titled chats** — AI names your conversations after the first exchange
+- **Title model pinned** — `openai/gpt-oss-120b:free`
+- **Direct-answer guardrails** — avoids made-up headings like "Quick Concept" / "Game Plan" unless requested
 - **Retry + Edit** — re-run any response or tweak your message mid-conversation
 
 ### 🧠 AI Memory
 - **Persistent memory** across conversations — the AI knows who you are
 - **Auto-extraction** — silently learns your name, preferences, goals, and tech stack
+- **Memory extraction model pinned** — `nvidia/nemotron-3-super-120b-a12b:free`
 - **Manual memory** — add facts yourself via the 🧠 panel
 - **Categorized** — personal, preference, technical, interest, context, general
 - **Full control** — view all memories, delete individually, or wipe clean
@@ -109,6 +112,7 @@ Built from scratch — **zero frameworks, zero bloat** — it combines:
 ### 🎤 Voice & Interaction
 - **Voice input** via Web Speech API — tap 🎤, speak, done
 - **Text-to-Speech output** — AI responses read aloud via the 🔊 toggle
+- **`+` quick-actions menu** — opens Attach files/photos, Voice input, and Web search actions in one place
 - **TTS audio unlock** — mobile-compatible auto-unlock on first user interaction
 - **Voice confirmation** — audible "Voice enabled" on toggle so you know it works
 - **Keyboard shortcuts:**
@@ -156,6 +160,7 @@ Built from scratch — **zero frameworks, zero bloat** — it combines:
 - **Export/Import** — download chats as `.md` or `.json`, re-import anytime
 - **No browser popups** — clean custom modals for all alerts, confirms, and prompts
 - **Custom select dropdowns** — animated, keyboard-navigable, beautiful
+- **Composer alignment polish** — footer controls and `+` quick-actions menu stay cleanly aligned on desktop and mobile
 
 ### ☁️ Google Auth + Cloud Sync
 - **Google Sign-In** via Firebase Auth (popup with redirect fallback)
@@ -200,9 +205,9 @@ User sends message
 
 | Mode | Model | Best For |
 |------|-------|----------|
-| ⚡ Quick | `stepfun/step-3.5-flash:free` | Everyday use, fast replies |
-| 🚀 Smart | `qwen/qwen3.6-plus:free` | Frontend dev, agentic tasks, fast + smart |
-| 🧠 Reasoning | `nvidia/nemotron-3-super-120b-a12b:free` | Deep reasoning, hard problems (slower) |
+| ⚡ Quick | `openai/gpt-oss-120b:free` | Fast chats, tools, and agent loops |
+| 🚀 Smart | `minimax/minimax-m2.5:free` | Coding and productivity workflows |
+| 🧠 Reasoning | `nvidia/nemotron-3-super-120b-a12b:free` | Deep reasoning and long-context tasks |
 
 > 💾 Model preference saved to `localStorage → Spectrix_text_model` and persists across sessions.
 
@@ -230,8 +235,8 @@ User Browser
           ├── SSE stream relay (`/chat/stream`)
           ├── Request proxying
           └── OpenRouter  →  Multi-model AI routing
-                              ├── Stepfun 3.5 Flash (Quick)
-                              ├── Qwen 3.6 Plus (Smart)
+                              ├── GPT-OSS 120B (Quick)
+                              ├── MiniMax M2.5 (Smart)
                               ├── Nemotron 3 Super 120B (Reasoning)
                               └── Firecrawl (Web Search)
 
