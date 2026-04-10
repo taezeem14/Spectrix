@@ -1,0 +1,32 @@
+{
+  "rewrites": [
+    {
+      "source": "/chat",
+      "destination": "/api/chat"
+    },
+    {
+      "source": "/chat/stream",
+      "destination": "/api/chat/stream"
+    },
+    {
+      "source": "/github",
+      "destination": "/api/github"
+    },
+    {
+      "source": "/hf/img",
+      "destination": "/api/hf/img"
+    },
+    {
+      "source": "/hf/vid",
+      "destination": "/api/hf/vid"
+    },
+    {
+      "source": "/leaderboard/top",
+      "destination": "/api/leaderboard/top"
+    },
+    {
+      "source": "/leaderboard/submit",
+      "destination": "/api/leaderboard/submit"
+    }
+  ]
+}
