@@ -3579,7 +3579,9 @@ async function fetchChatApiWithFallback(options = {}, retryCount = 1) {
 }
 const DEFAULT_TEXT_MODEL = "openai/gpt-oss-120b:free";
 const ALLOWED_TEXT_MODELS = new Set([
-  DEFAULT_TEXT_MODEL
+  "openai/gpt-oss-120b:free",
+  "minimax/minimax-m2.5:free",
+  "nvidia/nemotron-3-super-120b-a12b:free"
 ]);
 const DEPRECATED_TEXT_MODELS = new Set([
   "stepfun/step-3.5-flash:free",
