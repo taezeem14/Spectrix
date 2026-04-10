@@ -1,0 +1,13 @@
+{
+  "name": "spectrix-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Spectrix AI - Fast voice-enabled AI chat web app with PWA support",
+  "scripts": {
+    "dev": "echo 'Static site - open index.html in browser'",
+    "lint": "echo 'No linter configured for this static site'"
+  },
+  "dependencies": {
+    "@vercel/speed-insights": "^2.0.0"
+  }
+}
