@@ -341,11 +341,10 @@ Idea  →  AI generates core logic
 
 ## 🗺️ Roadmap
 
-- [ ] Folder/tag-based chat organization
+- [x] Folder/tag-based chat organization
 - [x] Cloud memory sync across signed-in devices
-- [ ] Custom system prompt editor
 - [x] Multi-file upload support
-- [ ] Conversation branching
+- [x] Conversation branching
 
 ---
 

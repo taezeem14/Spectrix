@@ -149,23 +149,23 @@ body{
     radial-gradient(circle at 12% 8%, var(--accent-glow), transparent 38%),
     radial-gradient(circle at 88% 92%, var(--accent-glow), transparent 42%),
     var(--bg);
-  display:flex;justify-content:center;align-items:center;
+  display:block;
   min-height:100dvh;
   height:100vh;
   color:var(--text);
   overflow: hidden;
-  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+  padding:0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
 
 .container{
-  width:100%;max-width:1280px;height:calc(100dvh - var(--safe-top) - var(--safe-bottom));
+  width:100vw;max-width:none;height:100dvh;
   display:flex;gap:0;
-  box-shadow: var(--shadow-xl);
-  border-radius:24px;overflow:hidden;
-  border: 1px solid var(--border);
+  box-shadow:none;
+  border-radius:0;overflow:hidden;
+  border:none;
   backdrop-filter: blur(14px);
 }
 
@@ -229,6 +229,79 @@ body{
   flex:1;overflow-y:auto;padding:8px;
   display:flex;flex-direction:column;gap:4px;
   scroll-behavior: smooth;
+}
+
+.sidebar-footer{
+  position:sticky;
+  bottom:0;
+  z-index:6;
+  padding:10px;
+  border-top:1px solid var(--border);
+  background:linear-gradient(180deg, rgba(15,23,42,0), var(--sidebar) 45%);
+}
+
+.settings-wrap{
+  position:relative;
+}
+
+.sidebar-settings-btn{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  background:transparent;
+  border:1px solid var(--border);
+  color:var(--text);
+  padding:8px 12px;
+  border-radius:12px;
+  font-family:inherit;
+  font-size:13px;
+  font-weight:600;
+  cursor:pointer;
+}
+
+.sidebar-settings-btn:hover{
+  border-color:var(--user);
+  background:var(--accent-glow);
+}
+
+.settings-menu{
+  position:absolute;
+  left:0;
+  bottom:calc(100% + 8px);
+  width:min(280px, calc(100vw - 28px));
+  padding:8px;
+  border-radius:14px;
+  border:1px solid var(--border);
+  background:var(--panel);
+  box-shadow:var(--shadow-lg);
+  display:none;
+  flex-direction:column;
+  gap:6px;
+}
+
+.settings-menu.open{
+  display:flex;
+}
+
+.settings-item{
+  min-height:34px;
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:var(--chat);
+  color:var(--text);
+  padding:6px 10px;
+  font-family:inherit;
+  font-size:13px;
+  cursor:pointer;
+  text-align:left;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.settings-item:hover{
+  border-color:var(--user);
+  background:var(--accent-glow);
 }
 
 .history-group{
@@ -490,7 +563,7 @@ select,button.toggle{
 }
 .bot{
 	align-self:flex-start;
-	background:var(--bot);
+  background:var(--bot);
 	color:var(--text);
   box-shadow: var(--shadow-md);
 	border: 1px solid var(--border);
@@ -1725,7 +1798,7 @@ body.dark .voice-btn.recording {
     top: 0;
     left: 0;
     height: 100dvh;
-    width: 78vw;
+    width: 84vw;
     max-width: 320px;
     z-index: 999;
     box-shadow: var(--shadow-lg);
@@ -1738,9 +1811,16 @@ body.dark .voice-btn.recording {
   }
   
   .scroll-bottom { 
+    left: auto;
     right: 16px;
     bottom: 90px;
-    padding: 8px 12px;
+    transform: none;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
   }
   
   .app {
@@ -1748,30 +1828,71 @@ body.dark .voice-btn.recording {
     width: 100%;
     height: 100dvh;
   }
+
+  .sidebar-footer {
+    padding: 10px;
+    padding-bottom: calc(10px + var(--safe-bottom));
+  }
+
+  .sidebar-settings-btn {
+    width: 100%;
+    justify-content: center;
+    min-height: 38px;
+  }
+
+  .settings-menu {
+    width: min(300px, calc(100vw - 28px));
+  }
   
   header {
-    padding: 10px 12px;
+    padding: 8px 10px;
     font-size: 13px;
-    gap: 6px;
-    min-height: 48px;
+    min-height: auto;
     position: static;
+    display: block;
+  }
+
+  header > div:first-child {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    margin-bottom: 8px;
   }
   
   #headerTitle {
     font-size: 15px;
-    max-width: 100px;
+    max-width: 64vw;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   
   .controls {
-    gap: 4px;
+    gap: 6px;
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    touch-action: pan-x;
+    padding-bottom: 2px;
+  }
+
+  .controls::-webkit-scrollbar {
+    display: none;
+  }
+
+  .controls > * {
+    flex: 0 0 auto;
   }
   
   .controls button.toggle {
-    padding: 5px 7px;
-    font-size: 16px;
+    min-height: 34px;
+    min-width: 34px;
+    padding: 5px 8px;
+    font-size: 15px;
   }
 	
 .controls button.toggle:hover {
@@ -1780,14 +1901,14 @@ body.dark .voice-btn.recording {
 }
   
   .controls select {
-    padding: 6px 26px 6px 9px;
-    min-height: 32px;
+    padding: 6px 24px 6px 9px;
+    min-height: 34px;
     font-size: 11px;
   }
 
   .custom-select-trigger {
-    min-height: 32px;
-    max-width: 140px;
+    min-height: 34px;
+    max-width: 132px;
     padding: 6px 8px;
     font-size: 11px;
     gap: 8px;
@@ -1833,6 +1954,7 @@ body.dark .voice-btn.recording {
   
   #chat {
     padding: 10px;
+    padding-bottom: 16px;
     gap: 12px;
   }
   
@@ -1889,6 +2011,9 @@ body.dark .voice-btn.recording {
       padding-bottom: calc(8px + var(--safe-bottom));
       align-items: flex-end;
       backdrop-filter: none;
+      position: sticky;
+      bottom: 0;
+      background: linear-gradient(180deg, rgba(15,23,42,0.06), var(--panel));
     }
   
   input {
@@ -1972,13 +2097,19 @@ body.dark .voice-btn.recording {
   }
   
   #headerTitle {
-    max-width: 80px;
+    max-width: 58vw;
     font-size: 14px;
   }
   
   .controls button.toggle {
+    min-width: 32px;
+    min-height: 32px;
     padding: 4px 6px;
     font-size: 14px;
+  }
+
+  .custom-select-trigger {
+    max-width: 118px;
   }
   
   .msg {
@@ -2573,6 +2704,17 @@ body.dark .voice-btn.recording {
       </div>
     </div>
     <div class="history-list" id="historyList"></div>
+    <div class="sidebar-footer">
+      <div class="settings-wrap" id="settingsWrap">
+        <button class="sidebar-settings-btn" id="settingsBtn" onclick="toggleSettingsMenu(event)" aria-expanded="false" aria-haspopup="menu" aria-label="Open settings">⚙️ Settings</button>
+        <div class="settings-menu" id="settingsMenu" role="menu" aria-label="Settings menu">
+          <button class="settings-item" id="settingsAuthBtn" type="button" onclick="openProfileActions();closeSettingsMenu();" role="menuitem" title="Sign in with Google">🔐 Sign in with Google</button>
+          <button class="settings-item" type="button" onclick="exportChat();closeSettingsMenu();" role="menuitem">💾 Export current chat</button>
+          <button class="settings-item" type="button" onclick="editCurrentChatOrganization();closeSettingsMenu();" role="menuitem">🏷️ Folder / Tags</button>
+          <button class="settings-item memory-toggle" type="button" onclick="toggleMemoryPanel();closeSettingsMenu();" role="menuitem">🧠 AI Memory <span class="memory-badge" id="memoryBadge" style="display:none;">0</span></button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="app">
@@ -2582,12 +2724,10 @@ body.dark .voice-btn.recording {
         <span id="headerTitle" ondblclick="editTitle()">Spectrix AI</span>
       </div>
       <div class="controls">
-        <button class="toggle" onclick="exportChat()" aria-label="Export current chat">💾</button>
         <button class="toggle" onclick="copyAll()" aria-label="Copy all messages">📋</button>
         <button class="toggle" onclick="clearChat()" aria-label="Clear current chat">🗑️</button>
-        <button class="toggle memory-toggle" onclick="toggleMemoryPanel()" aria-label="AI Memory" title="AI Memory">🧠<span class="memory-badge" id="memoryBadge" style="display:none;">0</span></button>
+        <button class="toggle" onclick="toggleTheme()" aria-label="Toggle theme" title="Toggle theme">🌗</button>
         <button class="toggle" id="incognitoToggle" onclick="toggleIncognitoMode()" aria-label="Toggle incognito mode" title="Incognito: OFF">🕶️</button>
-        <button class="toggle" onclick="toggleTheme()" aria-label="Toggle theme">🌗</button>
         <button class="toggle tts-toggle" id="ttsToggle" onclick="toggleTTS()" title="Toggle Text-to-Speech">🔊</button>
         <div class="select-wrap">
         <select id="imageModel">
@@ -2729,10 +2869,11 @@ async function saveChatLocal(chatData) {
   const tx = db.transaction('chats', 'readwrite');
   const store = tx.objectStore('chats');
   store.put(chatData);
-  return new Promise((resolve, reject) => {
+  await new Promise((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
+  upsertChatIndexEntry(chatData);
 }
 
 async function saveChat(chatData) {
@@ -2773,10 +2914,11 @@ async function deleteChatFromDB(id) {
   const tx = db.transaction('chats', 'readwrite');
   const store = tx.objectStore('chats');
   store.delete(id);
-  return new Promise((resolve, reject) => {
+  await new Promise((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
+  removeChatIndexEntry(id);
 }
 
 async function saveMedia(id, blob) {
@@ -2890,6 +3032,7 @@ const PROFILE_KEY = 'Spectrix_user_profile';
 const DELETE_CONFIRM_SKIP_KEY = 'Spectrix_skip_delete_confirm';
 const DELETED_CHAT_TOMBSTONES_KEY = 'Spectrix_deleted_chat_ids';
 const INCOGNITO_KEY = 'Spectrix_incognito_mode';
+const CHAT_INDEX_KEY = 'Spectrix_chat_index_v1';
 const MAX_PROMPT_CHARS = 10000;
 const MAX_ATTACHMENT_FILES = 8;
 const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
@@ -3679,6 +3822,118 @@ function persistDeletedChatTombstones() {
   localStorage.setItem(DELETED_CHAT_TOMBSTONES_KEY, JSON.stringify(Array.from(deletedChatTombstones)));
 }
 
+function normalizeChatMeta(chat) {
+  if (!chat || !chat.id) return null;
+  const folder = (typeof chat.folder === 'string' && chat.folder.trim()) ? chat.folder.trim() : 'General';
+  const tags = Array.isArray(chat.tags) ? chat.tags : [];
+  const branchOf = typeof chat.branchOf === 'string' ? chat.branchOf : '';
+  return {
+    id: String(chat.id),
+    title: String(chat.title || 'New Chat'),
+    timestamp: Number(chat.timestamp || Date.now()),
+    pinned: !!chat.pinned,
+    autoTitled: !!chat.autoTitled,
+    folder,
+    tags,
+    branchOf
+  };
+}
+
+function readChatIndexEntries() {
+  if (incognitoEnabled) return [];
+  try {
+    const raw = localStorage.getItem(CHAT_INDEX_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map(normalizeChatMeta)
+      .filter(Boolean)
+      .sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
+  } catch {
+    return [];
+  }
+}
+
+function writeChatIndexEntries(entries) {
+  if (incognitoEnabled) return;
+  const safe = Array.isArray(entries) ? entries.map(normalizeChatMeta).filter(Boolean) : [];
+  localStorage.setItem(CHAT_INDEX_KEY, JSON.stringify(safe));
+}
+
+function upsertChatIndexEntry(chatData) {
+  if (incognitoEnabled) return;
+  const next = normalizeChatMeta(chatData);
+  if (!next) return;
+  const existing = readChatIndexEntries();
+  const idx = existing.findIndex((entry) => entry.id === next.id);
+  if (idx >= 0) {
+    const prev = existing[idx];
+    const unchanged = prev.title === next.title
+      && prev.timestamp === next.timestamp
+      && prev.pinned === next.pinned
+      && prev.autoTitled === next.autoTitled
+      && prev.folder === next.folder
+      && prev.branchOf === next.branchOf
+      && JSON.stringify(prev.tags || []) === JSON.stringify(next.tags || []);
+    if (unchanged) return;
+    existing[idx] = next;
+    writeChatIndexEntries(existing);
+    return;
+  }
+  existing.push(next);
+  writeChatIndexEntries(existing);
+}
+
+function removeChatIndexEntry(chatId) {
+  if (incognitoEnabled) return;
+  const id = String(chatId || '');
+  if (!id) return;
+  const next = readChatIndexEntries().filter((entry) => entry.id !== id);
+  writeChatIndexEntries(next);
+}
+
+function makeSessionFromIndexEntry(entry) {
+  const safe = normalizeChatMeta(entry);
+  if (!safe) return null;
+  return {
+    ...safe,
+    messages: [],
+    messagesLoaded: false
+  };
+}
+
+async function ensureSessionMessagesLoaded(id = currentId) {
+  const key = String(id || '');
+  if (!key) return null;
+  const existing = sessions[key];
+  if (!existing) return null;
+  if (existing.messagesLoaded && Array.isArray(existing.messages)) return existing;
+
+  const full = await getChat(key);
+  if (!full) {
+    existing.messages = Array.isArray(existing.messages) ? existing.messages : [];
+    existing.messagesLoaded = true;
+    return existing;
+  }
+
+  const meta = normalizeChatMeta(full) || normalizeChatMeta(existing) || {
+    id: key,
+    title: 'New Chat',
+    timestamp: Date.now(),
+    pinned: false,
+    autoTitled: false,
+    folder: 'General',
+    tags: [],
+    branchOf: ''
+  };
+  sessions[key] = {
+    ...meta,
+    messages: Array.isArray(full.messages) ? full.messages : [],
+    messagesLoaded: true
+  };
+  return sessions[key];
+}
+
 function updateIncognitoUI() {
   const btn = document.getElementById('incognitoToggle');
   if (!btn) return;
@@ -3840,7 +4095,6 @@ async function initApp() {
 
   renderHistory();
   updateHeaderTitle();
-  loadChatMessages();
   initVoice();
   initEventListeners();
   initTextModelDropdown();
@@ -3848,16 +4102,31 @@ async function initApp() {
   initCompatibilityEnhancements();
   updateThemeColorMeta();
   initMemorySystem();
-  startCloudAutoSync();
 }
 
 
 async function loadAllSessions() {
-  const allChats = await getAllChats();
   sessions = {};
-  allChats.forEach(chat => {
-    sessions[chat.id] = chat;
-  });
+  const indexEntries = readChatIndexEntries();
+
+  if (indexEntries.length > 0) {
+    indexEntries.forEach((entry) => {
+      const session = makeSessionFromIndexEntry(entry);
+      if (session) sessions[session.id] = session;
+    });
+  } else {
+    const allChats = await getAllChats();
+    allChats.forEach((chat) => {
+      const meta = normalizeChatMeta(chat);
+      if (!meta) return;
+      sessions[meta.id] = {
+        ...meta,
+        messages: [],
+        messagesLoaded: false
+      };
+      upsertChatIndexEntry(chat);
+    });
+  }
   
   if (Object.keys(sessions).length === 0) {
     await createNewChat();
@@ -3878,9 +4147,13 @@ async function createNewChat() {
     id: currentId,
     title: "New Chat",
     messages: [],
+    messagesLoaded: true,
     timestamp: Date.now(),
     pinned: false,
-    autoTitled: false
+    autoTitled: false,
+    folder: 'General',
+    tags: [],
+    branchOf: ''
   };
   sessions[currentId] = newSession;
   await saveChat(newSession);
@@ -3898,6 +4171,104 @@ function getCurrentSession() {
   }
 
   return null;
+}
+
+function normalizeChatTags(input) {
+  return Array.from(new Set(
+    String(input || '')
+      .split(',')
+      .map(tag => tag.trim())
+      .filter(Boolean)
+  )).slice(0, 12);
+}
+
+async function editCurrentChatOrganization() {
+  const session = getCurrentSession();
+  if (!session) return;
+
+  const currentFolder = String(session.folder || 'General').trim();
+  const currentTags = Array.isArray(session.tags) ? session.tags.join(', ') : '';
+
+  const folder = await showAppPrompt('Set chat folder:', currentFolder, {
+    title: 'Chat Folder',
+    okText: 'Next'
+  });
+  if (folder === null) return;
+
+  const tagsInput = await showAppPrompt('Set tags (comma separated):', currentTags, {
+    title: 'Chat Tags',
+    okText: 'Save'
+  });
+  if (tagsInput === null) return;
+
+  session.folder = String(folder || '').trim() || 'General';
+  session.tags = normalizeChatTags(tagsInput);
+  session.timestamp = Date.now();
+  await saveSessions();
+  showStatus('Chat organization updated.');
+}
+
+async function editChatOrganization(id) {
+  const session = sessions[id];
+  if (!session) return;
+
+  const folder = await showAppPrompt('Set chat folder:', String(session.folder || 'General'), {
+    title: 'Chat Folder',
+    okText: 'Next'
+  });
+  if (folder === null) return;
+
+  const tagsInput = await showAppPrompt('Set tags (comma separated):', Array.isArray(session.tags) ? session.tags.join(', ') : '', {
+    title: 'Chat Tags',
+    okText: 'Save'
+  });
+  if (tagsInput === null) return;
+
+  session.folder = String(folder || '').trim() || 'General';
+  session.tags = normalizeChatTags(tagsInput);
+  session.timestamp = Date.now();
+  await saveChat(session);
+  renderHistory();
+  if (id === currentId) updateHeaderTitle();
+  showStatus('Chat organization updated.');
+}
+
+async function branchConversationFromMessage(messageIndex) {
+  if (isGenerating) {
+    showStatus('Please wait for current generation to finish.');
+    return;
+  }
+
+  const source = getCurrentSession();
+  if (!source || !Array.isArray(source.messages)) return;
+  if (!Number.isInteger(messageIndex) || messageIndex < 0 || messageIndex >= source.messages.length) return;
+
+  const branchMessages = source.messages
+    .slice(0, messageIndex + 1)
+    .map((msg) => ({ ...msg }));
+
+  const sourceId = source.id;
+  const sourceTitle = String(source.title || 'Chat').trim() || 'Chat';
+  const sourceFolder = String(source.folder || 'General').trim() || 'General';
+  const sourceTags = Array.isArray(source.tags) ? [...source.tags] : [];
+
+  await createNewChat();
+  const branched = getCurrentSession();
+  if (!branched) return;
+
+  branched.title = `${sourceTitle} (Branch)`;
+  branched.messages = branchMessages;
+  branched.autoTitled = false;
+  branched.branchOf = sourceId;
+  branched.folder = sourceFolder;
+  branched.tags = sourceTags;
+  branched.timestamp = Date.now();
+
+  await saveSessions();
+  await loadChatMessages();
+  renderHistory();
+  updateHeaderTitle();
+  showStatus('Conversation branch created.');
 }
 
 async function saveSessions() {
@@ -4203,6 +4574,7 @@ async function clearPuter() {
   [CURRENT_KEY, PREPOPUP_KEY, THEME_KEY, TTS_KEY, IOS_HINT_KEY, PROFILE_KEY, DELETED_CHAT_TOMBSTONES_KEY].forEach((key) => {
     localStorage.removeItem(key);
   });
+  localStorage.removeItem(CHAT_INDEX_KEY);
 
   if ("caches" in window) {
     const keys = await caches.keys();
@@ -4344,10 +4716,12 @@ function renderHistory() {
   if (query) {
     filtered = filtered.filter(s =>
       s.title.toLowerCase().includes(query) ||
-      s.messages.some(m =>
+      String(s.folder || '').toLowerCase().includes(query) ||
+      (Array.isArray(s.tags) && s.tags.some(tag => String(tag).toLowerCase().includes(query))) ||
+      (Array.isArray(s.messages) && s.messages.some(m =>
         typeof m.content === "string" &&
         m.content.toLowerCase().includes(query)
-      )
+      ))
     );
   }
   
@@ -4373,7 +4747,9 @@ function renderHistory() {
       
       const title = document.createElement("span");
       title.className = "title";
-      title.textContent = s.title;
+      const folderLabel = String(s.folder || 'General').trim() || 'General';
+      const tagsLabel = Array.isArray(s.tags) && s.tags.length ? ` #${s.tags.join(' #')}` : '';
+      title.textContent = `${s.title}${folderLabel !== 'General' || tagsLabel ? ` · ${folderLabel}${tagsLabel}` : ''}`;
       title.ondblclick = (e) => {
         e.stopPropagation();
         editChatTitle(s.id, title, div);
@@ -4389,6 +4765,15 @@ function renderHistory() {
         e.stopPropagation();
         togglePin(s.id);
       };
+
+      const organize = document.createElement("button");
+      organize.className = "pin-chat";
+      organize.textContent = "🏷️";
+      organize.title = "Edit folder/tags";
+      organize.onclick = (e) => {
+        e.stopPropagation();
+        editChatOrganization(s.id);
+      };
       
       const del = document.createElement("button");
       del.className = "delete-chat";
@@ -4399,6 +4784,7 @@ function renderHistory() {
       };
       
       actions.appendChild(pin);
+      actions.appendChild(organize);
       actions.appendChild(del);
       
       div.appendChild(title);
@@ -4488,6 +4874,7 @@ async function newChat() {
 async function loadChatHandler(id) {
   currentId = id;
   if (!incognitoEnabled) localStorage.setItem(CURRENT_KEY, currentId);
+  startCloudAutoSync();
   updateHeaderTitle();
   await loadChatMessages();
   renderHistory();
@@ -4498,7 +4885,9 @@ async function loadChatMessages() {
   hideChatSearchBar();
   cleanupActiveMediaUrls();
   chat.innerHTML = "";
-  const session = getCurrentSession();
+  const baseSession = getCurrentSession();
+  if (!baseSession) return;
+  const session = await ensureSessionMessagesLoaded(baseSession.id);
   if (!session) return;
 
   for (let idx = 0; idx < session.messages.length; idx++) {
@@ -4594,6 +4983,30 @@ function closeQuickActionsMenu() {
   menu.classList.remove('open');
   btn.classList.remove('active');
   btn.setAttribute('aria-expanded', 'false');
+}
+
+function closeSettingsMenu() {
+  const menu = document.getElementById('settingsMenu');
+  const btn = document.getElementById('settingsBtn');
+  if (!menu || !btn) return;
+  menu.classList.remove('open');
+  btn.setAttribute('aria-expanded', 'false');
+}
+
+function toggleSettingsMenu(event) {
+  if (event) event.stopPropagation();
+  const menu = document.getElementById('settingsMenu');
+  const btn = document.getElementById('settingsBtn');
+  if (!menu || !btn) return;
+
+  const shouldOpen = !menu.classList.contains('open');
+  if (!shouldOpen) {
+    closeSettingsMenu();
+    return;
+  }
+
+  menu.classList.add('open');
+  btn.setAttribute('aria-expanded', 'true');
 }
 
 function toggleQuickActionsMenu(event) {
@@ -5572,7 +5985,15 @@ function render(role, content, saveIt = true, messageIndex = null) {
       editMessage(resolvedIndex, content);
     };
 
+    const branchBtn = document.createElement("button");
+    branchBtn.className = "msg-btn edit-btn";
+    branchBtn.textContent = "Branch";
+    branchBtn.onclick = () => {
+      branchConversationFromMessage(resolvedIndex);
+    };
+
     actions.appendChild(editBtn);
+    actions.appendChild(branchBtn);
   }
 
   if (role === "bot" && typeof content === "string") {
@@ -6038,13 +6459,31 @@ async function send(options = {}) {
   }
 
   await ensureMarkdownRuntimeLoaded({ timeoutMs: 1800, silent: true });
+  startCloudAutoSync();
 
   isGenerating = true;
   setStopButtonVisible(true);
   lastUserPrompt = prompt;
 
   const firstUserPrompt = prompt;
-  const session = getCurrentSession();
+  let session = getCurrentSession();
+  if (!session) {
+    await createNewChat();
+    session = getCurrentSession();
+  }
+  if (!session) {
+    isGenerating = false;
+    setStopButtonVisible(false);
+    showStatus('Could not open a chat session.');
+    return;
+  }
+  session = await ensureSessionMessagesLoaded(session.id);
+  if (!session) {
+    isGenerating = false;
+    setStopButtonVisible(false);
+    showStatus('Could not load the selected chat.');
+    return;
+  }
   const shouldAutoTitle =
     !skipUserSave &&
     !session.autoTitled &&
@@ -6698,6 +7137,7 @@ function initEventListeners() {
     const key = String(e.key || '').toLowerCase();
     if (key === 'escape') {
       closeQuickActionsMenu();
+      closeSettingsMenu();
     }
     if ((e.ctrlKey || e.metaKey) && key === "f") {
       e.preventDefault();
@@ -6730,6 +7170,11 @@ function initEventListeners() {
     if (!quickActions) return;
     if (!quickActions.contains(e.target)) {
       closeQuickActionsMenu();
+    }
+
+    const settingsWrap = document.getElementById('settingsWrap');
+    if (settingsWrap && !settingsWrap.contains(e.target)) {
+      closeSettingsMenu();
     }
   });
 
@@ -7408,6 +7853,12 @@ mjx-container[display='true']:hover .math-copy-btn {
     border-color: rgba(255, 255, 255, 0.3);
 }
 
+@media (hover: none), (pointer: coarse) {
+  .math-copy-btn {
+    opacity: 0.9;
+  }
+}
+
 .toast-notification {
     position: fixed;
     bottom: 20px;
@@ -7449,8 +7900,64 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 document.addEventListener('click', (e) => {
+  const normalizeCopiedLatex = (value) => {
+    let out = String(value || '').trim();
+    if (!out) return '';
+
+    // Handle JSON-encoded payloads such as "\\zeta...".
+    if ((out.startsWith('"') && out.endsWith('"')) || (out.startsWith("'") && out.endsWith("'"))) {
+      const stripped = out.slice(1, -1);
+      try {
+        out = JSON.parse('"' + stripped.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"');
+      } catch (_) {
+        out = stripped;
+      }
+    }
+
+    out = out
+      .replace(/\\n/g, '\n')
+      .replace(/\\t/g, '\t')
+      .replace(/\\r/g, '\r')
+      .replace(/\\\\/g, '\\')
+      .trim();
+
+    return out;
+  };
+
+  const copyTextPortable = async (text) => {
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch (_) {
+        // Continue to fallback.
+      }
+    }
+
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    ta.style.left = '-1000px';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, ta.value.length);
+    let ok = false;
+    try {
+      ok = document.execCommand('copy');
+    } catch (_) {
+      ok = false;
+    }
+    document.body.removeChild(ta);
+    return ok;
+  };
+
     const btn = e.target.closest('.math-copy-btn');
     if (!btn) return;
+  e.preventDefault();
+  e.stopPropagation();
     const mathEl = btn.closest('.katex-display, mjx-container[display="true"]');
     if (!mathEl) return;
     
@@ -7473,8 +7980,18 @@ document.addEventListener('click', (e) => {
         if (rm) rm.remove();
         rawTex = clone.textContent.replace(/\n/g, '').trim();
     }
-    
-    navigator.clipboard.writeText(rawTex).then(() => {
+
+    const normalizedTex = normalizeCopiedLatex(rawTex);
+    if (!normalizedTex) {
+      if (typeof showStatus === 'function') showStatus('Could not extract LaTeX from this formula.');
+      return;
+    }
+
+    copyTextPortable(normalizedTex).then((copied) => {
+      if (!copied) {
+        if (typeof showStatus === 'function') showStatus('Copy failed on this device.');
+        return;
+      }
         let toast = document.getElementById('math-toast');
         if (!toast) {
             toast = document.createElement('div');
@@ -7489,6 +8006,8 @@ document.addEventListener('click', (e) => {
             toast.classList.remove('show');
             btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>Copy LaTeX`;
         }, 2000);
+      }).catch(() => {
+        if (typeof showStatus === 'function') showStatus('Copy failed on this device.');
     });
 });
 
@@ -7702,40 +8221,20 @@ async function handleProfileAction(action) {
 }
 
 function updateUserUI(user) {
-  const parent = document.querySelector('header .controls');
-  if (!parent) return;
-    let pill = document.querySelector('.auth-pill');
-    if (!pill) {
-    pill = document.createElement('button');
-    pill.type = 'button';
-        pill.className = 'auth-pill';
-    parent.appendChild(pill);
-    }
-      // Remove stale inline styles from older UI versions.
-      pill.removeAttribute('style');
-    
+  const settingsAuthBtn = document.getElementById('settingsAuthBtn');
+  if (settingsAuthBtn) {
     if (user) {
-      const profile = getStoredProfile();
-      const safeName = (profile.name || user.displayName || user.email || 'Account').split(' ')[0];
-      const avatar = profile.avatarUrl || user.photoURL || '';
-      pill.classList.add('signed-in');
-      pill.classList.remove('signed-out');
-      pill.onclick = openProfileActions;
-      pill.oncontextmenu = null;
-      pill.title = 'Profile actions: backup, edit profile, sign out';
-      if (avatar) {
-        pill.innerHTML = `<img src="${avatar}" class="auth-pill-avatar" alt="Profile"> ${safeName} · Backup`;
-      } else {
-        pill.innerHTML = `<span>${safeName} · Backup</span>`;
-      }
+      settingsAuthBtn.textContent = '👤 Account actions';
+      settingsAuthBtn.title = 'Open profile actions and backup options';
     } else {
-      pill.classList.remove('signed-in');
-      pill.classList.add('signed-out');
-      pill.oncontextmenu = null;
-        pill.onclick = signInWithGoogle;
-        pill.innerHTML = `<span>Sign in with Google</span>`;
-    pill.title = 'Sign in with Google';
+      settingsAuthBtn.textContent = '🔐 Sign in with Google';
+      settingsAuthBtn.title = 'Sign in with Google';
     }
+  }
+
+  // Migrate old UI state: remove legacy header auth pill if present.
+  const legacyAuthPill = document.querySelector('.auth-pill');
+  if (legacyAuthPill) legacyAuthPill.remove();
 }
 
 firebase.auth().onAuthStateChanged(async user => {
@@ -7745,10 +8244,6 @@ firebase.auth().onAuthStateChanged(async user => {
   }
   if (user && !incognitoEnabled) {
     localStorage.setItem(PREPOPUP_KEY, 'true');
-    await backupAllLocalChatsToCloud(false);
-    await syncChats(user.uid);
-    await syncMemories(user.uid);
-    startCloudAutoSync();
   } else {
     stopCloudAutoSync();
   }
