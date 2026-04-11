@@ -311,10 +311,46 @@ body{
 .history-group-title{
   font-size:10px;
   color:var(--muted);
-  padding:6px 14px 4px;
+  padding:6px 10px 4px;
   font-weight:700;
   text-transform:uppercase;
   letter-spacing:0.8px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  cursor:pointer;
+  user-select:none;
+  border-radius:10px;
+}
+
+.history-group-title:hover{
+  background:var(--accent-glow);
+}
+
+.history-group-title .folder-caret{
+  width:14px;
+  text-align:center;
+  transition:transform 0.15s ease;
+}
+
+.history-group-title .folder-label{
+  flex:1;
+  min-width:0;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.history-group-title .folder-count{
+  opacity:0.8;
+}
+
+.history-group.collapsed .folder-caret{
+  transform:rotate(-90deg);
+}
+
+.history-group.collapsed .history-item{
+  display:none;
 }
 
 .history-item{
@@ -3033,6 +3069,7 @@ const DELETE_CONFIRM_SKIP_KEY = 'Spectrix_skip_delete_confirm';
 const DELETED_CHAT_TOMBSTONES_KEY = 'Spectrix_deleted_chat_ids';
 const INCOGNITO_KEY = 'Spectrix_incognito_mode';
 const CHAT_INDEX_KEY = 'Spectrix_chat_index_v1';
+const COLLAPSED_FOLDERS_KEY = 'Spectrix_collapsed_folders';
 const MAX_PROMPT_CHARS = 10000;
 const MAX_ATTACHMENT_FILES = 8;
 const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
@@ -3792,6 +3829,7 @@ let signInInProgress = false;
 let chatSearchBar = null;
 let attachmentCounter = 0;
 let pendingAttachments = [];
+let collapsedFolders = new Set();
 
 function getStoredProfile() {
   if (incognitoEnabled) return { name: '', avatarUrl: '' };
@@ -3820,6 +3858,34 @@ function setStoredProfile(profile) {
 function persistDeletedChatTombstones() {
   if (incognitoEnabled) return;
   localStorage.setItem(DELETED_CHAT_TOMBSTONES_KEY, JSON.stringify(Array.from(deletedChatTombstones)));
+}
+
+function loadCollapsedFolderState() {
+  if (incognitoEnabled) {
+    collapsedFolders = new Set();
+    return;
+  }
+  try {
+    const raw = localStorage.getItem(COLLAPSED_FOLDERS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    collapsedFolders = new Set(Array.isArray(parsed) ? parsed.map((v) => String(v || '').trim()).filter(Boolean) : []);
+  } catch {
+    collapsedFolders = new Set();
+  }
+}
+
+function persistCollapsedFolderState() {
+  if (incognitoEnabled) return;
+  localStorage.setItem(COLLAPSED_FOLDERS_KEY, JSON.stringify(Array.from(collapsedFolders)));
+}
+
+function toggleFolderCollapsed(folderName) {
+  const key = String(folderName || '').trim();
+  if (!key) return;
+  if (collapsedFolders.has(key)) collapsedFolders.delete(key);
+  else collapsedFolders.add(key);
+  persistCollapsedFolderState();
+  renderHistory();
 }
 
 function normalizeChatMeta(chat) {
@@ -4079,6 +4145,7 @@ const ALLOWED_ATTRS = {
 async function initApp() {
   await openDB();
   await loadAllSessions();
+  loadCollapsedFolderState();
   applySavedTheme();
   updateIncognitoUI();
   await ensureMarkdownRuntimeLoaded({ timeoutMs: 2500, silent: true });
@@ -4575,6 +4642,7 @@ async function clearPuter() {
     localStorage.removeItem(key);
   });
   localStorage.removeItem(CHAT_INDEX_KEY);
+  localStorage.removeItem(COLLAPSED_FOLDERS_KEY);
 
   if ("caches" in window) {
     const keys = await caches.keys();
@@ -4724,32 +4792,62 @@ function renderHistory() {
       ))
     );
   }
-  
-  const sorted = filtered.sort((a, b) => b.timestamp - a.timestamp);
-  const groups = groupByTime(sorted);
-  
+
+  const folders = new Map();
+  filtered.forEach((session) => {
+    const folderName = String(session.folder || 'General').trim() || 'General';
+    if (!folders.has(folderName)) folders.set(folderName, []);
+    folders.get(folderName).push(session);
+  });
+
+  const folderOrder = Array.from(folders.keys()).sort((a, b) => {
+    if (a === 'General' && b !== 'General') return 1;
+    if (b === 'General' && a !== 'General') return -1;
+    return a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true });
+  });
+
   historyList.innerHTML = "";
   
-  const renderGroup = (title, items) => {
+  const renderGroup = (folderName, items) => {
     if (items.length === 0) return;
+
+    const orderedItems = [...items].sort((a, b) => {
+      if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
+      return Number(b.timestamp || 0) - Number(a.timestamp || 0);
+    });
     
     const groupDiv = document.createElement("div");
     groupDiv.className = "history-group";
+    const isCollapsed = !query && collapsedFolders.has(folderName);
+    if (isCollapsed) groupDiv.classList.add('collapsed');
     
     const titleDiv = document.createElement("div");
     titleDiv.className = "history-group-title";
-    titleDiv.textContent = title;
+    titleDiv.setAttribute('role', 'button');
+    titleDiv.setAttribute('tabindex', '0');
+    titleDiv.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+    titleDiv.innerHTML = `<span class="folder-caret" aria-hidden="true">▾</span><span class="folder-label">📁 ${folderName}</span><span class="folder-count">(${orderedItems.length})</span>`;
+    titleDiv.onclick = (e) => {
+      e.stopPropagation();
+      toggleFolderCollapsed(folderName);
+    };
+    titleDiv.onkeydown = (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggleFolderCollapsed(folderName);
+      }
+    };
     groupDiv.appendChild(titleDiv);
     
-    items.forEach(s => {
+    orderedItems.forEach(s => {
       const div = document.createElement("div");
       div.className = "history-item" + (s.id === currentId ? " active" : "") + (s.pinned ? " pinned" : "");
       
       const title = document.createElement("span");
       title.className = "title";
-      const folderLabel = String(s.folder || 'General').trim() || 'General';
-      const tagsLabel = Array.isArray(s.tags) && s.tags.length ? ` #${s.tags.join(' #')}` : '';
-      title.textContent = `${s.title}${folderLabel !== 'General' || tagsLabel ? ` · ${folderLabel}${tagsLabel}` : ''}`;
+      const tags = Array.isArray(s.tags) ? s.tags.filter(Boolean) : [];
+      const tagsLabel = tags.length ? ` · #${tags.join(' #')}` : '';
+      title.textContent = `${s.title}${tagsLabel}`;
       title.ondblclick = (e) => {
         e.stopPropagation();
         editChatTitle(s.id, title, div);
@@ -4796,12 +4894,10 @@ function renderHistory() {
     
     historyList.appendChild(groupDiv);
   };
-  
-  renderGroup("📌 PINNED", groups.pinned);
-  renderGroup("TODAY", groups.today);
-  renderGroup("YESTERDAY", groups.yesterday);
-  renderGroup("THIS WEEK", groups.week);
-  renderGroup("OLDER", groups.older);
+
+  folderOrder.forEach((folderName) => {
+    renderGroup(folderName, folders.get(folderName) || []);
+  });
 }
 
 async function togglePin(id) {
@@ -7545,6 +7641,27 @@ function closeAllCustomSelectDropdowns() {
   });
 }
 
+function alignCustomSelectPanel(wrap, panel) {
+  if (!wrap || !panel) return;
+
+  // Reset alignment before measuring.
+  panel.style.left = '0';
+  panel.style.right = 'auto';
+
+  const viewportPad = 10;
+  const firstPass = panel.getBoundingClientRect();
+  if (firstPass.right > window.innerWidth - viewportPad) {
+    panel.style.left = 'auto';
+    panel.style.right = '0';
+  }
+
+  const secondPass = panel.getBoundingClientRect();
+  if (secondPass.left < viewportPad) {
+    panel.style.left = `${viewportPad - wrap.getBoundingClientRect().left}px`;
+    panel.style.right = 'auto';
+  }
+}
+
 function enhanceCustomSelectDropdown(selectId) {
   const select = document.getElementById(selectId);
   if (!select || select.dataset.customEnhanced === 'true') return;
@@ -7626,6 +7743,7 @@ function enhanceCustomSelectDropdown(selectId) {
     if (shouldOpen) {
       wrap.classList.add('open');
       trigger.setAttribute('aria-expanded', 'true');
+      requestAnimationFrame(() => alignCustomSelectPanel(wrap, panel));
     }
   });
 
@@ -7662,6 +7780,13 @@ function initCustomSelectDropdowns() {
       if (e.key === 'Escape') {
         closeAllCustomSelectDropdowns();
       }
+    });
+
+    window.addEventListener('resize', () => {
+      document.querySelectorAll('.custom-select-wrap.open').forEach((wrap) => {
+        const panel = wrap.querySelector('.custom-select-panel');
+        if (panel) alignCustomSelectPanel(wrap, panel);
+      });
     });
 
     customSelectDropdownEventsBound = true;
