@@ -94,7 +94,7 @@ Built from scratch — **zero frameworks, zero bloat** — it combines:
 ### 🧠 AI Memory
 - **Persistent memory** across conversations — the AI knows who you are
 - **Auto-extraction** — silently learns your name, preferences, goals, and tech stack
-- **Memory extraction model pinned** — `openai/gpt-oss-120b:free`
+- **Memory extraction model pinned** — `nvidia/nemotron-3-super-120b-a12b:free`
 - **Manual memory** — add facts yourself via the 🧠 panel
 - **Categorized** — personal, preference, technical, interest, context, general
 - **Full control** — view all memories, delete individually, or wipe clean
@@ -338,7 +338,7 @@ Idea  →  AI generates core logic
 
 ## 🗺️ Roadmap
 
-- [x] Folder/tag-based chat organization
+- [x] Fast time-grouped chat history (pinned + recency buckets)
 - [x] Cloud memory sync across signed-in devices
 - [x] Multi-file upload support
 - [x] Conversation branching

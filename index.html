@@ -311,51 +311,10 @@ body{
 .history-group-title{
   font-size:10px;
   color:var(--muted);
-  padding:6px 10px 4px;
+  padding:6px 14px 4px;
   font-weight:700;
   text-transform:uppercase;
   letter-spacing:0.8px;
-  display:flex;
-  align-items:center;
-  gap:6px;
-  cursor:pointer;
-  user-select:none;
-  border-radius:10px;
-}
-
-.history-group-title:hover{
-  background:var(--accent-glow);
-}
-
-.history-group-title:focus-visible{
-  outline:2px solid var(--user);
-  outline-offset:1px;
-}
-
-.history-group-title .folder-caret{
-  width:14px;
-  text-align:center;
-  transition:transform 0.15s ease;
-}
-
-.history-group-title .folder-label{
-  flex:1;
-  min-width:0;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-
-.history-group-title .folder-count{
-  opacity:0.8;
-}
-
-.history-group.collapsed .folder-caret{
-  transform:rotate(-90deg);
-}
-
-.history-group.collapsed .history-item{
-  display:none;
 }
 
 .history-item{
@@ -1012,6 +971,22 @@ button.send:active{
 
 .stop-btn.hidden {
   display: none;
+}
+
+.pause-btn {
+  background: #f59e0b;
+}
+
+.pause-btn:hover {
+  background: #d97706;
+}
+
+.pause-btn.paused {
+  background: #22c55e;
+}
+
+.pause-btn.paused:hover {
+  background: #16a34a;
 }
 
 .spinner{
@@ -2613,6 +2588,49 @@ body.dark .voice-btn.recording {
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
+.memory-cleanup-summary {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.memory-cleanup-list {
+  max-height: 300px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.memory-cleanup-item {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 11px;
+  background: var(--chat);
+}
+
+.memory-cleanup-item input {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+}
+
+.memory-cleanup-content {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.memory-cleanup-reason {
+  display: inline-block;
+  margin-top: 5px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
 .app-modal-aux {
   padding: 0 16px 10px;
   color: var(--muted);
@@ -2760,7 +2778,8 @@ body.dark .voice-btn.recording {
         <div class="settings-menu" id="settingsMenu" role="menu" aria-label="Settings menu">
           <button class="settings-item" id="settingsAuthBtn" type="button" onclick="openProfileActions();closeSettingsMenu();" role="menuitem" title="Sign in with Google">🔐 Sign in with Google</button>
           <button class="settings-item" type="button" onclick="exportChat();closeSettingsMenu();" role="menuitem">💾 Export current chat</button>
-          <button class="settings-item" type="button" onclick="editCurrentChatOrganization();closeSettingsMenu();" role="menuitem">🏷️ Folder / Tags</button>
+          <button class="settings-item" type="button" onclick="exportChatPdf();closeSettingsMenu();" role="menuitem">📄 Export chat as PDF</button>
+          <button class="settings-item" type="button" onclick="exportChatDocx();closeSettingsMenu();" role="menuitem">📝 Export chat as DOCX</button>
           <button class="settings-item memory-toggle" type="button" onclick="toggleMemoryPanel();closeSettingsMenu();" role="menuitem">🧠 AI Memory <span class="memory-badge" id="memoryBadge" style="display:none;">0</span></button>
         </div>
       </div>
@@ -2817,6 +2836,7 @@ body.dark .voice-btn.recording {
         <div class="char-counter" id="charCounter">0 chars</div>
       </div>
       <button class="stop-btn hidden" id="stopBtn" onclick="stopGeneration()" aria-label="Stop generation">Stop</button>
+      <button class="stop-btn pause-btn hidden" id="pauseBtn" onclick="toggleStreamPause()" aria-label="Pause stream">Pause</button>
       <button class="send" onclick="send()" aria-label="Send message">Send</button>
     </footer>
   </div>
@@ -2829,6 +2849,7 @@ body.dark .voice-btn.recording {
     <h3>🧠 AI Memory <span class="memory-count" id="memoryPanelCount"></span></h3>
     <div class="memory-panel-actions">
       <button onclick="addManualMemory()">+ Add</button>
+      <button onclick="cleanupMemories()">Clean up</button>
       <button class="danger" onclick="clearAllMemories()">Clear All</button>
       <button onclick="toggleMemoryPanel()">✕</button>
     </div>
@@ -2877,7 +2898,7 @@ body.dark .voice-btn.recording {
 <script>
 // ===== INDEXEDDB SETUP =====
 const DB_NAME = 'Spectrix_DB';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 let db = null;
 
 async function openDB() {
@@ -2909,6 +2930,12 @@ async function openDB() {
         memStore.createIndex('timestamp', 'timestamp', { unique: false });
         memStore.createIndex('category', 'category', { unique: false });
       }
+
+      // v3: lightweight full-text chat search index
+      if (!database.objectStoreNames.contains('chat_search')) {
+        const searchStore = database.createObjectStore('chat_search', { keyPath: 'id' });
+        searchStore.createIndex('timestamp', 'timestamp', { unique: false });
+      }
     };
   });
 }
@@ -2924,6 +2951,11 @@ async function saveChatLocal(chatData) {
     tx.onerror = () => reject(tx.error);
   });
   upsertChatIndexEntry(chatData);
+  try {
+    await saveChatSearchDocumentLocal(chatData);
+  } catch (error) {
+    console.warn('Chat search index write skipped:', error);
+  }
 }
 
 async function saveChat(chatData) {
@@ -2969,6 +3001,11 @@ async function deleteChatFromDB(id) {
     tx.onerror = () => reject(tx.error);
   });
   removeChatIndexEntry(id);
+  try {
+    await deleteChatSearchDocumentLocal(id);
+  } catch (error) {
+    console.warn('Chat search index delete skipped:', error);
+  }
 }
 
 async function saveMedia(id, blob) {
@@ -2992,6 +3029,80 @@ async function getMedia(id) {
     request.onsuccess = () => resolve(request.result?.blob);
     request.onerror = () => reject(request.error);
   });
+}
+
+function normalizeSearchableText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function buildChatSearchDocument(chatData) {
+  if (!chatData) return '';
+  const parts = [
+    String(chatData.title || ''),
+    String(chatData.searchPreview || '')
+  ];
+
+  if (Array.isArray(chatData.messages)) {
+    for (const message of chatData.messages) {
+      if (typeof message?.content === 'string') {
+        parts.push(message.content);
+      }
+    }
+  }
+
+  return normalizeSearchableText(parts.join(' ')).slice(0, 120000);
+}
+
+async function saveChatSearchDocumentLocal(chatData) {
+  if (incognitoEnabled) return;
+  const id = String(chatData?.id || '');
+  if (!id) return;
+  if (!db) await openDB();
+
+  const record = {
+    id,
+    timestamp: Number(chatData?.timestamp || Date.now()),
+    text: buildChatSearchDocument(chatData)
+  };
+
+  const tx = db.transaction('chat_search', 'readwrite');
+  const store = tx.objectStore('chat_search');
+  store.put(record);
+  await new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+  chatSearchDocumentById.set(id, record.text || '');
+}
+
+async function getAllChatSearchDocumentsLocal() {
+  if (incognitoEnabled) return [];
+  if (!db) await openDB();
+  const tx = db.transaction('chat_search', 'readonly');
+  const store = tx.objectStore('chat_search');
+  return new Promise((resolve, reject) => {
+    const request = store.getAll();
+    request.onsuccess = () => resolve(request.result || []);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function deleteChatSearchDocumentLocal(id) {
+  if (incognitoEnabled) return;
+  const key = String(id || '');
+  if (!key) return;
+  if (!db) await openDB();
+  const tx = db.transaction('chat_search', 'readwrite');
+  const store = tx.objectStore('chat_search');
+  store.delete(key);
+  await new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+  chatSearchDocumentById.delete(key);
 }
 
 // ===== AI MEMORY INDEXEDDB OPERATIONS =====
@@ -3067,6 +3178,7 @@ const historyList = document.getElementById("historyList");
 const searchBox = document.getElementById("searchBox");
 const scrollBottom = document.getElementById("scrollBottom");
 const stopBtn = document.getElementById("stopBtn");
+const pauseBtn = document.getElementById("pauseBtn");
 const charCounter = document.getElementById("charCounter");
 const attachmentInput = document.getElementById("attachmentInput");
 const attachmentTray = document.getElementById("attachmentTray");
@@ -3083,7 +3195,7 @@ const DELETE_CONFIRM_SKIP_KEY = 'Spectrix_skip_delete_confirm';
 const DELETED_CHAT_TOMBSTONES_KEY = 'Spectrix_deleted_chat_ids';
 const INCOGNITO_KEY = 'Spectrix_incognito_mode';
 const CHAT_INDEX_KEY = 'Spectrix_chat_index_v1';
-const COLLAPSED_FOLDERS_KEY = 'Spectrix_collapsed_folders';
+const CLOUD_SYNC_QUEUE_KEY = 'Spectrix_cloud_sync_queue_v1';
 const MAX_PROMPT_CHARS = 10000;
 const MAX_ATTACHMENT_FILES = 8;
 const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
@@ -3203,10 +3315,20 @@ const TESSERACT_SCRIPT_CANDIDATES = [
   'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js',
   'https://unpkg.com/tesseract.js@5/dist/tesseract.min.js'
 ];
+const JSPDF_SCRIPT_CANDIDATES = [
+  'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
+  'https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js'
+];
+const DOCX_EXPORT_SCRIPT_CANDIDATES = [
+  'https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js',
+  'https://unpkg.com/docx@8.5.0/build/index.umd.js'
+];
 let markdownRuntimeLoadPromise = null;
 let pdfRuntimeLoadPromise = null;
 let docxRuntimeLoadPromise = null;
 let ocrRuntimeLoadPromise = null;
+let pdfExportRuntimeLoadPromise = null;
+let docxExportRuntimeLoadPromise = null;
 
 function withRetryQuery(url) {
   const sep = url.includes('?') ? '&' : '?';
@@ -3475,6 +3597,7 @@ async function ensurePdfRuntimeLoaded(options = {}) {
   }
 
   if (!pdfRuntimeLoadPromise) {
+    showStatus('Loading PDF parser...');
     const activePromise = (async () => {
       await loadScriptFromCandidates(PDFJS_SCRIPT_CANDIDATES, hasRuntime);
       if (window.pdfjsLib?.GlobalWorkerOptions) {
@@ -3512,6 +3635,7 @@ async function ensureDocxRuntimeLoaded(options = {}) {
   if (hasRuntime()) return true;
 
   if (!docxRuntimeLoadPromise) {
+    showStatus('Loading DOCX parser...');
     const activePromise = loadScriptFromCandidates(MAMMOTH_SCRIPT_CANDIDATES, hasRuntime);
     docxRuntimeLoadPromise = activePromise;
     activePromise.finally(() => {
@@ -3542,6 +3666,7 @@ async function ensureOcrRuntimeLoaded(options = {}) {
   if (hasRuntime()) return true;
 
   if (!ocrRuntimeLoadPromise) {
+    showStatus('Loading OCR engine...');
     const activePromise = loadScriptFromCandidates(TESSERACT_SCRIPT_CANDIDATES, hasRuntime);
     ocrRuntimeLoadPromise = activePromise;
     activePromise.finally(() => {
@@ -3561,6 +3686,68 @@ async function ensureOcrRuntimeLoaded(options = {}) {
     return await ocrRuntimeLoadPromise;
   } catch (error) {
     if (!silent) console.warn('OCR runtime load warning:', error);
+    return false;
+  }
+}
+
+async function ensurePdfExportRuntimeLoaded(options = {}) {
+  const { timeoutMs = 3000, silent = true } = options;
+  const hasRuntime = () => Boolean(window.jspdf?.jsPDF);
+
+  if (hasRuntime()) return true;
+
+  if (!pdfExportRuntimeLoadPromise) {
+    showStatus('Loading PDF export runtime...');
+    const activePromise = loadScriptFromCandidates(JSPDF_SCRIPT_CANDIDATES, hasRuntime);
+    pdfExportRuntimeLoadPromise = activePromise;
+    activePromise.finally(() => {
+      if (pdfExportRuntimeLoadPromise === activePromise) {
+        pdfExportRuntimeLoadPromise = null;
+      }
+    });
+  }
+
+  try {
+    if (timeoutMs > 0) {
+      return await Promise.race([
+        pdfExportRuntimeLoadPromise,
+        new Promise((resolve) => setTimeout(() => resolve(false), timeoutMs))
+      ]);
+    }
+    return await pdfExportRuntimeLoadPromise;
+  } catch (error) {
+    if (!silent) console.warn('PDF export runtime load warning:', error);
+    return false;
+  }
+}
+
+async function ensureDocxExportRuntimeLoaded(options = {}) {
+  const { timeoutMs = 3500, silent = true } = options;
+  const hasRuntime = () => Boolean(window.docx?.Document && window.docx?.Packer);
+
+  if (hasRuntime()) return true;
+
+  if (!docxExportRuntimeLoadPromise) {
+    showStatus('Loading DOCX export runtime...');
+    const activePromise = loadScriptFromCandidates(DOCX_EXPORT_SCRIPT_CANDIDATES, hasRuntime);
+    docxExportRuntimeLoadPromise = activePromise;
+    activePromise.finally(() => {
+      if (docxExportRuntimeLoadPromise === activePromise) {
+        docxExportRuntimeLoadPromise = null;
+      }
+    });
+  }
+
+  try {
+    if (timeoutMs > 0) {
+      return await Promise.race([
+        docxExportRuntimeLoadPromise,
+        new Promise((resolve) => setTimeout(() => resolve(false), timeoutMs))
+      ]);
+    }
+    return await docxExportRuntimeLoadPromise;
+  } catch (error) {
+    if (!silent) console.warn('DOCX export runtime load warning:', error);
     return false;
   }
 }
@@ -3650,12 +3837,15 @@ async function extractTextFromImageAttachment(file) {
 
 async function extractTextFromAttachment(file) {
   if (isPdfAttachment(file)) {
+    showStatus(`Reading PDF: ${file.name}`);
     return extractTextFromPdfAttachment(file);
   }
   if (isDocxAttachment(file)) {
+    showStatus(`Reading DOCX: ${file.name}`);
     return extractTextFromDocxAttachment(file);
   }
   if (isImageAttachment(file)) {
+    showStatus(`Running OCR: ${file.name}`);
     return extractTextFromImageAttachment(file);
   }
   if (isTextAttachment(file)) {
@@ -3805,11 +3995,13 @@ let webSearchEnabled = false;
 let memoryEnabled = localStorage.getItem(MEMORY_ENABLED_KEY) !== 'false';
 let incognitoEnabled = localStorage.getItem(INCOGNITO_KEY) === 'true';
 let activeMediaObjectUrls = [];
+const mediaObjectUrlById = new Map();
 let cloudSyncTimer = null;
 let cloudSyncUnsubscribe = null;
 let cloudMemorySyncUnsubscribe = null;
 let cloudSyncInFlight = false;
 let cloudMemorySyncInFlight = false;
+let cloudSyncQueueFlushInFlight = false;
 let activeStreamAbortController = null;
 let activeMediaGenerationToken = 0;
 const canceledMediaGenerationTokens = new Set();
@@ -3818,7 +4010,11 @@ let autoScrollToLatest = true;
 let lastAutoScrollTs = 0;
 let pendingChatAutoScrollRaf = 0;
 let streamPointerBoostUntil = 0;
+let streamPaused = false;
+let streamResumeRenderCallback = null;
 const AUTO_SCROLL_NEAR_BOTTOM_PX = 80;
+const chatSearchDocumentById = new Map();
+let chatSearchBackfillScheduled = false;
 const deletedChatTombstones = new Set(
   (() => {
     try {
@@ -3843,7 +4039,20 @@ let signInInProgress = false;
 let chatSearchBar = null;
 let attachmentCounter = 0;
 let pendingAttachments = [];
-let collapsedFolders = new Set();
+let voiceRecognitionInitialized = false;
+let voiceTtsPrimed = false;
+let chatWindowingBusy = false;
+let chatWindowingRaf = 0;
+const CHAT_WINDOW_THRESHOLD = 70;
+const CHAT_WINDOW_MAX_DOM = 46;
+const CHAT_WINDOW_CHUNK = 14;
+const CHAT_WINDOW_EDGE_PX = 140;
+const chatWindowState = {
+  enabled: false,
+  sessionId: '',
+  start: 0,
+  end: -1
+};
 
 function getStoredProfile() {
   if (incognitoEnabled) return { name: '', avatarUrl: '' };
@@ -3874,34 +4083,6 @@ function persistDeletedChatTombstones() {
   localStorage.setItem(DELETED_CHAT_TOMBSTONES_KEY, JSON.stringify(Array.from(deletedChatTombstones)));
 }
 
-function loadCollapsedFolderState() {
-  if (incognitoEnabled) {
-    collapsedFolders = new Set();
-    return;
-  }
-  try {
-    const raw = localStorage.getItem(COLLAPSED_FOLDERS_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    collapsedFolders = new Set(Array.isArray(parsed) ? parsed.map((v) => String(v || '').trim()).filter(Boolean) : []);
-  } catch {
-    collapsedFolders = new Set();
-  }
-}
-
-function persistCollapsedFolderState() {
-  if (incognitoEnabled) return;
-  localStorage.setItem(COLLAPSED_FOLDERS_KEY, JSON.stringify(Array.from(collapsedFolders)));
-}
-
-function toggleFolderCollapsed(folderName) {
-  const key = String(folderName || '').trim();
-  if (!key) return;
-  if (collapsedFolders.has(key)) collapsedFolders.delete(key);
-  else collapsedFolders.add(key);
-  persistCollapsedFolderState();
-  renderHistory();
-}
-
 function buildChatSearchPreview(chat) {
   if (!chat) return '';
 
@@ -3919,8 +4100,6 @@ function buildChatSearchPreview(chat) {
 
 function normalizeChatMeta(chat) {
   if (!chat || !chat.id) return null;
-  const folder = (typeof chat.folder === 'string' && chat.folder.trim()) ? chat.folder.trim() : 'General';
-  const tags = Array.isArray(chat.tags) ? chat.tags : [];
   const branchOf = typeof chat.branchOf === 'string' ? chat.branchOf : '';
   const searchPreview = buildChatSearchPreview(chat);
   return {
@@ -3929,8 +4108,6 @@ function normalizeChatMeta(chat) {
     timestamp: Number(chat.timestamp || Date.now()),
     pinned: !!chat.pinned,
     autoTitled: !!chat.autoTitled,
-    folder,
-    tags,
     branchOf,
     searchPreview
   };
@@ -3969,10 +4146,8 @@ function upsertChatIndexEntry(chatData) {
       && prev.timestamp === next.timestamp
       && prev.pinned === next.pinned
       && prev.autoTitled === next.autoTitled
-      && prev.folder === next.folder
       && prev.branchOf === next.branchOf
-      && prev.searchPreview === next.searchPreview
-      && JSON.stringify(prev.tags || []) === JSON.stringify(next.tags || []);
+      && prev.searchPreview === next.searchPreview;
     if (unchanged) return;
     existing[idx] = next;
     writeChatIndexEntries(existing);
@@ -4000,6 +4175,72 @@ function makeSessionFromIndexEntry(entry) {
   };
 }
 
+async function loadChatSearchCache() {
+  chatSearchDocumentById.clear();
+  if (incognitoEnabled) return;
+
+  try {
+    const docs = await getAllChatSearchDocumentsLocal();
+    docs.forEach((doc) => {
+      if (!doc?.id) return;
+      chatSearchDocumentById.set(String(doc.id), normalizeSearchableText(doc.text || ''));
+    });
+  } catch (error) {
+    console.warn('Chat search cache load skipped:', error);
+  }
+}
+
+function scheduleChatSearchBackfill() {
+  if (incognitoEnabled || chatSearchBackfillScheduled) return;
+  chatSearchBackfillScheduled = true;
+
+  const runBackfill = async () => {
+    try {
+      const allChats = await getAllChats();
+      let updates = 0;
+
+      for (const chat of allChats) {
+        const id = String(chat?.id || '');
+        if (!id) continue;
+
+        const nextText = buildChatSearchDocument(chat);
+        if (!nextText) continue;
+
+        const existing = chatSearchDocumentById.get(id) || '';
+        if (existing === nextText) continue;
+
+        await saveChatSearchDocumentLocal(chat);
+        updates += 1;
+
+        if (updates % 20 === 0) {
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
+      }
+
+      if (updates > 0) {
+        renderHistory();
+      }
+    } catch (error) {
+      console.warn('Chat search backfill skipped:', error);
+    }
+  };
+
+  if (typeof requestIdleCallback === 'function') {
+    requestIdleCallback(() => {
+      runBackfill().finally(() => {
+        chatSearchBackfillScheduled = false;
+      });
+    }, { timeout: 1800 });
+    return;
+  }
+
+  setTimeout(() => {
+    runBackfill().finally(() => {
+      chatSearchBackfillScheduled = false;
+    });
+  }, 900);
+}
+
 async function ensureSessionMessagesLoaded(id = currentId) {
   const key = String(id || '');
   if (!key) return null;
@@ -4020,8 +4261,6 @@ async function ensureSessionMessagesLoaded(id = currentId) {
     timestamp: Date.now(),
     pinned: false,
     autoTitled: false,
-    folder: 'General',
-    tags: [],
     branchOf: '',
     searchPreview: ''
   };
@@ -4030,6 +4269,11 @@ async function ensureSessionMessagesLoaded(id = currentId) {
     messages: Array.isArray(full.messages) ? full.messages : [],
     messagesLoaded: true
   };
+  try {
+    await saveChatSearchDocumentLocal(sessions[key]);
+  } catch (error) {
+    console.warn('Chat search refresh skipped:', error);
+  }
   return sessions[key];
 }
 
@@ -4062,16 +4306,19 @@ function startCloudAutoSync() {
   const user = firebase?.auth?.().currentUser;
   if (!user) return;
 
-  const runSync = () => {
+  const runSync = async () => {
     if (cloudSyncInFlight || cloudMemorySyncInFlight) return;
     cloudSyncInFlight = true;
     cloudMemorySyncInFlight = true;
-    Promise.all([syncChats(user.uid), syncMemories(user.uid)])
-      .catch((err) => console.warn('Auto-sync failed:', err))
-      .finally(() => {
-        cloudSyncInFlight = false;
-        cloudMemorySyncInFlight = false;
-      });
+    try {
+      await flushCloudSyncQueue({ silent: true });
+      await Promise.all([syncChats(user.uid), syncMemories(user.uid)]);
+    } catch (err) {
+      console.warn('Auto-sync failed:', err);
+    } finally {
+      cloudSyncInFlight = false;
+      cloudMemorySyncInFlight = false;
+    }
   };
 
   // Primary auto-sync path: realtime firestore listener.
@@ -4121,6 +4368,7 @@ function startCloudAutoSync() {
 
   // Fallback/backup sync path.
   cloudSyncTimer = setInterval(runSync, 30000);
+  flushCloudSyncQueue({ silent: true }).catch((err) => console.warn('Initial queue flush skipped:', err));
 }
 
 async function toggleIncognitoMode() {
@@ -4178,7 +4426,6 @@ const ALLOWED_ATTRS = {
 async function initApp() {
   await openDB();
   await loadAllSessions();
-  loadCollapsedFolderState();
   applySavedTheme();
   updateIncognitoUI();
   await ensureMarkdownRuntimeLoaded({ timeoutMs: 2500, silent: true });
@@ -4195,7 +4442,7 @@ async function initApp() {
 
   renderHistory();
   updateHeaderTitle();
-  initVoice();
+  initVoiceUiState();
   initEventListeners();
   initTextModelDropdown();
   initCustomSelectDropdowns();
@@ -4227,6 +4474,9 @@ async function loadAllSessions() {
       upsertChatIndexEntry(chat);
     });
   }
+
+  await loadChatSearchCache();
+  scheduleChatSearchBackfill();
   
   if (Object.keys(sessions).length === 0) {
     await createNewChat();
@@ -4252,8 +4502,6 @@ async function createNewChat() {
     timestamp: Date.now(),
     pinned: false,
     autoTitled: false,
-    folder: 'General',
-    tags: [],
     branchOf: ''
   };
   sessions[currentId] = newSession;
@@ -4274,66 +4522,6 @@ function getCurrentSession() {
   return null;
 }
 
-function normalizeChatTags(input) {
-  return Array.from(new Set(
-    String(input || '')
-      .split(',')
-      .map(tag => tag.trim())
-      .filter(Boolean)
-  )).slice(0, 12);
-}
-
-async function editCurrentChatOrganization() {
-  const session = getCurrentSession();
-  if (!session) return;
-
-  const currentFolder = String(session.folder || 'General').trim();
-  const currentTags = Array.isArray(session.tags) ? session.tags.join(', ') : '';
-
-  const folder = await showAppPrompt('Set chat folder:', currentFolder, {
-    title: 'Chat Folder',
-    okText: 'Next'
-  });
-  if (folder === null) return;
-
-  const tagsInput = await showAppPrompt('Set tags (comma separated):', currentTags, {
-    title: 'Chat Tags',
-    okText: 'Save'
-  });
-  if (tagsInput === null) return;
-
-  session.folder = String(folder || '').trim() || 'General';
-  session.tags = normalizeChatTags(tagsInput);
-  session.timestamp = Date.now();
-  await saveSessions();
-  showStatus('Chat organization updated.');
-}
-
-async function editChatOrganization(id) {
-  const session = sessions[id];
-  if (!session) return;
-
-  const folder = await showAppPrompt('Set chat folder:', String(session.folder || 'General'), {
-    title: 'Chat Folder',
-    okText: 'Next'
-  });
-  if (folder === null) return;
-
-  const tagsInput = await showAppPrompt('Set tags (comma separated):', Array.isArray(session.tags) ? session.tags.join(', ') : '', {
-    title: 'Chat Tags',
-    okText: 'Save'
-  });
-  if (tagsInput === null) return;
-
-  session.folder = String(folder || '').trim() || 'General';
-  session.tags = normalizeChatTags(tagsInput);
-  session.timestamp = Date.now();
-  await saveChat(session);
-  renderHistory();
-  if (id === currentId) updateHeaderTitle();
-  showStatus('Chat organization updated.');
-}
-
 async function branchConversationFromMessage(messageIndex) {
   if (isGenerating) {
     showStatus('Please wait for current generation to finish.');
@@ -4350,8 +4538,6 @@ async function branchConversationFromMessage(messageIndex) {
 
   const sourceId = source.id;
   const sourceTitle = String(source.title || 'Chat').trim() || 'Chat';
-  const sourceFolder = String(source.folder || 'General').trim() || 'General';
-  const sourceTags = Array.isArray(source.tags) ? [...source.tags] : [];
 
   await createNewChat();
   const branched = getCurrentSession();
@@ -4361,8 +4547,6 @@ async function branchConversationFromMessage(messageIndex) {
   branched.messages = branchMessages;
   branched.autoTitled = false;
   branched.branchOf = sourceId;
-  branched.folder = sourceFolder;
-  branched.tags = sourceTags;
   branched.timestamp = Date.now();
 
   await saveSessions();
@@ -4392,18 +4576,13 @@ async function saveMessage(role, content) {
 let isTTSUnlocked = false;
 function unlockAudioEngine() {
   if (isTTSUnlocked || !('speechSynthesis' in window)) return;
-  // Use a real character at 1% volume so mobile browsers don't skip it
+  // Use a low-volume utterance to unlock audio on mobile when user explicitly uses voice features.
   const u = new SpeechSynthesisUtterance('a');
   u.volume = 0.01;
   u.rate = 10;
   window.speechSynthesis.speak(u);
   isTTSUnlocked = true;
-  document.removeEventListener('click', unlockAudioEngine);
-  document.removeEventListener('touchstart', unlockAudioEngine);
 }
-// Attach to first interaction anywhere on the page
-document.addEventListener('click', unlockAudioEngine);
-document.addEventListener('touchstart', unlockAudioEngine);
 
 function setVoiceButtonState(isRecording = false) {
   const btn = document.getElementById('voiceBtn');
@@ -4412,59 +4591,83 @@ function setVoiceButtonState(isRecording = false) {
   btn.textContent = isRecording ? '⏺ Stop voice input' : '🎤 Voice input';
 }
 
-function initVoice() {
-  if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = 'en-US';
-
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      input.value = transcript;
-      charCounter.textContent = `${transcript.length} chars`;
-      setVoiceButtonState(false);
-    };
-
-    recognition.onerror = (event) => {
-      console.error('Speech recognition error:', event.error);
-      setVoiceButtonState(false);
-      
-      if (event.error === 'no-speech') return;
-      if (event.error === 'not-allowed') {
-        showAppAlert('Mic permission denied, dawg. Check browser settings 🎤❌', 'Voice Permission');
-      } else {
-        showAppAlert(`Voice input error: ${event.error}`, 'Voice Error');
-      }
-    };
-    recognition.onend = () => {
-      setVoiceButtonState(false);
-    };
-    setVoiceButtonState(false);
-  } else {
-    const btn = document.getElementById('voiceBtn');
-    if (btn) {
-      btn.classList.add('disabled');
-      btn.textContent = '🎤 Voice unavailable';
+function initVoiceUiState() {
+  const supportsMic = ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window);
+  const micBtn = document.getElementById('voiceBtn');
+  if (micBtn) {
+    if (supportsMic) {
+      micBtn.classList.remove('disabled');
+      micBtn.textContent = '🎤 Voice input';
+    } else {
+      micBtn.classList.add('disabled');
+      micBtn.textContent = '🎤 Voice unavailable';
     }
   }
-  
+
   const btn = document.getElementById('ttsToggle');
   if (btn) {
     btn.classList.toggle('active', ttsEnabled);
     btn.textContent = ttsEnabled ? '🔊' : '🔇';
   }
+}
 
-  // Force voices to load immediately in the background
-  if ('speechSynthesis' in window) {
+async function ensureVoiceRecognitionReady() {
+  if (recognition) return true;
+  if (voiceRecognitionInitialized) return Boolean(recognition);
+  voiceRecognitionInitialized = true;
+
+  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    return false;
+  }
+
+  showStatus('Loading microphone tools...');
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.lang = 'en-US';
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    input.value = transcript;
+    charCounter.textContent = `${transcript.length} chars`;
+    setVoiceButtonState(false);
+  };
+
+  recognition.onerror = (event) => {
+    console.error('Speech recognition error:', event.error);
+    setVoiceButtonState(false);
+
+    if (event.error === 'no-speech') return;
+    if (event.error === 'not-allowed') {
+      showAppAlert('Mic permission denied, dawg. Check browser settings 🎤❌', 'Voice Permission');
+    } else {
+      showAppAlert(`Voice input error: ${event.error}`, 'Voice Error');
+    }
+  };
+
+  recognition.onend = () => {
+    setVoiceButtonState(false);
+  };
+
+  setVoiceButtonState(false);
+  return true;
+}
+
+function ensureTtsReady() {
+  if (!('speechSynthesis' in window)) return false;
+  if (!voiceTtsPrimed) {
+    showStatus('Loading voice tools...');
     window.speechSynthesis.getVoices();
     window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+    voiceTtsPrimed = true;
   }
+  return true;
 }
 
 async function toggleVoiceInput() {
-  if (!recognition) {
+  const ready = await ensureVoiceRecognitionReady();
+  if (!ready || !recognition) {
     await showAppAlert('Speech recognition not supported in your browser 😢', 'Unsupported');
     return;
   }
@@ -4480,7 +4683,12 @@ async function toggleVoiceInput() {
   }
 }
 
-function toggleTTS() {
+async function toggleTTS() {
+  if (!ensureTtsReady()) {
+    await showAppAlert('Text-to-speech is not supported in your browser.', 'Unsupported');
+    return;
+  }
+
   ttsEnabled = !ttsEnabled;
   localStorage.setItem(TTS_KEY, ttsEnabled);
   const btn = document.getElementById('ttsToggle');
@@ -4489,9 +4697,9 @@ function toggleTTS() {
   
   if (!ttsEnabled && currentUtterance) {
     window.speechSynthesis.cancel();
-  } else if (ttsEnabled && 'speechSynthesis' in window) {
-    // 🗣️ Speak a confirmation! This physically proves to the browser 
-    // that the user clicked a button to request audio.
+  } else if (ttsEnabled) {
+    unlockAudioEngine();
+    // Speak a short confirmation to keep autoplay restrictions satisfied.
     const u = new SpeechSynthesisUtterance('Voice enabled');
     u.volume = 1;
     window.speechSynthesis.speak(u);
@@ -4499,7 +4707,8 @@ function toggleTTS() {
 }
 
 function speakText(text) {
-  if (!ttsEnabled || !('speechSynthesis' in window)) return;
+  if (!ttsEnabled || !ensureTtsReady()) return;
+  unlockAudioEngine();
 
   // Clear any stuck queue, but only if it's currently busy
   if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
@@ -4605,6 +4814,7 @@ async function ensureMathEnginesLoaded() {
   }
 
   mathEngineLoadPromise = (async () => {
+    showStatus('Loading math engine...');
     await ensureStylesheetLoaded(KATEX_CSS_URL);
     await ensureScriptLoaded(KATEX_JS_URL);
     await ensureScriptLoaded(KATEX_AUTORENDER_JS_URL);
@@ -4672,11 +4882,10 @@ async function clearPuter() {
     console.warn('Firebase sign-out skipped during clear:', err);
   }
 
-  [CURRENT_KEY, PREPOPUP_KEY, THEME_KEY, TTS_KEY, IOS_HINT_KEY, PROFILE_KEY, DELETED_CHAT_TOMBSTONES_KEY].forEach((key) => {
+  [CURRENT_KEY, PREPOPUP_KEY, THEME_KEY, TTS_KEY, IOS_HINT_KEY, PROFILE_KEY, DELETED_CHAT_TOMBSTONES_KEY, CLOUD_SYNC_QUEUE_KEY].forEach((key) => {
     localStorage.removeItem(key);
   });
   localStorage.removeItem(CHAT_INDEX_KEY);
-  localStorage.removeItem(COLLAPSED_FOLDERS_KEY);
 
   if ("caches" in window) {
     const keys = await caches.keys();
@@ -4816,89 +5025,43 @@ function renderHistory() {
   let filtered = Object.values(sessions);
   
   if (query) {
-    filtered = filtered.filter(s =>
-      s.title.toLowerCase().includes(query) ||
-      String(s.folder || '').toLowerCase().includes(query) ||
-      String(s.searchPreview || '').toLowerCase().includes(query) ||
-      (Array.isArray(s.tags) && s.tags.some(tag => String(tag).toLowerCase().includes(query))) ||
-      (Array.isArray(s.messages) && s.messages.some(m =>
-        typeof m.content === "string" &&
-        m.content.toLowerCase().includes(query)
-      ))
-    );
+    filtered = filtered.filter((s) => {
+      const doc = chatSearchDocumentById.get(String(s.id)) || '';
+      return (
+        s.title.toLowerCase().includes(query) ||
+        String(s.searchPreview || '').toLowerCase().includes(query) ||
+        doc.includes(query) ||
+        (Array.isArray(s.messages) && s.messages.some((m) =>
+          typeof m.content === "string" &&
+          m.content.toLowerCase().includes(query)
+        ))
+      );
+    });
   }
 
-  const folders = new Map();
-  filtered.forEach((session) => {
-    const folderName = String(session.folder || 'General').trim() || 'General';
-    if (!folders.has(folderName)) folders.set(folderName, []);
-    folders.get(folderName).push(session);
-  });
-
-  const folderOrder = Array.from(folders.keys()).sort((a, b) => {
-    if (a === 'General' && b !== 'General') return 1;
-    if (b === 'General' && a !== 'General') return -1;
-    return a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true });
-  });
+  const sorted = filtered.sort((a, b) => b.timestamp - a.timestamp);
+  const groups = groupByTime(sorted);
 
   historyList.innerHTML = "";
   
-  const renderGroup = (folderName, items) => {
+  const renderGroup = (title, items) => {
     if (items.length === 0) return;
-
-    const orderedItems = [...items].sort((a, b) => {
-      if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
-      return Number(b.timestamp || 0) - Number(a.timestamp || 0);
-    });
     
     const groupDiv = document.createElement("div");
     groupDiv.className = "history-group";
-    const isCollapsed = !query && collapsedFolders.has(folderName);
-    if (isCollapsed) groupDiv.classList.add('collapsed');
     
     const titleDiv = document.createElement("div");
     titleDiv.className = "history-group-title";
-    titleDiv.setAttribute('role', 'button');
-    titleDiv.setAttribute('tabindex', '0');
-    titleDiv.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
-
-    const caretEl = document.createElement('span');
-    caretEl.className = 'folder-caret';
-    caretEl.setAttribute('aria-hidden', 'true');
-    caretEl.textContent = '▾';
-
-    const labelEl = document.createElement('span');
-    labelEl.className = 'folder-label';
-    labelEl.textContent = `📁 ${folderName}`;
-
-    const countEl = document.createElement('span');
-    countEl.className = 'folder-count';
-    countEl.textContent = `(${orderedItems.length})`;
-
-    titleDiv.appendChild(caretEl);
-    titleDiv.appendChild(labelEl);
-    titleDiv.appendChild(countEl);
-    titleDiv.onclick = (e) => {
-      e.stopPropagation();
-      toggleFolderCollapsed(folderName);
-    };
-    titleDiv.onkeydown = (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        toggleFolderCollapsed(folderName);
-      }
-    };
+    titleDiv.textContent = title;
     groupDiv.appendChild(titleDiv);
     
-    orderedItems.forEach(s => {
+    items.forEach(s => {
       const div = document.createElement("div");
       div.className = "history-item" + (s.id === currentId ? " active" : "") + (s.pinned ? " pinned" : "");
       
       const title = document.createElement("span");
       title.className = "title";
-      const tags = Array.isArray(s.tags) ? s.tags.filter(Boolean) : [];
-      const tagsLabel = tags.length ? ` · #${tags.join(' #')}` : '';
-      title.textContent = `${s.title}${tagsLabel}`;
+      title.textContent = s.title;
       title.ondblclick = (e) => {
         e.stopPropagation();
         editChatTitle(s.id, title, div);
@@ -4914,15 +5077,6 @@ function renderHistory() {
         e.stopPropagation();
         togglePin(s.id);
       };
-
-      const organize = document.createElement("button");
-      organize.className = "pin-chat";
-      organize.textContent = "🏷️";
-      organize.title = "Edit folder/tags";
-      organize.onclick = (e) => {
-        e.stopPropagation();
-        editChatOrganization(s.id);
-      };
       
       const del = document.createElement("button");
       del.className = "delete-chat";
@@ -4933,7 +5087,6 @@ function renderHistory() {
       };
       
       actions.appendChild(pin);
-      actions.appendChild(organize);
       actions.appendChild(del);
       
       div.appendChild(title);
@@ -4946,9 +5099,11 @@ function renderHistory() {
     historyList.appendChild(groupDiv);
   };
 
-  folderOrder.forEach((folderName) => {
-    renderGroup(folderName, folders.get(folderName) || []);
-  });
+  renderGroup("📌 PINNED", groups.pinned);
+  renderGroup("TODAY", groups.today);
+  renderGroup("YESTERDAY", groups.yesterday);
+  renderGroup("THIS WEEK", groups.week);
+  renderGroup("OLDER", groups.older);
 }
 
 async function togglePin(id) {
@@ -5028,29 +5183,245 @@ async function loadChatHandler(id) {
   scrollToBottom();
 }
 
+async function resolveMessageContentForDisplay(content) {
+  if (!content || typeof content !== 'object') return content;
+  if (!content.mediaId) return content;
+  if (content.src) return content;
+
+  const mediaId = String(content.mediaId);
+  if (mediaObjectUrlById.has(mediaId)) {
+    return { ...content, src: mediaObjectUrlById.get(mediaId) };
+  }
+
+  const blob = await getMedia(mediaId);
+  if (!blob) return content;
+
+  const url = URL.createObjectURL(blob);
+  mediaObjectUrlById.set(mediaId, url);
+  activeMediaObjectUrls.push(url);
+  return { ...content, src: url };
+}
+
+function createChatMessageNode(role, content, options = {}) {
+  const { saveIt = false, messageIndex = null } = options;
+  const d = document.createElement("div");
+  d.className = "msg " + role;
+  let actions = null;
+
+  if (typeof content === "object" && content.type === "image") {
+    if (!content.src) {
+      const pending = document.createElement('div');
+      pending.textContent = 'Loading image...';
+      d.appendChild(pending);
+    } else {
+      const img = document.createElement("img");
+      img.src = content.src;
+      img.className = "ai-img";
+      d.appendChild(img);
+    }
+  }
+  else if (typeof content === "object" && content.type === "video") {
+    if (!content.src) {
+      const pending = document.createElement('div');
+      pending.textContent = 'Loading video...';
+      d.appendChild(pending);
+    } else {
+      const video = document.createElement("video");
+      video.src = content.src;
+      video.controls = true;
+      video.autoplay = true;
+      video.loop = true;
+      video.style.maxWidth = "100%";
+      video.style.borderRadius = "12px";
+      d.appendChild(video);
+    }
+  }
+  else {
+    if (window.marked) {
+      d.innerHTML = renderMarkdownSafely(content);
+      promoteInlineCodeMath(d);
+    }
+    else {
+      d.textContent = String(content);
+    }
+    renderMath(d);
+  }
+
+  if (role === "user" && typeof content === "string") {
+    actions = document.createElement("div");
+    actions.className = "msg-actions";
+
+    let resolvedIndex = Number.isInteger(messageIndex) ? messageIndex : null;
+    if (!Number.isInteger(resolvedIndex) && saveIt) {
+      const session = getCurrentSession();
+      if (session?.messages) {
+        resolvedIndex = session.messages.length;
+      }
+    }
+
+    const editBtn = document.createElement("button");
+    editBtn.className = "msg-btn edit-btn";
+    editBtn.textContent = "Edit";
+    editBtn.onclick = () => {
+      editMessage(resolvedIndex, content);
+    };
+
+    const branchBtn = document.createElement("button");
+    branchBtn.className = "msg-btn edit-btn";
+    branchBtn.textContent = "Branch";
+    branchBtn.onclick = () => {
+      branchConversationFromMessage(resolvedIndex);
+    };
+
+    actions.appendChild(editBtn);
+    actions.appendChild(branchBtn);
+  }
+
+  if (role === "bot" && typeof content === "string") {
+    actions = document.createElement("div");
+    actions.className = "msg-actions";
+
+    const retryBtn = document.createElement("button");
+    retryBtn.className = "msg-btn retry-btn";
+    retryBtn.textContent = "Retry";
+    retryBtn.onclick = retryLast;
+
+    actions.appendChild(retryBtn);
+  }
+
+  queueCodeBlockEnhancement(d);
+
+  const t = document.createElement("div");
+  t.className = "timestamp";
+  t.textContent = time();
+  if (actions) {
+    const meta = document.createElement("div");
+    meta.className = "msg-meta";
+    meta.appendChild(t);
+    meta.appendChild(actions);
+    d.appendChild(meta);
+  } else {
+    d.appendChild(t);
+  }
+
+  return d;
+}
+
+function resetChatWindowing() {
+  chatWindowState.enabled = false;
+  chatWindowState.sessionId = '';
+  chatWindowState.start = 0;
+  chatWindowState.end = -1;
+  chatWindowingBusy = false;
+}
+
+async function renderChatWindowSlice(session, start, end, options = {}) {
+  const { stickToBottom = false } = options;
+  chat.innerHTML = '';
+
+  const safeStart = Math.max(0, Number(start || 0));
+  const safeEnd = Math.min(session.messages.length - 1, Number(end || 0));
+  const fragment = document.createDocumentFragment();
+
+  for (let idx = safeStart; idx <= safeEnd; idx += 1) {
+    const message = session.messages[idx];
+    const resolvedContent = await resolveMessageContentForDisplay(message.content);
+    const node = createChatMessageNode(message.role, resolvedContent, { saveIt: false, messageIndex: idx });
+    node.dataset.msgIndex = String(idx);
+    fragment.appendChild(node);
+
+    if ((idx - safeStart + 1) % 12 === 0) {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+  }
+
+  chat.appendChild(fragment);
+  chatWindowState.enabled = true;
+  chatWindowState.sessionId = String(session.id || '');
+  chatWindowState.start = safeStart;
+  chatWindowState.end = safeEnd;
+
+  if (stickToBottom) {
+    scrollToBottom();
+  }
+}
+
+async function maybeUpdateChatWindowing() {
+  if (!chatWindowState.enabled || chatWindowingBusy) return;
+
+  const session = sessions[chatWindowState.sessionId];
+  if (!session || !Array.isArray(session.messages)) return;
+  if (session.messages.length <= CHAT_WINDOW_THRESHOLD) return;
+
+  const nearTop = chat.scrollTop <= CHAT_WINDOW_EDGE_PX;
+  const nearBottom = (chat.scrollHeight - (chat.scrollTop + chat.clientHeight)) <= CHAT_WINDOW_EDGE_PX;
+  if (!nearTop && !nearBottom) return;
+
+  chatWindowingBusy = true;
+  try {
+    const total = session.messages.length;
+
+    if (nearTop && chatWindowState.start > 0) {
+      const oldHeight = chat.scrollHeight;
+      const oldTop = chat.scrollTop;
+      const nextStart = Math.max(0, chatWindowState.start - CHAT_WINDOW_CHUNK);
+      const nextEnd = Math.min(total - 1, nextStart + CHAT_WINDOW_MAX_DOM - 1);
+      await renderChatWindowSlice(session, nextStart, nextEnd);
+      const delta = chat.scrollHeight - oldHeight;
+      chat.scrollTop = Math.max(0, oldTop + delta);
+      return;
+    }
+
+    if (nearBottom && chatWindowState.end < total - 1) {
+      const nextEnd = Math.min(total - 1, chatWindowState.end + CHAT_WINDOW_CHUNK);
+      const nextStart = Math.max(0, nextEnd - CHAT_WINDOW_MAX_DOM + 1);
+      await renderChatWindowSlice(session, nextStart, nextEnd, { stickToBottom: true });
+    }
+  } finally {
+    chatWindowingBusy = false;
+  }
+}
+
+function scheduleChatWindowingUpdate() {
+  if (!chatWindowState.enabled || chatWindowingRaf) return;
+  chatWindowingRaf = requestAnimationFrame(() => {
+    chatWindowingRaf = 0;
+    maybeUpdateChatWindowing().catch((err) => console.warn('Chat window update skipped:', err));
+  });
+}
+
 async function loadChatMessages() {
   hideChatSearchBar();
   cleanupActiveMediaUrls();
+  resetChatWindowing();
   chat.innerHTML = "";
   const baseSession = getCurrentSession();
   if (!baseSession) return;
   const session = await ensureSessionMessagesLoaded(baseSession.id);
   if (!session) return;
 
-  for (let idx = 0; idx < session.messages.length; idx++) {
-    const m = session.messages[idx];
-    if (typeof m.content === "object" && m.content.mediaId) {
-      const blob = await getMedia(m.content.mediaId);
-      if (blob) {
-        const url = URL.createObjectURL(blob);
-        activeMediaObjectUrls.push(url);
-        render(m.role, { ...m.content, src: url }, false, idx);
-      }
-    } else {
-      render(m.role, m.content, false, idx);
+  const totalMessages = Array.isArray(session.messages) ? session.messages.length : 0;
+  if (totalMessages === 0) return;
+
+  if (totalMessages > CHAT_WINDOW_THRESHOLD) {
+    const start = Math.max(0, totalMessages - CHAT_WINDOW_MAX_DOM);
+    const end = totalMessages - 1;
+    await renderChatWindowSlice(session, start, end, { stickToBottom: true });
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  for (let idx = 0; idx < totalMessages; idx += 1) {
+    const message = session.messages[idx];
+    const resolvedContent = await resolveMessageContentForDisplay(message.content);
+    fragment.appendChild(createChatMessageNode(message.role, resolvedContent, { saveIt: false, messageIndex: idx }));
+
+    if ((idx + 1) % 14 === 0) {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
     }
   }
 
+  chat.appendChild(fragment);
   scrollToBottom();
 }
 
@@ -5059,6 +5430,7 @@ function cleanupActiveMediaUrls() {
     URL.revokeObjectURL(url);
   }
   activeMediaObjectUrls = [];
+  mediaObjectUrlById.clear();
 }
 
 async function deleteChatHandler(id) {
@@ -5188,24 +5560,162 @@ function toggleWebSearch() {
 }
 
 // ===== EXPORT/IMPORT =====
-function exportChat() {
-  const session = getCurrentSession();
-  let text = `# ${session.title}\n\n`;
-  session.messages.forEach(m => {
-    if (typeof m.content === "string") {
-      text += `**${m.role === "bot" ? "SPECTRIX" : "YOU"}:**\n${m.content}\n\n`;
-    } else {
-      text += `**${m.role.toUpperCase()}:**\n[${m.content.type.toUpperCase()}]\n\n`;
-    }
-  });
-  
-  const blob = new Blob([text], { type: "text/markdown" });
+function slugifyFilename(inputName, fallback = 'chat') {
+  const clean = String(inputName || '')
+    .trim()
+    .replace(/[^a-z0-9]+/gi, '_')
+    .replace(/^_+|_+$/g, '');
+  return clean || fallback;
+}
+
+function downloadBlob(blob, fileName) {
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
+  const a = document.createElement('a');
   a.href = url;
-  a.download = `${session.title.replace(/[^a-z0-9]/gi, '_')}.md`;
+  a.download = fileName;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+function buildSessionTranscriptText(session) {
+  if (!session) return '';
+  const lines = [];
+  lines.push(`# ${session.title || 'New Chat'}`);
+  lines.push('');
+
+  session.messages.forEach((m) => {
+    const who = m.role === 'bot' ? 'SPECTRIX' : 'YOU';
+    if (typeof m.content === 'string') {
+      lines.push(`**${who}:**`);
+      lines.push(m.content);
+      lines.push('');
+      return;
+    }
+
+    const mediaType = String(m?.content?.type || 'media').toUpperCase();
+    lines.push(`**${who}:**`);
+    lines.push(`[${mediaType}]`);
+    lines.push('');
+  });
+
+  return lines.join('\n');
+}
+
+function exportChat() {
+  const session = getCurrentSession();
+  if (!session) return;
+  const text = buildSessionTranscriptText(session);
+  
+  const blob = new Blob([text], { type: "text/markdown" });
+  downloadBlob(blob, `${slugifyFilename(session.title)}.md`);
+}
+
+async function exportChatPdf() {
+  const session = getCurrentSession();
+  if (!session) return;
+
+  const ready = await ensurePdfExportRuntimeLoaded({ timeoutMs: 3600, silent: false });
+  if (!ready || !window.jspdf?.jsPDF) {
+    showStatus('PDF export runtime unavailable right now.');
+    return;
+  }
+
+  const transcript = buildSessionTranscriptText(session)
+    .replace(/\*\*/g, '')
+    .replace(/^#\s+/gm, '');
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const marginX = 42;
+  const marginY = 46;
+  const maxWidth = pageWidth - (marginX * 2);
+  const lineHeight = 15;
+  let y = marginY;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.text(session.title || 'Spectrix Chat Export', marginX, y);
+  y += 24;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(11);
+  const lines = doc.splitTextToSize(transcript, maxWidth);
+  for (const line of lines) {
+    if (y > pageHeight - marginY) {
+      doc.addPage();
+      y = marginY;
+    }
+    doc.text(line, marginX, y);
+    y += lineHeight;
+  }
+
+  doc.save(`${slugifyFilename(session.title)}.pdf`);
+  showStatus('Chat exported as PDF.');
+}
+
+function buildSessionExportParagraphs(session) {
+  const out = [];
+  session.messages.forEach((m) => {
+    const who = m.role === 'bot' ? 'SPECTRIX' : 'YOU';
+    if (typeof m.content === 'string') {
+      const chunks = String(m.content).split(/\n{2,}/);
+      chunks.forEach((chunk, idx) => {
+        const text = chunk.trim();
+        if (!text) return;
+        if (idx === 0) out.push(`${who}: ${text}`);
+        else out.push(text);
+      });
+      out.push('');
+      return;
+    }
+    const mediaType = String(m?.content?.type || 'media').toUpperCase();
+    out.push(`${who}: [${mediaType}]`);
+    out.push('');
+  });
+  return out;
+}
+
+async function exportChatDocx() {
+  const session = getCurrentSession();
+  if (!session) return;
+
+  const ready = await ensureDocxExportRuntimeLoaded({ timeoutMs: 4200, silent: false });
+  if (!ready || !window.docx?.Document || !window.docx?.Packer) {
+    showStatus('DOCX export runtime unavailable right now.');
+    return;
+  }
+
+  const { Document, Packer, Paragraph, HeadingLevel, TextRun } = window.docx;
+  const paragraphs = [
+    new Paragraph({
+      text: session.title || 'Spectrix Chat Export',
+      heading: HeadingLevel.HEADING_1
+    })
+  ];
+
+  const bodyLines = buildSessionExportParagraphs(session);
+  bodyLines.forEach((line) => {
+    if (!line) {
+      paragraphs.push(new Paragraph({ text: '' }));
+      return;
+    }
+    paragraphs.push(new Paragraph({
+      children: [new TextRun({ text: line })]
+    }));
+  });
+
+  const doc = new Document({
+    sections: [{
+      properties: {},
+      children: paragraphs
+    }]
+  });
+
+  const blob = await Packer.toBlob(doc);
+  downloadBlob(blob, `${slugifyFilename(session.title)}.docx`);
+  showStatus('Chat exported as DOCX.');
 }
 
 function copyAll() {
@@ -5368,8 +5878,40 @@ function setStopButtonVisible(visible) {
   stopBtn.classList.toggle('hidden', !visible);
 }
 
+function updatePauseButtonUi() {
+  if (!pauseBtn) return;
+  pauseBtn.textContent = streamPaused ? 'Resume' : 'Pause';
+  pauseBtn.classList.toggle('paused', streamPaused);
+  pauseBtn.setAttribute('aria-label', streamPaused ? 'Resume stream' : 'Pause stream');
+}
+
+function setPauseButtonVisible(visible) {
+  if (!pauseBtn) return;
+  if (!visible) {
+    streamPaused = false;
+    streamResumeRenderCallback = null;
+  }
+  pauseBtn.classList.toggle('hidden', !visible);
+  updatePauseButtonUi();
+}
+
+function toggleStreamPause() {
+  if (!isGenerating || !activeStreamAbortController) return;
+  streamPaused = !streamPaused;
+  updatePauseButtonUi();
+  if (streamPaused) {
+    showStatus('Stream paused.');
+    return;
+  }
+  if (typeof streamResumeRenderCallback === 'function') {
+    streamResumeRenderCallback();
+  }
+  showStatus('Stream resumed.');
+}
+
 function stopGeneration() {
   if (!isGenerating) return;
+  setPauseButtonVisible(false);
   if (activeStreamAbortController) {
     activeStreamAbortController.abort('user-stop');
     showStatus('Stopping generation...');
@@ -5382,6 +5924,7 @@ function stopGeneration() {
     activeMediaGenerationToken = 0;
     isGenerating = false;
     setStopButtonVisible(false);
+    setPauseButtonVisible(false);
     if (activeGenerationLoadingNode) {
       activeGenerationLoadingNode.remove();
       activeGenerationLoadingNode = null;
@@ -6082,95 +6625,22 @@ async function fetchWithTimeoutRetry(url, options = {}, retryCount = 1) {
 
 // ===== RENDER MESSAGE =====
 function render(role, content, saveIt = true, messageIndex = null) {
-  const d = document.createElement("div");
-  d.className = "msg " + role;
-  let actions = null;
-
-  if (typeof content === "object" && content.type === "image") {
-    const img = document.createElement("img");
-    img.src = content.src;
-    img.className = "ai-img";
-    d.appendChild(img);
-  } 
-  else if (typeof content === "object" && content.type === "video") {
-    const video = document.createElement("video");
-    video.src = content.src;
-    video.controls = true;
-    video.autoplay = true;
-    video.loop = true;
-    video.style.maxWidth = "100%";
-    video.style.borderRadius = "12px";
-    d.appendChild(video);
-  } 
-  else {
-	if (window.marked) {
-      d.innerHTML = renderMarkdownSafely(content);
-      promoteInlineCodeMath(d);
-    }
-	else {
-  	d.textContent = String(content);
-	}
-    renderMath(d);
-  }
-
-  if (role === "user" && typeof content === "string") {
-    actions = document.createElement("div");
-    actions.className = "msg-actions";
-
-    let resolvedIndex = Number.isInteger(messageIndex) ? messageIndex : null;
-    if (!Number.isInteger(resolvedIndex) && saveIt) {
-      const session = getCurrentSession();
-      if (session?.messages) {
-        resolvedIndex = session.messages.length;
-      }
-    }
-
-    const editBtn = document.createElement("button");
-    editBtn.className = "msg-btn edit-btn";
-    editBtn.textContent = "Edit";
-    editBtn.onclick = () => {
-      editMessage(resolvedIndex, content);
-    };
-
-    const branchBtn = document.createElement("button");
-    branchBtn.className = "msg-btn edit-btn";
-    branchBtn.textContent = "Branch";
-    branchBtn.onclick = () => {
-      branchConversationFromMessage(resolvedIndex);
-    };
-
-    actions.appendChild(editBtn);
-    actions.appendChild(branchBtn);
-  }
-
-  if (role === "bot" && typeof content === "string") {
-    actions = document.createElement("div");
-    actions.className = "msg-actions";
-
-    const retryBtn = document.createElement("button");
-    retryBtn.className = "msg-btn retry-btn";
-    retryBtn.textContent = "Retry";
-    retryBtn.onclick = retryLast;
-
-    actions.appendChild(retryBtn);
-  }
-
-  queueCodeBlockEnhancement(d);
-
-  const t = document.createElement("div");
-  t.className = "timestamp";
-  t.textContent = time();
-  if (actions) {
-    const meta = document.createElement("div");
-    meta.className = "msg-meta";
-    meta.appendChild(t);
-    meta.appendChild(actions);
-    d.appendChild(meta);
-  } else {
-    d.appendChild(t);
-  }
+  const d = createChatMessageNode(role, content, { saveIt, messageIndex });
 
   chat.appendChild(d);
+
+  if (chatWindowState.enabled && chatWindowState.sessionId === String(currentId || '')) {
+    const overflow = chat.children.length - CHAT_WINDOW_MAX_DOM;
+    if (overflow > 0) {
+      for (let i = 0; i < overflow; i += 1) {
+        if (!chat.firstChild) break;
+        chat.removeChild(chat.firstChild);
+      }
+      chatWindowState.start += overflow;
+    }
+    chatWindowState.end += 1;
+  }
+
   scrollChatToLatest({ smooth: false });
 
   if (saveIt) saveMessage(role, content);
@@ -6332,7 +6802,11 @@ async function streamBotFromSSE(payload, options = {}) {
   const STREAM_PARSE_YIELD_EVENT_COUNT = 24;
   const STREAM_PARSE_YIELD_BUDGET_MS = 8;
 
+  streamPaused = false;
+  updatePauseButtonUi();
+
   const renderCurrentState = () => {
+    if (streamPaused) return;
     // During stream, append incremental plain text for smoother FPS; finalize markdown once at the end.
     if (!streamTextNode) {
       d.textContent = "";
@@ -6344,6 +6818,11 @@ async function streamBotFromSSE(payload, options = {}) {
       pendingDeltaText = "";
     }
     scrollChatToLatest({ smooth: false });
+  };
+
+  streamResumeRenderCallback = () => {
+    renderCurrentState();
+    scheduleRender();
   };
 
   const finalizeRenderedMessage = async () => {
@@ -6369,6 +6848,7 @@ async function streamBotFromSSE(payload, options = {}) {
   };
 
   const scheduleRender = () => {
+    if (streamPaused) return;
     if (frameScheduled) return;
     frameScheduled = true;
     requestAnimationFrame(() => {
@@ -6443,7 +6923,7 @@ async function streamBotFromSSE(payload, options = {}) {
           if (nextDelta) {
             renderedText += nextDelta;
             pendingDeltaText += nextDelta;
-            scheduleRender();
+            if (!streamPaused) scheduleRender();
           }
 
           if (eventData?.type === "done" || eventData?.choices?.[0]?.finish_reason) {
@@ -6476,6 +6956,7 @@ async function streamBotFromSSE(payload, options = {}) {
   if (abortedByUser) {
     if (!renderedText.trim()) {
       d.remove();
+      streamResumeRenderCallback = null;
       const abortError = new Error('Generation stopped');
       abortError.isUserAbort = true;
       throw abortError;
@@ -6487,11 +6968,13 @@ async function streamBotFromSSE(payload, options = {}) {
     await saveChat(session);
     renderHistory();
     updateHeaderTitle();
+    streamResumeRenderCallback = null;
     showStatus('Generation stopped');
     return renderedText;
   }
 
   if (!renderedText.trim()) {
+    streamResumeRenderCallback = null;
     throw new Error("Empty response from model");
   }
 
@@ -6505,6 +6988,7 @@ async function streamBotFromSSE(payload, options = {}) {
   await saveChat(session);
   renderHistory();
   updateHeaderTitle();
+  streamResumeRenderCallback = null;
 
   return renderedText;
 }
@@ -6610,6 +7094,7 @@ async function send(options = {}) {
 
   isGenerating = true;
   setStopButtonVisible(true);
+  setPauseButtonVisible(false);
   lastUserPrompt = prompt;
 
   const firstUserPrompt = prompt;
@@ -6621,6 +7106,7 @@ async function send(options = {}) {
   if (!session) {
     isGenerating = false;
     setStopButtonVisible(false);
+    setPauseButtonVisible(false);
     showStatus('Could not open a chat session.');
     return;
   }
@@ -6628,6 +7114,7 @@ async function send(options = {}) {
   if (!session) {
     isGenerating = false;
     setStopButtonVisible(false);
+    setPauseButtonVisible(false);
     showStatus('Could not load the selected chat.');
     return;
   }
@@ -6704,6 +7191,7 @@ async function send(options = {}) {
         activeMediaGenerationToken = 0;
         isGenerating = false;
         setStopButtonVisible(false);
+        setPauseButtonVisible(false);
 
         img.classList.add("ai-img");
         const base64 = img.src;
@@ -6723,6 +7211,7 @@ async function send(options = {}) {
         canceledMediaGenerationTokens.delete(mediaToken);
         isGenerating = false;
         setStopButtonVisible(false);
+        setPauseButtonVisible(false);
         loading.remove();
         if (activeGenerationLoadingNode === loading) activeGenerationLoadingNode = null;
         render("bot", "**Error generating response 💀** " + err.message);
@@ -6747,6 +7236,7 @@ async function send(options = {}) {
         activeMediaGenerationToken = 0;
         isGenerating = false;
         setStopButtonVisible(false);
+        setPauseButtonVisible(false);
 
         const blob = await fetch(video.src).then(r => r.blob());
         if (canceledMediaGenerationTokens.has(mediaToken)) {
@@ -6785,6 +7275,7 @@ async function send(options = {}) {
         canceledMediaGenerationTokens.delete(mediaToken);
         isGenerating = false;
         setStopButtonVisible(false);
+        setPauseButtonVisible(false);
         loading.remove();
         if (activeGenerationLoadingNode === loading) activeGenerationLoadingNode = null;
         render("bot", "**Error generating response 💀** " + err.message);
@@ -6853,12 +7344,15 @@ loading.remove();
 if (activeGenerationLoadingNode === loading) activeGenerationLoadingNode = null;
 let answer;
 try {
+  streamPaused = false;
+  setPauseButtonVisible(true);
   activeStreamAbortController = new AbortController();
   answer = await streamBotFromSSE(payload, { signal: activeStreamAbortController.signal });
 } catch (streamError) {
   if (streamError?.isUserAbort) {
     isGenerating = false;
     setStopButtonVisible(false);
+    setPauseButtonVisible(false);
     return;
   }
   if (streamError?.isRateLimit) {
@@ -6873,6 +7367,7 @@ try {
 activeStreamAbortController = null;
 isGenerating = false;
 setStopButtonVisible(false);
+setPauseButtonVisible(false);
 
      if (shouldAutoTitle) {
   // Mark as titled IMMEDIATELY to prevent double-firing
@@ -6909,6 +7404,7 @@ setStopButtonVisible(false);
     isGenerating = false;
     activeStreamAbortController = null;
     setStopButtonVisible(false);
+    setPauseButtonVisible(false);
     loading.remove();
 
     if (err.isRateLimit) {
@@ -7092,11 +7588,147 @@ function showIOSInstallHint() {
 function initCompatibilityEnhancements() {
   const announceNetworkState = () => {
     showStatus(navigator.onLine ? 'Back online' : 'You are offline. Local chat history still works.');
+    if (navigator.onLine) {
+      flushCloudSyncQueue({ silent: true }).catch((err) => {
+        console.warn('Online queue flush skipped:', err);
+      });
+    }
   };
 
   window.addEventListener('online', announceNetworkState);
   window.addEventListener('offline', announceNetworkState);
   showIOSInstallHint();
+}
+
+function readCloudSyncQueue() {
+  if (incognitoEnabled) return [];
+  try {
+    const raw = localStorage.getItem(CLOUD_SYNC_QUEUE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item) => item && typeof item.type === 'string');
+  } catch {
+    return [];
+  }
+}
+
+function writeCloudSyncQueue(queue) {
+  if (incognitoEnabled) return;
+  const safe = Array.isArray(queue) ? queue.slice(-500) : [];
+  localStorage.setItem(CLOUD_SYNC_QUEUE_KEY, JSON.stringify(safe));
+}
+
+function queueCloudSyncOperation(op) {
+  if (incognitoEnabled || !op || !op.type) return;
+  const nextOp = {
+    type: String(op.type),
+    id: String(op.id || ''),
+    payload: op.payload || null,
+    ts: Number(op.ts || Date.now())
+  };
+
+  let queue = readCloudSyncQueue();
+
+  if (nextOp.type === 'memory_clear_all') {
+    queue = queue.filter((item) => !String(item.type || '').startsWith('memory_'));
+    queue.push(nextOp);
+    writeCloudSyncQueue(queue);
+    return;
+  }
+
+  const isChatOp = nextOp.type.startsWith('chat_');
+  const isMemoryOp = nextOp.type.startsWith('memory_');
+  if (isChatOp || isMemoryOp) {
+    queue = queue.filter((item) => {
+      const sameId = String(item.id || '') === nextOp.id;
+      if (!sameId) return true;
+      if (isChatOp) return !String(item.type || '').startsWith('chat_');
+      if (isMemoryOp) return !String(item.type || '').startsWith('memory_');
+      return true;
+    });
+  }
+
+  queue.push(nextOp);
+  writeCloudSyncQueue(queue);
+}
+
+function isCloudSyncRetryableError(error) {
+  if (!error) return !navigator.onLine;
+  if (!navigator.onLine) return true;
+
+  const code = String(error?.code || '').toLowerCase();
+  if (code.includes('unavailable') || code.includes('deadline-exceeded') || code.includes('network')) {
+    return true;
+  }
+
+  const msg = String(error?.message || error || '').toLowerCase();
+  return (
+    msg.includes('network')
+    || msg.includes('failed to fetch')
+    || msg.includes('offline')
+    || msg.includes('unavailable')
+    || msg.includes('timeout')
+    || msg.includes('blocked_by_client')
+    || msg.includes('blocked by client')
+  );
+}
+
+async function flushCloudSyncQueue(options = {}) {
+  const { silent = false } = options;
+  if (incognitoEnabled) return;
+  if (cloudSyncQueueFlushInFlight) return;
+  if (!navigator.onLine) return;
+
+  const user = firebase?.auth?.().currentUser;
+  if (!user) return;
+
+  const queue = readCloudSyncQueue();
+  if (!queue.length) return;
+
+  cloudSyncQueueFlushInFlight = true;
+  const remaining = [];
+  let replayed = 0;
+
+  try {
+    const dbF = firebase.firestore();
+    const userRef = dbF.collection('users').doc(user.uid);
+
+    for (let index = 0; index < queue.length; index += 1) {
+      const op = queue[index];
+      try {
+        if (op.type === 'chat_upsert' && op.id && op.payload) {
+          await userRef.collection('chats').doc(String(op.id)).set(op.payload, { merge: true });
+        } else if (op.type === 'chat_delete' && op.id) {
+          await userRef.collection('chats').doc(String(op.id)).delete();
+        } else if (op.type === 'memory_upsert' && op.id && op.payload) {
+          await userRef.collection('memories').doc(String(op.id)).set(op.payload, { merge: true });
+        } else if (op.type === 'memory_delete' && op.id) {
+          await userRef.collection('memories').doc(String(op.id)).delete();
+        } else if (op.type === 'memory_clear_all') {
+          const snap = await userRef.collection('memories').get();
+          if (!snap.empty) {
+            const batch = dbF.batch();
+            snap.docs.forEach((doc) => batch.delete(doc.ref));
+            await batch.commit();
+          }
+        }
+        replayed += 1;
+      } catch (error) {
+        if (isCloudSyncRetryableError(error)) {
+          remaining.push(op, ...queue.slice(index + 1));
+          break;
+        }
+        console.warn('Dropping non-retryable queued cloud op:', op, error);
+      }
+    }
+  } finally {
+    writeCloudSyncQueue(remaining);
+    cloudSyncQueueFlushInFlight = false;
+  }
+
+  if (replayed > 0 && !silent) {
+    showStatus(`Synced ${replayed} queued cloud change${replayed === 1 ? '' : 's'}.`);
+  }
 }
 
 async function applyLaunchParams() {
@@ -7257,10 +7889,17 @@ function initEventListeners() {
   let scrollTicking = false;
   let scrollBottomVisible = false;
   const CHAT_SCROLL_THROTTLE_MS = 40;
+  let lastChatScrollHandledAt = 0;
   chat.addEventListener("scroll", () => {
     if (scrollTicking) return;
     scrollTicking = true;
-    setTimeout(() => {
+    requestAnimationFrame(() => {
+      const nowMs = Date.now();
+      if ((nowMs - lastChatScrollHandledAt) < CHAT_SCROLL_THROTTLE_MS) {
+        scrollTicking = false;
+        return;
+      }
+      lastChatScrollHandledAt = nowMs;
       const atBottom = isChatNearBottom();
       autoScrollToLatest = atBottom;
       const nextVisible = !atBottom;
@@ -7268,8 +7907,9 @@ function initEventListeners() {
         scrollBottomVisible = nextVisible;
         scrollBottom.classList.toggle("visible", nextVisible);
       }
+      scheduleChatWindowingUpdate();
       scrollTicking = false;
-    }, CHAT_SCROLL_THROTTLE_MS);
+    });
   }, { passive: true });
 
   document.addEventListener('pointerdown', () => {
@@ -7349,6 +7989,41 @@ const MEMORY_CATEGORIES = {
   context: '📌',
   general: '🧠'
 };
+
+const MEMORY_NOISE_SINGLETONS = new Set([
+  'ai', 'tech', 'coding', 'code', 'programming', 'math', 'research',
+  'ai tech', 'ai and tech', 'math coding research', 'coding research'
+]);
+
+const MEMORY_SUBJECT_HINT_REGEX = /\b(i|my|me|user|name|age|birthday|location|live|from|based|student|study|school|university|work|job|role|github|handle|username|prefer|prefers|like|likes|love|loves|interested|interest|goal|learning|learn|building|build|project|stack|use|uses|works|working)\b/i;
+const MEMORY_VERB_HINT_REGEX = /\b(is|are|am|was|were|works|work|study|studies|learn|learning|like|likes|love|loves|prefer|prefers|use|uses|build|building|wants|goal|aims)\b/i;
+const MEMORY_NOISE_TEXT_REGEX = /\b(hello|hi|thanks|thank you|ok|okay|lol|lmao|bro|dawg|yo)\b/i;
+
+function isUsefulMemoryFact(fact, category = 'general') {
+  const raw = String(fact || '').trim();
+  if (!raw) return false;
+  if (raw.length < 8 || raw.length > 180) return false;
+
+  const normalized = raw
+    .toLowerCase()
+    .replace(/[^a-z0-9+ ]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!normalized) return false;
+  if (MEMORY_NOISE_SINGLETONS.has(normalized)) return false;
+  if (MEMORY_NOISE_TEXT_REGEX.test(normalized) && normalized.split(' ').length < 5) return false;
+
+  const words = normalized.split(' ').filter(Boolean);
+  if (words.length < 3) return false;
+
+  if (raw.includes(',') && !MEMORY_VERB_HINT_REGEX.test(normalized)) return false;
+
+  const hasSubjectSignal = MEMORY_SUBJECT_HINT_REGEX.test(normalized);
+  if (!hasSubjectSignal && category !== 'technical') return false;
+
+  return true;
+}
 
 async function initMemorySystem() {
   const toggle = document.getElementById('memoryEnabled');
@@ -7477,6 +8152,203 @@ async function clearAllMemories() {
   showStatus('All memories cleared 🗑️');
 }
 
+function normalizeMemoryTextForCleanup(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9+ ]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function buildMemoryCleanupCandidates(memories) {
+  const candidateMap = new Map();
+  const duplicateBuckets = new Map();
+
+  const mark = (memory, reason) => {
+    if (!memory?.id) return;
+    const id = String(memory.id);
+    if (!candidateMap.has(id)) {
+      candidateMap.set(id, {
+        id,
+        memory,
+        reasons: new Set()
+      });
+    }
+    candidateMap.get(id).reasons.add(reason);
+  };
+
+  for (const mem of memories) {
+    if (!mem?.id) continue;
+    const raw = String(mem.content || '').trim();
+    const normalized = normalizeMemoryTextForCleanup(raw);
+    if (!normalized) {
+      mark(mem, 'Empty or invalid memory text');
+      continue;
+    }
+
+    if (!isUsefulMemoryFact(raw, mem.category || 'general')) {
+      mark(mem, 'Low-value or generic fact');
+    }
+
+    if (normalized.length < 12 || normalized.split(' ').length < 3) {
+      mark(mem, 'Too short to stay useful');
+    }
+
+    if (!duplicateBuckets.has(normalized)) {
+      duplicateBuckets.set(normalized, []);
+    }
+    duplicateBuckets.get(normalized).push(mem);
+  }
+
+  duplicateBuckets.forEach((bucket) => {
+    if (bucket.length < 2) return;
+    bucket.forEach((mem) => mark(mem, 'Duplicate memory'));
+  });
+
+  return Array.from(candidateMap.values())
+    .map((entry) => ({
+      id: entry.id,
+      memory: entry.memory,
+      reason: Array.from(entry.reasons).join(' • ')
+    }))
+    .sort((a, b) => Number(b.memory?.timestamp || 0) - Number(a.memory?.timestamp || 0));
+}
+
+function showMemoryCleanupReviewModal(candidates, totalCount) {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('appModalOverlay');
+    const modal = document.getElementById('appModal');
+    const titleEl = document.getElementById('appModalTitle');
+    const bodyEl = document.getElementById('appModalBody');
+    const auxEl = document.getElementById('appModalAux');
+    const cancelBtn = document.getElementById('appModalCancel');
+    const okBtn = document.getElementById('appModalOk');
+
+    if (!overlay || !modal || !titleEl || !bodyEl || !auxEl || !cancelBtn || !okBtn) {
+      resolve(null);
+      return;
+    }
+
+    titleEl.textContent = 'Memory Cleanup Suggestions';
+    bodyEl.textContent = '';
+    auxEl.classList.remove('visible');
+
+    cancelBtn.style.display = 'inline-flex';
+    cancelBtn.textContent = 'Cancel';
+    okBtn.textContent = 'Delete Selected';
+
+    const summary = document.createElement('div');
+    summary.className = 'memory-cleanup-summary';
+    summary.textContent = `Found ${candidates.length} candidate memories out of ${totalCount}. Uncheck anything you want to keep.`;
+    bodyEl.appendChild(summary);
+
+    const list = document.createElement('div');
+    list.className = 'memory-cleanup-list';
+    bodyEl.appendChild(list);
+
+    const checkboxRefs = [];
+    candidates.forEach((candidate) => {
+      const item = document.createElement('label');
+      item.className = 'memory-cleanup-item';
+
+      const check = document.createElement('input');
+      check.type = 'checkbox';
+      check.checked = true;
+      check.dataset.memoryId = candidate.id;
+      checkboxRefs.push(check);
+
+      const contentWrap = document.createElement('div');
+      contentWrap.className = 'memory-cleanup-content';
+      contentWrap.textContent = String(candidate.memory?.content || '');
+
+      const reason = document.createElement('span');
+      reason.className = 'memory-cleanup-reason';
+      reason.textContent = candidate.reason;
+      contentWrap.appendChild(reason);
+
+      item.appendChild(check);
+      item.appendChild(contentWrap);
+      list.appendChild(item);
+    });
+
+    const cleanup = () => {
+      overlay.classList.remove('visible');
+      modal.classList.remove('visible');
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+      overlay.removeEventListener('click', onOverlay);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+
+    const onOk = () => {
+      const selectedIds = checkboxRefs
+        .filter((check) => check.checked)
+        .map((check) => String(check.dataset.memoryId || ''))
+        .filter(Boolean);
+      cleanup();
+      resolve(selectedIds);
+    };
+
+    const onCancel = () => {
+      cleanup();
+      resolve(null);
+    };
+
+    const onOverlay = () => onCancel();
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onCancel();
+      }
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        onOk();
+      }
+    };
+
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+    overlay.addEventListener('click', onOverlay);
+    document.addEventListener('keydown', onKeyDown);
+
+    overlay.classList.add('visible');
+    modal.classList.add('visible');
+    okBtn.focus();
+  });
+}
+
+async function cleanupMemories() {
+  const memories = await getAllMemories();
+  if (!memories.length) {
+    showStatus('No memories to clean up yet.');
+    return;
+  }
+
+  const candidates = buildMemoryCleanupCandidates(memories);
+  if (!candidates.length) {
+    showStatus('Memory looks clean. Nothing to remove.');
+    return;
+  }
+
+  const selectedIds = await showMemoryCleanupReviewModal(candidates, memories.length);
+  if (!selectedIds) return;
+  if (!selectedIds.length) {
+    showStatus('No memories were selected.');
+    return;
+  }
+
+  let deleted = 0;
+  for (const id of selectedIds) {
+    await deleteMemory(id);
+    deleted += 1;
+  }
+
+  await renderMemoryList();
+  await updateMemoryBadge();
+  showStatus(`Cleaned up ${deleted} memory item${deleted === 1 ? '' : 's'}.`);
+}
+
 async function buildMemoryContext() {
   try {
     if (incognitoEnabled) return '';
@@ -7543,6 +8415,8 @@ Rules:
 - Do NOT extract facts about the AI or generic conversation topics.
 - Do NOT extract greetings, pleasantries, or trivial exchanges.
 - Each fact must be a concise statement (under 15 words).
+- Never output single-word topics or tag-like labels (e.g., "coding", "AI", "math, coding").
+- Extract only stable user attributes/preferences that remain useful later.
 - Categorize each fact using ONLY one of these exact words: personal, preference, technical, interest, context, general
 - If nothing worth remembering, respond with EXACTLY: NONE
 - Format: category|fact
@@ -7607,6 +8481,7 @@ ${existingFacts.slice(0, 20).join('\n')}`
       const fact = String(entry.fact || '').trim();
 
       if (!fact || fact.length < 4 || fact.length > 200) continue;
+      if (!isUsefulMemoryFact(fact, category)) continue;
 
       // FIX 3: stricter but fairer duplicate check (full string match, not substring)
       const factLower = fact.toLowerCase();
@@ -8427,6 +9302,10 @@ firebase.auth().onAuthStateChanged(async user => {
   }
   if (user && !incognitoEnabled) {
     localStorage.setItem(PREPOPUP_KEY, 'true');
+    startCloudAutoSync();
+    flushCloudSyncQueue({ silent: true }).catch((err) => console.warn('Auth queue flush skipped:', err));
+    syncChats(user.uid).catch((err) => console.warn('Auth chat sync skipped:', err));
+    syncMemories(user.uid).catch((err) => console.warn('Auth memory sync skipped:', err));
   } else {
     stopCloudAutoSync();
   }
@@ -8692,11 +9571,23 @@ async function syncMemories(uid) {
 
 async function syncChatToCloud(chatData) {
   if (incognitoEnabled) return;
+  const op = {
+    type: 'chat_upsert',
+    id: String(chatData?.id || ''),
+    payload: chatData || null
+  };
   try {
     const user = firebase.auth().currentUser;
     if (!user || !chatData || !chatData.id) return;
+    if (!navigator.onLine) {
+      queueCloudSyncOperation(op);
+      return;
+    }
     await firebase.firestore().collection('users').doc(user.uid).collection('chats').doc(chatData.id).set(chatData);
   } catch (e) {
+    if (isCloudSyncRetryableError(e)) {
+      queueCloudSyncOperation(op);
+    }
     console.warn('Cloud sync skipped:', e);
     const msg = String(e?.message || e || '').toLowerCase();
     if (msg.includes('blocked_by_client') || msg.includes('blocked by client')) {
@@ -8707,11 +9598,23 @@ async function syncChatToCloud(chatData) {
 
 async function syncMemoryToCloud(memoryData) {
   if (incognitoEnabled) return;
+  const op = {
+    type: 'memory_upsert',
+    id: String(memoryData?.id || ''),
+    payload: memoryData || null
+  };
   try {
     const user = firebase.auth().currentUser;
     if (!user || !memoryData || !memoryData.id) return;
+    if (!navigator.onLine) {
+      queueCloudSyncOperation(op);
+      return;
+    }
     await firebase.firestore().collection('users').doc(user.uid).collection('memories').doc(String(memoryData.id)).set(memoryData, { merge: true });
   } catch (e) {
+    if (isCloudSyncRetryableError(e)) {
+      queueCloudSyncOperation(op);
+    }
     console.warn('Memory cloud write skipped:', e);
     const msg = String(e?.message || e || '').toLowerCase();
     if (msg.includes('blocked_by_client') || msg.includes('blocked by client')) {
@@ -8722,20 +9625,36 @@ async function syncMemoryToCloud(memoryData) {
 
 async function deleteMemoryFromCloud(memoryId) {
   if (incognitoEnabled) return;
+  const op = {
+    type: 'memory_delete',
+    id: String(memoryId || '')
+  };
   try {
     const user = firebase.auth().currentUser;
     if (!user || !memoryId) return;
+    if (!navigator.onLine) {
+      queueCloudSyncOperation(op);
+      return;
+    }
     await firebase.firestore().collection('users').doc(user.uid).collection('memories').doc(String(memoryId)).delete();
   } catch (e) {
+    if (isCloudSyncRetryableError(e)) {
+      queueCloudSyncOperation(op);
+    }
     console.warn('Memory cloud delete skipped:', e);
   }
 }
 
 async function clearAllMemoriesFromCloud() {
   if (incognitoEnabled) return;
+  const op = { type: 'memory_clear_all', id: '*' };
   try {
     const user = firebase.auth().currentUser;
     if (!user) return;
+    if (!navigator.onLine) {
+      queueCloudSyncOperation(op);
+      return;
+    }
 
     const dbF = firebase.firestore();
     const memRef = dbF.collection('users').doc(user.uid).collection('memories');
@@ -8746,17 +9665,31 @@ async function clearAllMemoriesFromCloud() {
     snap.docs.forEach((doc) => batch.delete(doc.ref));
     await batch.commit();
   } catch (e) {
+    if (isCloudSyncRetryableError(e)) {
+      queueCloudSyncOperation(op);
+    }
     console.warn('Memory cloud clear skipped:', e);
   }
 }
 
 async function deleteChatFromCloud(chatId) {
   if (incognitoEnabled) return;
+  const op = {
+    type: 'chat_delete',
+    id: String(chatId || '')
+  };
   try {
     const user = firebase.auth().currentUser;
     if (!user || !chatId) return;
+    if (!navigator.onLine) {
+      queueCloudSyncOperation(op);
+      return;
+    }
     await firebase.firestore().collection('users').doc(user.uid).collection('chats').doc(String(chatId)).delete();
   } catch (e) {
+    if (isCloudSyncRetryableError(e)) {
+      queueCloudSyncOperation(op);
+    }
     console.warn('Cloud delete skipped:', e);
   }
 }
