@@ -327,6 +327,11 @@ body{
   background:var(--accent-glow);
 }
 
+.history-group-title:focus-visible{
+  outline:2px solid var(--user);
+  outline-offset:1px;
+}
+
 .history-group-title .folder-caret{
   width:14px;
   text-align:center;
@@ -1907,21 +1912,25 @@ body.dark .voice-btn.recording {
   .controls {
     gap: 6px;
     display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    touch-action: pan-x;
-    padding-bottom: 2px;
+    flex-wrap: wrap;
+    overflow: visible;
+    padding-bottom: 0;
   }
 
-  .controls::-webkit-scrollbar {
-    display: none;
+  .controls > .select-wrap {
+    flex: 1 1 calc(50% - 6px);
+    min-width: 0;
   }
 
   .controls > * {
     flex: 0 0 auto;
+  }
+
+  .controls > .select-wrap.custom-select-wrap,
+  .controls > .select-wrap.custom-select-wrap .custom-select-trigger {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
   }
   
   .controls button.toggle {
@@ -1957,7 +1966,8 @@ body.dark .voice-btn.recording {
   }
 
   .custom-select-panel {
-    width: max(100%, 220px);
+    width: min(max(100%, 220px), calc(100vw - 20px));
+    max-width: calc(100vw - 20px);
     max-height: 220px;
     padding: 5px;
   }
@@ -2145,7 +2155,11 @@ body.dark .voice-btn.recording {
   }
 
   .custom-select-trigger {
-    max-width: 118px;
+    max-width: 100%;
+  }
+
+  .controls > .select-wrap {
+    flex-basis: 100%;
   }
   
   .msg {
@@ -3888,11 +3902,27 @@ function toggleFolderCollapsed(folderName) {
   renderHistory();
 }
 
+function buildChatSearchPreview(chat) {
+  if (!chat) return '';
+
+  const fromMessages = Array.isArray(chat.messages)
+    ? chat.messages
+        .slice(-24)
+        .map((m) => (typeof m?.content === 'string' ? m.content : ''))
+        .filter(Boolean)
+        .join(' ')
+    : '';
+
+  const seed = fromMessages || String(chat.searchPreview || '');
+  return seed.replace(/\s+/g, ' ').trim().slice(0, 700);
+}
+
 function normalizeChatMeta(chat) {
   if (!chat || !chat.id) return null;
   const folder = (typeof chat.folder === 'string' && chat.folder.trim()) ? chat.folder.trim() : 'General';
   const tags = Array.isArray(chat.tags) ? chat.tags : [];
   const branchOf = typeof chat.branchOf === 'string' ? chat.branchOf : '';
+  const searchPreview = buildChatSearchPreview(chat);
   return {
     id: String(chat.id),
     title: String(chat.title || 'New Chat'),
@@ -3901,7 +3931,8 @@ function normalizeChatMeta(chat) {
     autoTitled: !!chat.autoTitled,
     folder,
     tags,
-    branchOf
+    branchOf,
+    searchPreview
   };
 }
 
@@ -3940,6 +3971,7 @@ function upsertChatIndexEntry(chatData) {
       && prev.autoTitled === next.autoTitled
       && prev.folder === next.folder
       && prev.branchOf === next.branchOf
+      && prev.searchPreview === next.searchPreview
       && JSON.stringify(prev.tags || []) === JSON.stringify(next.tags || []);
     if (unchanged) return;
     existing[idx] = next;
@@ -3990,7 +4022,8 @@ async function ensureSessionMessagesLoaded(id = currentId) {
     autoTitled: false,
     folder: 'General',
     tags: [],
-    branchOf: ''
+    branchOf: '',
+    searchPreview: ''
   };
   sessions[key] = {
     ...meta,
@@ -4215,6 +4248,7 @@ async function createNewChat() {
     title: "New Chat",
     messages: [],
     messagesLoaded: true,
+    searchPreview: '',
     timestamp: Date.now(),
     pinned: false,
     autoTitled: false,
@@ -4785,6 +4819,7 @@ function renderHistory() {
     filtered = filtered.filter(s =>
       s.title.toLowerCase().includes(query) ||
       String(s.folder || '').toLowerCase().includes(query) ||
+      String(s.searchPreview || '').toLowerCase().includes(query) ||
       (Array.isArray(s.tags) && s.tags.some(tag => String(tag).toLowerCase().includes(query))) ||
       (Array.isArray(s.messages) && s.messages.some(m =>
         typeof m.content === "string" &&
@@ -4826,7 +4861,23 @@ function renderHistory() {
     titleDiv.setAttribute('role', 'button');
     titleDiv.setAttribute('tabindex', '0');
     titleDiv.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
-    titleDiv.innerHTML = `<span class="folder-caret" aria-hidden="true">▾</span><span class="folder-label">📁 ${folderName}</span><span class="folder-count">(${orderedItems.length})</span>`;
+
+    const caretEl = document.createElement('span');
+    caretEl.className = 'folder-caret';
+    caretEl.setAttribute('aria-hidden', 'true');
+    caretEl.textContent = '▾';
+
+    const labelEl = document.createElement('span');
+    labelEl.className = 'folder-label';
+    labelEl.textContent = `📁 ${folderName}`;
+
+    const countEl = document.createElement('span');
+    countEl.className = 'folder-count';
+    countEl.textContent = `(${orderedItems.length})`;
+
+    titleDiv.appendChild(caretEl);
+    titleDiv.appendChild(labelEl);
+    titleDiv.appendChild(countEl);
     titleDiv.onclick = (e) => {
       e.stopPropagation();
       toggleFolderCollapsed(folderName);
@@ -7191,9 +7242,16 @@ function initEventListeners() {
 });
 
   let searchTimeout = null;
+  let lastSearchValue = '';
   searchBox.addEventListener("input", () => {
+    const nextSearchValue = String(searchBox.value || '');
+    if (nextSearchValue === lastSearchValue) return;
+    lastSearchValue = nextSearchValue;
+
     clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(renderHistory, 200);
+    searchTimeout = setTimeout(() => {
+      requestAnimationFrame(() => renderHistory());
+    }, 140);
   });
 
   let scrollTicking = false;
