@@ -5666,6 +5666,50 @@ function buildSessionTranscriptText(session) {
   return lines.join('\n');
 }
 
+const PDF_TEXT_REPLACEMENTS = new Map([
+  ['\u2018', "'"],
+  ['\u2019', "'"],
+  ['\u201C', '"'],
+  ['\u201D', '"'],
+  ['\u2013', '-'],
+  ['\u2014', '-'],
+  ['\u2026', '...'],
+  ['\u00A0', ' ']
+]);
+
+function normalizePdfExportText(value) {
+  let text = String(value || '');
+  if (!text) return '';
+
+  if (typeof text.normalize === 'function') {
+    text = text.normalize('NFKC');
+  }
+
+  PDF_TEXT_REPLACEMENTS.forEach((next, prev) => {
+    text = text.split(prev).join(next);
+  });
+
+  // Remove control chars and invisible separators that break PDF text shaping.
+  text = text
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '')
+    .replace(/\t/g, '  ');
+
+  // jsPDF core fonts are WinAnsi/Latin-1. Replace unsupported glyphs safely.
+  text = Array.from(text).map((ch) => {
+    const code = ch.charCodeAt(0);
+    return code <= 255 ? ch : '?';
+  }).join('');
+
+  return text
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map((line) => line.replace(/ {2,}/g, ' ').trimEnd())
+    .join('\n')
+    .trim();
+}
+
 function exportChat() {
   const session = getCurrentSession();
   if (!session) return;
@@ -5685,12 +5729,15 @@ async function exportChatPdf() {
     return;
   }
 
-  const transcript = buildSessionTranscriptText(session)
+  const transcriptRaw = buildSessionTranscriptText(session)
     .replace(/\*\*/g, '')
     .replace(/^#\s+/gm, '');
+  const transcript = normalizePdfExportText(transcriptRaw);
+  const safeTitle = normalizePdfExportText(session.title || 'Spectrix Chat Export') || 'Spectrix Chat Export';
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  doc.setCharSpace(0);
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const marginX = 42;
@@ -5701,7 +5748,7 @@ async function exportChatPdf() {
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
-  doc.text(session.title || 'Spectrix Chat Export', marginX, y);
+  doc.text(safeTitle, marginX, y);
   y += 24;
 
   doc.setFont('helvetica', 'normal');
