@@ -159,6 +159,7 @@ Built from scratch — **zero frameworks, zero bloat** — it combines:
 - **Composer alignment polish** — textarea, `+`, `Send`, `Stop`, and `Pause` stay visually aligned with balanced control sizing across desktop and mobile
 - **Fresh-start opening** — app opens to a draft New Chat on page load; it is created/saved only after the first message
 - **Role-based link colors** — links are black in user messages and green in Spectrix/bot messages
+- **Centered status notifications** — in-app message popups appear centered just below the header (not over model selectors)
 
 ### ☁️ Google Auth + Cloud Sync
 - **Google Sign-In** via Firebase Auth (popup with redirect fallback)

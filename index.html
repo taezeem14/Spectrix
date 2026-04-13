@@ -855,15 +855,15 @@ select:focus-visible {
 
 .status-banner {
   position: fixed;
-  top: calc(14px + var(--safe-top));
-  right: calc(14px + var(--safe-right));
-  left: auto;
-  transform: none;
+  top: calc(68px + var(--safe-top));
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
   z-index: 1200;
-  max-width: min(88vw, 460px);
-  width: auto;
+  max-width: min(88vw, 520px);
+  width: max-content;
   padding: 9px 16px;
-  border-radius: 12px;
+  border-radius: 999px;
   background: var(--panel);
   color: var(--text);
   border: 1px solid var(--border);
@@ -1871,7 +1871,7 @@ body.dark .voice-btn.recording {
   }
 
   .status-banner {
-    top: calc(8px + var(--safe-top));
+    top: calc(64px + var(--safe-top));
     right: auto;
     left: 50%;
     transform: translateX(-50%);
@@ -7725,6 +7725,20 @@ function updateThemeColorMeta() {
 function showStatus(message, timeout = 2600) {
   const banner = document.getElementById('statusBanner');
   if (!banner) return;
+
+  const appHeader = document.querySelector('.app header') || document.querySelector('header');
+  if (appHeader) {
+    const rect = appHeader.getBoundingClientRect();
+    const gap = 8;
+    const top = Math.max(8, Math.round(rect.bottom + gap));
+    banner.style.top = `${top}px`;
+  } else {
+    banner.style.top = 'calc(68px + var(--safe-top))';
+  }
+  banner.style.left = '50%';
+  banner.style.right = 'auto';
+  banner.style.transform = 'translateX(-50%)';
+
   banner.textContent = message;
   banner.style.display = 'block';
   clearTimeout(showStatus._timer);
