@@ -852,9 +852,11 @@ select:focus-visible {
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  top: calc(10px + var(--safe-top));
+  bottom: calc(76px + var(--safe-bottom));
   z-index: 1200;
-  padding: 8px 18px;
+  max-width: min(92vw, 560px);
+  width: max-content;
+  padding: 9px 16px;
   border-radius: 999px;
   background: var(--panel);
   color: var(--text);
@@ -863,6 +865,9 @@ select:focus-visible {
   backdrop-filter: blur(16px);
   font-size: 13px;
   font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+  pointer-events: none;
 }
 
 .ios-install-hint {
@@ -2659,11 +2664,12 @@ body.dark .voice-btn.recording {
 .memory-cleanup-content {
   font-size: 13px;
   color: var(--text);
+  line-height: 1.45;
 }
 
 .memory-cleanup-reason {
-  display: inline-block;
-  margin-top: 5px;
+  display: block;
+  margin-top: 6px;
   font-size: 11px;
   color: var(--muted);
 }
@@ -4572,8 +4578,19 @@ async function branchConversationFromMessage(messageIndex) {
   if (!source || !Array.isArray(source.messages)) return;
   if (!Number.isInteger(messageIndex) || messageIndex < 0 || messageIndex >= source.messages.length) return;
 
+  let endIndex = messageIndex;
+  const selected = source.messages[messageIndex];
+  if (selected?.role === 'user') {
+    // Include the assistant turn(s) that immediately follow this user message.
+    for (let idx = messageIndex + 1; idx < source.messages.length; idx += 1) {
+      const nextRole = source.messages[idx]?.role;
+      if (nextRole === 'user') break;
+      endIndex = idx;
+    }
+  }
+
   const branchMessages = source.messages
-    .slice(0, messageIndex + 1)
+    .slice(0, endIndex + 1)
     .map((msg) => ({ ...msg }));
 
   const sourceId = source.id;
