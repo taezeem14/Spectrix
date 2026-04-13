@@ -832,6 +832,13 @@ body.dark footer {
   position:relative;
 }
 
+.send-cluster {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 button:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
@@ -937,6 +944,10 @@ button.send:hover{
 
 button.send:active{
   transform:translateY(0);
+}
+
+button.send.hidden {
+  display: none;
 }
 
 .stop-btn {
@@ -2049,11 +2060,24 @@ body.dark .voice-btn.recording {
     }
   
   button.send {
-      min-width: 64px;
+      min-width: 56px;
       min-height: 38px;
       height: 38px;
-      padding: 0 14px;
+      padding: 0 12px;
     font-size: 13px;
+  }
+
+  .send-cluster {
+    gap: 6px;
+  }
+
+  .send-cluster .stop-btn,
+  .send-cluster button.send {
+    min-width: 56px;
+    min-height: 38px;
+    height: 38px;
+    padding: 0 12px;
+    font-size: 12px;
   }
   
   .char-counter {
@@ -2155,11 +2179,24 @@ body.dark .voice-btn.recording {
     }
   
   button.send {
-      min-width: 64px;
+      min-width: 52px;
       min-height: 36px;
       height: 36px;
-      padding: 0 12px;
+      padding: 0 10px;
     font-size: 13px;
+  }
+
+  .send-cluster {
+    gap: 5px;
+  }
+
+  .send-cluster .stop-btn,
+  .send-cluster button.send {
+    min-width: 52px;
+    min-height: 36px;
+    height: 36px;
+    padding: 0 10px;
+    font-size: 11px;
   }
 
   .quick-actions-btn {
@@ -2835,9 +2872,11 @@ body.dark .voice-btn.recording {
         <textarea id="input" placeholder="Type or speak... (Ctrl+B for new chat)" aria-label="Message input"></textarea>
         <div class="char-counter" id="charCounter">0 chars</div>
       </div>
-      <button class="stop-btn hidden" id="stopBtn" onclick="stopGeneration()" aria-label="Stop generation">Stop</button>
-      <button class="stop-btn pause-btn hidden" id="pauseBtn" onclick="toggleStreamPause()" aria-label="Pause stream">Pause</button>
-      <button class="send" onclick="send()" aria-label="Send message">Send</button>
+      <div class="send-cluster" id="sendCluster">
+        <button class="stop-btn pause-btn hidden" id="pauseBtn" onclick="toggleStreamPause()" aria-label="Pause stream">Pause</button>
+        <button class="stop-btn hidden" id="stopBtn" onclick="stopGeneration()" aria-label="Stop generation">Stop</button>
+        <button class="send" id="sendBtn" onclick="send()" aria-label="Send message">Send</button>
+      </div>
     </footer>
   </div>
 </div>
@@ -3179,6 +3218,7 @@ const searchBox = document.getElementById("searchBox");
 const scrollBottom = document.getElementById("scrollBottom");
 const stopBtn = document.getElementById("stopBtn");
 const pauseBtn = document.getElementById("pauseBtn");
+const sendBtn = document.getElementById("sendBtn");
 const charCounter = document.getElementById("charCounter");
 const attachmentInput = document.getElementById("attachmentInput");
 const attachmentTray = document.getElementById("attachmentTray");
@@ -5202,6 +5242,30 @@ async function resolveMessageContentForDisplay(content) {
   return { ...content, src: url };
 }
 
+function hydrateMediaMessageNode(node, role, content, options = {}) {
+  if (!node || !content || typeof content !== 'object') return;
+  if (!content.mediaId || content.src) return;
+
+  const { messageIndex = null } = options;
+  resolveMessageContentForDisplay(content)
+    .then((resolvedContent) => {
+      if (!resolvedContent || resolvedContent === content) return;
+      if (!node.isConnected) return;
+
+      const replacement = createChatMessageNode(role, resolvedContent, {
+        saveIt: false,
+        messageIndex
+      });
+      if (node.dataset.msgIndex) {
+        replacement.dataset.msgIndex = node.dataset.msgIndex;
+      }
+      node.replaceWith(replacement);
+    })
+    .catch((error) => {
+      console.warn('Media hydration skipped:', error);
+    });
+}
+
 function createChatMessageNode(role, content, options = {}) {
   const { saveIt = false, messageIndex = null } = options;
   const d = document.createElement("div");
@@ -5325,10 +5389,10 @@ async function renderChatWindowSlice(session, start, end, options = {}) {
 
   for (let idx = safeStart; idx <= safeEnd; idx += 1) {
     const message = session.messages[idx];
-    const resolvedContent = await resolveMessageContentForDisplay(message.content);
-    const node = createChatMessageNode(message.role, resolvedContent, { saveIt: false, messageIndex: idx });
+    const node = createChatMessageNode(message.role, message.content, { saveIt: false, messageIndex: idx });
     node.dataset.msgIndex = String(idx);
     fragment.appendChild(node);
+    hydrateMediaMessageNode(node, message.role, message.content, { messageIndex: idx });
 
     if ((idx - safeStart + 1) % 12 === 0) {
       await new Promise((resolve) => requestAnimationFrame(resolve));
@@ -5413,8 +5477,9 @@ async function loadChatMessages() {
   const fragment = document.createDocumentFragment();
   for (let idx = 0; idx < totalMessages; idx += 1) {
     const message = session.messages[idx];
-    const resolvedContent = await resolveMessageContentForDisplay(message.content);
-    fragment.appendChild(createChatMessageNode(message.role, resolvedContent, { saveIt: false, messageIndex: idx }));
+    const node = createChatMessageNode(message.role, message.content, { saveIt: false, messageIndex: idx });
+    fragment.appendChild(node);
+    hydrateMediaMessageNode(node, message.role, message.content, { messageIndex: idx });
 
     if ((idx + 1) % 14 === 0) {
       await new Promise((resolve) => requestAnimationFrame(resolve));
@@ -5876,6 +5941,7 @@ function scrollToBottom() {
 function setStopButtonVisible(visible) {
   if (!stopBtn) return;
   stopBtn.classList.toggle('hidden', !visible);
+  if (sendBtn) sendBtn.classList.toggle('hidden', visible);
 }
 
 function updatePauseButtonUi() {
