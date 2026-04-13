@@ -56,7 +56,7 @@ Built from scratch — **zero frameworks, zero bloat** — it combines:
 - 🌐 **Web search mode** — real-time answers via Firecrawl + OpenRouter
 - 🖼️ **Image + Video generation** — `/img` and `/vid` commands
 - 🔒 **Incognito mode** — zero trace, zero persistence, zero cloud
-- ☁️ **Firebase Auth + Firestore** — Google Sign-In, profile management, cloud chat backup
+- ☁️ **Firebase Auth + Firestore + Storage** — Google Sign-In, profile management, cloud chat backup, and media sync
 
 > **Short version:** *it cooks. consistently. 🔥*
 
@@ -137,7 +137,7 @@ Built from scratch — **zero frameworks, zero bloat** — it combines:
   - FLUX.2 Max
   - GPT Image 1.5
 - `/vid <prompt>` — generates short looping videos via ByteDance Seedance
-- **Saved locally** — generated media persisted in IndexedDB as Blobs
+- **Dual persistence** — generated media is saved locally (IndexedDB Blobs) and synced to Firebase Storage when signed in
 
 ### 📱 App Experience
 - **Installable PWA** — install on mobile or desktop like a native app
@@ -158,6 +158,7 @@ Built from scratch — **zero frameworks, zero bloat** — it combines:
 ### ☁️ Google Auth + Cloud Sync
 - **Google Sign-In** via Firebase Auth (popup with redirect fallback)
 - **Real-time Firestore sync** — chats and memories auto-mirror create/update/delete when logged in
+- **Firebase Storage media sync** — image/video messages upload to cloud and render across signed-in devices
 - **Fallback timer sync** — polls cloud every 30s if realtime listener is blocked
 - **Tombstone system** — deleted chats stay deleted across devices, no resurrection
 - **Profile control hub** — backup, edit name/photo, upload device picture, or sign out
@@ -219,8 +220,9 @@ User Browser
     │     ├── Web Speech API         → Voice input + TTS output
     │     ├── KaTeX + MathJax        → Dual-engine math rendering
     │     ├── Firebase Auth          → Google Sign-In
-    |     ├── Image/Video model endpoints → Puter.js
-      │     └── Firebase Firestore     → Cloud chat + memory backup + real-time sync
+            │     ├── Firebase Firestore     → Cloud chat + memory backup + real-time sync
+            │     ├── Firebase Storage       → Cloud image/video blob storage
+            │     ├── Image/Video model endpoints → Puter.js
     │
     └── Vercel Functions (`/api/*` + rewrites)
           ├── `/chat`           → OpenRouter JSON completion
@@ -285,7 +287,7 @@ If KV is not set, leaderboard falls back to in-memory storage in the running fun
 |-------|------|
 | Frontend | HTML, CSS, Vanilla JavaScript |
 | Local Storage | IndexedDB (chats + memories + media) |
-| Cloud Sync | Firebase Firestore (chats + memories) |
+| Cloud Sync | Firebase Firestore + Firebase Storage (chats + memories + media) |
 | Auth | Firebase Auth (Google Sign-In) |
 | PWA | Service Workers + Web App Manifest |
 | Voice | Web Speech API (STT + TTS) |

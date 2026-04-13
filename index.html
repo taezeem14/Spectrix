@@ -2809,6 +2809,7 @@ body.dark .voice-btn.recording {
     <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-storage-compat.js"></script>
     </head>
 
 <body class="dark">
@@ -4095,6 +4096,8 @@ let cloudMemorySyncUnsubscribe = null;
 let cloudSyncInFlight = false;
 let cloudMemorySyncInFlight = false;
 let cloudSyncQueueFlushInFlight = false;
+const cloudMediaUrlCache = new Map();
+const cloudMediaUploadInFlight = new Map();
 let activeStreamAbortController = null;
 let activeMediaGenerationToken = 0;
 const canceledMediaGenerationTokens = new Set();
@@ -5344,8 +5347,11 @@ async function loadChatHandler(id) {
 
 async function resolveMessageContentForDisplay(content) {
   if (!content || typeof content !== 'object') return content;
-  if (!content.mediaId) return content;
   if (content.src) return content;
+  if (content.cloudUrl) {
+    return { ...content, src: content.cloudUrl };
+  }
+  if (!content.mediaId) return content;
 
   const mediaId = String(content.mediaId);
   if (mediaObjectUrlById.has(mediaId)) {
@@ -5363,7 +5369,8 @@ async function resolveMessageContentForDisplay(content) {
 
 function hydrateMediaMessageNode(node, role, content, options = {}) {
   if (!node || !content || typeof content !== 'object') return;
-  if (!content.mediaId || content.src) return;
+  if (content.src) return;
+  if (!content.mediaId && !content.cloudUrl) return;
 
   const { messageIndex = null } = options;
   resolveMessageContentForDisplay(content)
@@ -7431,7 +7438,11 @@ async function send(options = {}) {
         const mediaId = `img_${Date.now()}`;
         const blob = await (await fetch(base64)).blob();
         await saveMedia(mediaId, blob);
-        await saveMessage("bot", { type: "image", src: base64, mediaId });
+        const cloudUrl = await uploadMediaBlobToCloud(mediaId, blob, { mediaType: 'image' });
+        const imageContent = cloudUrl
+          ? { type: "image", src: base64, mediaId, cloudUrl }
+          : { type: "image", src: base64, mediaId };
+        await saveMessage("bot", imageContent);
 
         const div = document.createElement("div");
         div.className = "msg bot";
@@ -7499,7 +7510,11 @@ async function send(options = {}) {
 
           const mediaId = `vid_${Date.now()}`;
           await saveMedia(mediaId, blob);
-          await saveMessage("bot", { type: "video", src: reader.result, mediaId });
+          const cloudUrl = await uploadMediaBlobToCloud(mediaId, blob, { mediaType: 'video' });
+          const videoContent = cloudUrl
+            ? { type: "video", src: reader.result, mediaId, cloudUrl }
+            : { type: "video", src: reader.result, mediaId };
+          await saveMessage("bot", videoContent);
         };
         reader.readAsDataURL(blob);
       } catch (err) {
@@ -7906,6 +7921,130 @@ function isCloudSyncRetryableError(error) {
   );
 }
 
+function canUseFirebaseStorage() {
+  return Boolean(firebase?.storage && typeof firebase.storage === 'function');
+}
+
+function inferMediaContentType(blob, mediaType = '') {
+  const explicit = String(blob?.type || '').trim();
+  if (explicit) return explicit;
+  if (mediaType === 'video') return 'video/mp4';
+  if (mediaType === 'image') return 'image/png';
+  return 'application/octet-stream';
+}
+
+async function uploadMediaBlobToCloud(mediaId, blob, options = {}) {
+  if (incognitoEnabled) return '';
+  const cleanId = String(mediaId || '').trim();
+  if (!cleanId || !blob) return '';
+
+  const user = firebase?.auth?.().currentUser;
+  if (!user || !canUseFirebaseStorage()) return '';
+
+  const cacheKey = `${user.uid}:${cleanId}`;
+  if (cloudMediaUrlCache.has(cacheKey)) {
+    return cloudMediaUrlCache.get(cacheKey) || '';
+  }
+  if (cloudMediaUploadInFlight.has(cacheKey)) {
+    return cloudMediaUploadInFlight.get(cacheKey);
+  }
+
+  const mediaType = String(options.mediaType || '').trim();
+  const uploadPromise = (async () => {
+    try {
+      const metadata = {
+        contentType: inferMediaContentType(blob, mediaType),
+        customMetadata: {
+          mediaType: mediaType || 'unknown',
+          source: 'spectrix'
+        }
+      };
+      const ref = firebase.storage().ref(`users/${user.uid}/media/${cleanId}`);
+      const snap = await ref.put(blob, metadata);
+      const url = await snap.ref.getDownloadURL();
+      const safeUrl = String(url || '');
+      if (safeUrl) {
+        cloudMediaUrlCache.set(cacheKey, safeUrl);
+      }
+      return safeUrl;
+    } catch (error) {
+      console.warn('Media cloud upload skipped:', error);
+      return '';
+    } finally {
+      cloudMediaUploadInFlight.delete(cacheKey);
+    }
+  })();
+
+  cloudMediaUploadInFlight.set(cacheKey, uploadPromise);
+  return uploadPromise;
+}
+
+async function buildCloudChatPayload(chatData) {
+  if (!chatData || !chatData.id) return null;
+
+  const baseMessages = Array.isArray(chatData.messages) ? chatData.messages : [];
+  const hasMediaMessages = baseMessages.some((message) => {
+    const type = String(message?.content?.type || '').toLowerCase();
+    return type === 'image' || type === 'video';
+  });
+  if (!hasMediaMessages) return chatData;
+
+  const payload = {
+    ...chatData,
+    messages: baseMessages.map((message) => ({ ...message }))
+  };
+
+  for (let index = 0; index < payload.messages.length; index += 1) {
+    const message = payload.messages[index];
+    const content = message?.content;
+    if (!content || typeof content !== 'object') continue;
+
+    const mediaType = String(content.type || '').toLowerCase();
+    if (mediaType !== 'image' && mediaType !== 'video') continue;
+
+    const nextContent = { ...content };
+    const mediaId = String(nextContent.mediaId || '').trim();
+    let cloudUrl = String(nextContent.cloudUrl || '').trim();
+
+    if (!cloudUrl && typeof nextContent.src === 'string' && /^https?:\/\//i.test(nextContent.src)) {
+      cloudUrl = nextContent.src;
+    }
+
+    if (!cloudUrl && mediaId) {
+      let blob = null;
+      try {
+        blob = await getMedia(mediaId);
+      } catch (error) {
+        console.warn('Local media read skipped:', error);
+      }
+
+      if (!blob && typeof nextContent.src === 'string' && nextContent.src.startsWith('data:')) {
+        try {
+          const fetched = await fetch(nextContent.src);
+          if (fetched.ok) blob = await fetched.blob();
+        } catch (error) {
+          console.warn('Data URL to blob conversion skipped:', error);
+        }
+      }
+
+      if (blob) {
+        cloudUrl = await uploadMediaBlobToCloud(mediaId, blob, { mediaType });
+      }
+    }
+
+    if (cloudUrl) {
+      nextContent.cloudUrl = cloudUrl;
+      // Keep Firestore docs smaller once Storage has the media bytes.
+      if (typeof nextContent.src === 'string' && nextContent.src.startsWith('data:')) {
+        nextContent.src = '';
+      }
+      payload.messages[index] = { ...message, content: nextContent };
+    }
+  }
+
+  return payload;
+}
+
 async function flushCloudSyncQueue(options = {}) {
   const { silent = false } = options;
   if (incognitoEnabled) return;
@@ -7929,8 +8068,12 @@ async function flushCloudSyncQueue(options = {}) {
     for (let index = 0; index < queue.length; index += 1) {
       const op = queue[index];
       try {
-        if (op.type === 'chat_upsert' && op.id && op.payload) {
-          await userRef.collection('chats').doc(String(op.id)).set(op.payload, { merge: true });
+        if (op.type === 'chat_upsert' && op.id) {
+          const sourceChat = op.payload || sessions[op.id] || await getChat(op.id);
+          const payload = await buildCloudChatPayload(sourceChat);
+          if (payload && payload.id) {
+            await userRef.collection('chats').doc(String(op.id)).set(payload, { merge: true });
+          }
         } else if (op.type === 'chat_delete' && op.id) {
           await userRef.collection('chats').doc(String(op.id)).delete();
         } else if (op.type === 'memory_upsert' && op.id && op.payload) {
@@ -9806,8 +9949,7 @@ async function syncChatToCloud(chatData) {
   if (incognitoEnabled) return;
   const op = {
     type: 'chat_upsert',
-    id: String(chatData?.id || ''),
-    payload: chatData || null
+    id: String(chatData?.id || '')
   };
   try {
     const user = firebase.auth().currentUser;
@@ -9816,7 +9958,9 @@ async function syncChatToCloud(chatData) {
       queueCloudSyncOperation(op);
       return;
     }
-    await firebase.firestore().collection('users').doc(user.uid).collection('chats').doc(chatData.id).set(chatData);
+    const payload = await buildCloudChatPayload(chatData);
+    if (!payload || !payload.id) return;
+    await firebase.firestore().collection('users').doc(user.uid).collection('chats').doc(chatData.id).set(payload);
   } catch (e) {
     if (isCloudSyncRetryableError(e)) {
       queueCloudSyncOperation(op);
