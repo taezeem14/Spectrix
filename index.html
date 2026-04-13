@@ -77,7 +77,7 @@ html, body {
   --code-border:rgba(15,23,42,0.28);
   --code-toolbar:rgba(15,23,42,0.58);
   --code-text:#e2e8f0;
-  --link:#2563eb; --sidebar:#f8f9fa;
+  --link:#16a34a; --sidebar:#f8f9fa;
   --radius-lg:20px;
   --radius-md:14px;
   --radius-sm:10px;
@@ -131,7 +131,7 @@ body.dark{
   --code-border:rgba(148,163,184,0.24);
   --code-toolbar:rgba(2,6,23,0.64);
   --code-text:#e2e8f0;
-  --link:#60a5fa; --sidebar:#111118;
+  --link:#4ade80; --sidebar:#111118;
   --shadow-sm:0 1px 3px rgba(0,0,0,0.3);
   --shadow-md:0 4px 16px rgba(0,0,0,0.4);
   --shadow-lg:0 12px 40px rgba(0,0,0,0.5);
@@ -4088,7 +4088,7 @@ const FIXED_TITLE_MODEL = "liquid/lfm-2.5-1.2b-instruct:free";
 const FIXED_MEMORY_EXTRACT_MODEL = "liquid/lfm-2.5-1.2b-instruct:free";
 
 let sessions = {};
-let currentId = localStorage.getItem(CURRENT_KEY) || null;
+let currentId = null;
 let lastUserPrompt = null;
 let isGenerating = false;
 let installPrompt;
@@ -4533,14 +4533,16 @@ async function initApp() {
   updateIncognitoUI();
   await ensureMarkdownRuntimeLoaded({ timeoutMs: 2500, silent: true });
 
-  // 🔥 HARD SAFETY CHECK
-  if (!currentId || !sessions[currentId]) {
-    currentId = Object.keys(sessions)[0] || null;
-    if (!currentId) {
-      await createNewChat();
-    } else {
-      if (!incognitoEnabled) localStorage.setItem(CURRENT_KEY, currentId);
-    }
+  // Startup behavior: always land on a New Chat view instead of restoring last opened chat.
+  const reusableNewChat = Object.values(sessions)
+    .filter((session) => session && session.title === 'New Chat' && (!Array.isArray(session.messages) || session.messages.length === 0))
+    .sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0))[0];
+
+  if (reusableNewChat?.id) {
+    currentId = reusableNewChat.id;
+    if (!incognitoEnabled) localStorage.setItem(CURRENT_KEY, currentId);
+  } else {
+    await createNewChat();
   }
 
   renderHistory();

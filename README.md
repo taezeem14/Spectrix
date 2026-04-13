@@ -83,10 +83,11 @@ Built from scratch — **zero frameworks, zero bloat** — it combines:
 - **Real-time SSE streaming** via `/chat/stream` — no waiting for full output
 - **Legacy simulated streamer kept commented** in `index.html` as a fallback reference
 - **Multi-model routing** via OpenRouter — switch models from the header
-- **Smart API key rotation** — maximizes uptime and handles rate limits gracefully
+- **Advanced API key rotation** — strict round-robin across OpenRouter keys per request, with retry failover/cooldown, plus model-sticky routing for title and memory-extraction model calls
 - **Rate-limit UX** — friendly in-app message, not a dead crash
 - **Web search mode** — powered by Firecrawl via OpenRouter (`Ctrl+Shift+S` to toggle)
 - **Anti-hallucination guardrails** — avoids made-up facts/specs, respects a June 1, 2024 knowledge cutoff, and asks for Web search when newer verification is needed
+- **Enthusiastic full-detail responses** — default style is energetic and comprehensive; strict step-by-step formatting appears only when explicitly requested
 - **Auto-titled chats** — AI names your conversations after the first exchange
 - **Title model pinned** — `liquid/lfm-2.5-1.2b-instruct:free`
 - **Direct-answer guardrails** — avoids made-up headings like "Quick Concept" / "Game Plan" unless requested
@@ -155,6 +156,7 @@ Built from scratch — **zero frameworks, zero bloat** — it combines:
 - **No browser popups** — clean custom modals for all alerts, confirms, and prompts
 - **Custom select dropdowns** — animated, keyboard-navigable, beautiful
 - **Composer alignment polish** — textarea, `+`, `Send`, `Stop`, and `Pause` stay visually aligned with balanced control sizing across desktop and mobile
+- **Fresh-start opening** — app opens to a New Chat on page load instead of restoring the previously active chat
 
 ### ☁️ Google Auth + Cloud Sync
 - **Google Sign-In** via Firebase Auth (popup with redirect fallback)
