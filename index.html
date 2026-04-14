@@ -2898,7 +2898,7 @@ body.dark .voice-btn.recording {
           <div class="select-wrap">
             <select id="textModelSelect" title="Choose text model">
 			  <option value="openai/gpt-oss-120b:free">GPT-OSS 120B (Fast • Strong)</option>
-			  <option value="openai/gpt-oss-20b:free">GPT-OSS 20B (Fast • Lightweight)</option>
+			  <option value="google/gemma-4-31b-it:free">Gemma 4 31B IT (Instruction Tuned)</option>
               <option value="nvidia/nemotron-3-super-120b-a12b:free">Nemotron 3 Super (Deep Reasoning)</option>
             </select>
           </div>
@@ -4079,8 +4079,11 @@ async function fetchChatApiWithFallback(options = {}, retryCount = 1) {
 const DEFAULT_TEXT_MODEL = "openai/gpt-oss-120b:free";
 const ALLOWED_TEXT_MODELS = new Set([
   "openai/gpt-oss-120b:free",
-  "openai/gpt-oss-20b:free",
+  "google/gemma-4-31b-it:free",
   "nvidia/nemotron-3-super-120b-a12b:free"
+]);
+const LEGACY_TEXT_MODEL_MIGRATIONS = new Map([
+  ["openai/gpt-oss-20b:free", "google/gemma-4-31b-it:free"]
 ]);
 const DEPRECATED_TEXT_MODELS = new Set([
   "stepfun/step-3.5-flash:free",
@@ -4091,8 +4094,23 @@ const DEPRECATED_TEXT_MODELS = new Set([
 function normalizeTextModelId(modelId) {
   const candidate = String(modelId || '').trim();
   if (!candidate) return DEFAULT_TEXT_MODEL;
+  if (LEGACY_TEXT_MODEL_MIGRATIONS.has(candidate)) {
+    return LEGACY_TEXT_MODEL_MIGRATIONS.get(candidate) || DEFAULT_TEXT_MODEL;
+  }
   if (DEPRECATED_TEXT_MODELS.has(candidate)) return DEFAULT_TEXT_MODEL;
   return ALLOWED_TEXT_MODELS.has(candidate) ? candidate : DEFAULT_TEXT_MODEL;
+}
+
+function resolveTextModelForRequest(modelId, webSearchOn = false) {
+  const baseModel = normalizeTextModelId(modelId);
+  if (!webSearchOn) return baseModel;
+
+  // Gemma IT works better with standard model id + plugin search (no :online suffix).
+  if (baseModel === 'google/gemma-4-31b-it:free') {
+    return baseModel;
+  }
+
+  return `${baseModel}:online`;
 }
 
 let FIXED_TEXT_MODEL = normalizeTextModelId(localStorage.getItem('Spectrix_text_model'));
@@ -5092,7 +5110,7 @@ async function retryMessageAt(targetBotIndex = null) {
   }
 
   const payload = {
-    model: webSearchEnabled ? FIXED_TEXT_MODEL + ":online" : FIXED_TEXT_MODEL,
+    model: resolveTextModelForRequest(FIXED_TEXT_MODEL, webSearchEnabled),
     messages: [{ role: "system", content: systemPrompt }, ...contextMessages]
   };
 
@@ -7620,7 +7638,7 @@ async function send(options = {}) {
 
 // 🧠 DYNAMIC SEARCH PAYLOAD
 const payload = {
-  model: webSearchEnabled ? model + ":online" : model,
+  model: resolveTextModelForRequest(model, webSearchEnabled),
   messages: messages
 };
 

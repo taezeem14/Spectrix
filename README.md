@@ -206,7 +206,7 @@ User sends message
 | Mode | Model | Best For |
 |------|-------|----------|
 | ⚡ Quick | `openai/gpt-oss-120b:free` | Fast chats, tools, and agent loops |
-| 🚀 Smart | `openai/gpt-oss-20b:free` | Coding and productivity workflows |
+| 🚀 Smart | `google/gemma-4-31b-it:free` | Instruction-tuned coding and productivity workflows |
 | 🧠 Reasoning | `nvidia/nemotron-3-super-120b-a12b:free` | Deep reasoning and long-context tasks |
 
 > 💾 Model preference saved to `localStorage → Spectrix_text_model` and persists across sessions.
@@ -275,8 +275,6 @@ http://127.0.0.1:5500
 - `WORKER_OPENROUTER_KEY`
 - `WORKER_OPENROUTER_KEY_2` (optional)
 - `WORKER_OPENROUTER_KEY_3` (optional)
-- `WORKER_OPENROUTER_KEY_4` (optional)
-- `WORKER_OPENROUTER_KEY_5` (optional)
 - `GITHUB_MODELS_KEY`
 - `HUGGINGFACE_KEY`
 
