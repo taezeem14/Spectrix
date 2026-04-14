@@ -35,13 +35,6 @@
 
 ---
 
-## 📝 Documentation Promise
-
-- README is updated with every shipped feature and major behavior change.
-- Vercel and Cloudflare variants stay documented in parity.
-
----
-
 ## 🔥 What is Spectrix AI?
 
 **Spectrix AI** is a high-performance, PWA-first AI chatbot engineered for students, developers, and power users.
