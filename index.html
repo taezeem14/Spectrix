@@ -3327,6 +3327,7 @@ Response style rules:
 - For math/problem-solving, use step-by-step format only when the user asks for it.
 - Do not force template headers like "STEP 1", "FINAL ANSWER", "Quick Concept", or "Game Plan" unless requested.
 - For coding answers, keep each snippet in one continuous fenced block (avoid splitting one snippet into multiple code fences).
+- Prefer one unified code block per solution by default (implementation + usage together) unless the user explicitly asks for separate variants.
 - If markdown examples must include fences, use four backticks for the outer wrapper.
 - In each step (when requested), include short explanation + equation block when relevant.
 - Do not skip major algebra/calculus transitions.
@@ -3953,7 +3954,7 @@ async function extractTextFromAttachment(file) {
     return extractTextFromPdfAttachment(file);
   }
 
-  // Gemma 4 is multimodal; disable fallback OCR/DOCX text extraction for this model.
+  // Gemma 4 is multimodal; disable fallback image OCR and DOCX text extraction for this model.
   if (isGemmaMultimodalSelected() && (isDocxAttachment(file) || isImageAttachment(file))) {
     return '';
   }
@@ -6323,6 +6324,7 @@ function mergeAdjacentCodeFences(text) {
   let output = String(text || '');
   const adjacentFencePattern = /```([a-zA-Z0-9_#+.-]*)[ \t]*\n([\s\S]*?)\n```[ \t]*\n(?:[ \t]*\n)*```([a-zA-Z0-9_#+.-]*)[ \t]*\n([\s\S]*?)\n```/g;
   const labeledFencePattern = /```([a-zA-Z0-9_#+.-]*)[ \t]*\n([\s\S]*?)\n```[ \t]*\n(?:[ \t]*\n)*(?:[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?(?:example(?:[ \t]+usage)?|usage(?:[ \t]+example)?|output|result|demo|sample)\b[^`\n]*(?:\*\*|__)?[ \t]*\n)(?:[ \t]*\n)*```([a-zA-Z0-9_#+.-]*)[ \t]*\n([\s\S]*?)\n```/gi;
+  const bridgeFencePattern = /```([a-zA-Z0-9_#+.-]*)[ \t]*\n([\s\S]*?)\n```[ \t]*\n(?:[ \t]*\n)*(?:[ \t]*(?:(?:#{1,6}[ \t]*)?(?:\*\*|__)?[A-Za-z][^`\n]{0,90}(?:\*\*|__)?|[-*][ \t]+[^`\n]{0,90}|>[ \t]*[^`\n]{0,90})[ \t]*\n){1,4}(?:[ \t]*\n)*```([a-zA-Z0-9_#+.-]*)[ \t]*\n([\s\S]*?)\n```/g;
 
   const mergeFencePair = (match, leftLang, leftBody, rightLang, rightBody) => {
     const left = String(leftLang || '').trim().toLowerCase();
@@ -6341,6 +6343,7 @@ function mergeAdjacentCodeFences(text) {
     previous = output;
     output = output.replace(adjacentFencePattern, mergeFencePair);
     output = output.replace(labeledFencePattern, mergeFencePair);
+    output = output.replace(bridgeFencePattern, mergeFencePair);
     iterations += 1;
   }
 
@@ -7632,7 +7635,7 @@ async function send(options = {}) {
         }
 
         if (attachmentBundle.gemmaBypassCount > 0) {
-          showStatus(`Gemma multimodal mode: skipped OCR/DOCX text extraction for ${attachmentBundle.gemmaBypassCount} file${attachmentBundle.gemmaBypassCount === 1 ? '' : 's'}.`, 3400);
+          showStatus(`Gemma multimodal mode: skipped image/DOCX text parsing for ${attachmentBundle.gemmaBypassCount} file${attachmentBundle.gemmaBypassCount === 1 ? '' : 's'}.`, 3400);
         }
 
         if (!attachmentContext && !prompt.trim()) {

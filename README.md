@@ -132,7 +132,7 @@ Built from scratch — **zero frameworks, zero bloat** — it combines:
 - **Multi-file attachments** in chat input (up to 8 files)
 - **Text extraction** from plain/code files, PDF, and DOCX
 - **Image OCR extraction** via Tesseract.js (client-side, lazy-loaded)
-- **Gemma multimodal bypass** — when `google/gemma-4-31b-it:free` is selected, OCR (Tesseract.js) and DOCX extraction (Mammoth.js) are skipped
+- **Gemma multimodal bypass** — when `google/gemma-4-31b-it:free` is selected, image files (OCR path) and DOCX extraction (Mammoth.js) are skipped from text parsing
 - **Safe truncation caps** for per-file and total extracted context
 
 ### 🖼️ Media Generation
@@ -302,7 +302,7 @@ If KV is not set, leaderboard falls back to in-memory storage in the running fun
 | Math | KaTeX + MathJax (dual-engine) |
 | Markdown | Marked.js (with custom math extension) |
 | Code | Highlight.js |
-| Attachment Parsing | PDF.js + Mammoth + Tesseract.js (OCR), with Gemma multimodal bypass for DOCX/OCR |
+| Attachment Parsing | PDF.js + Mammoth + Tesseract.js (OCR), with Gemma multimodal bypass for image and DOCX text parsing |
 | Backend | Vercel Functions (Node serverless + SSE) |
 | AI Routing | OpenRouter |
 | Web Search | Firecrawl (via OpenRouter plugins) |
