@@ -3324,17 +3324,14 @@ CRITICAL RULES:
 - Use \\begin{aligned} ... \\end{aligned} for multi-line equations.
 
 Response style rules:
-- For math/problem-solving, default to a clean step-by-step derivation.
-- Prefer this layout:
-  1) One short topic header with emoji (example: "🧠 Riemann Zeta Function")
-  2) Brief setup/definition section (if needed)
-  3) "STEP 1:", "STEP 2:", ... with equations under each step
-  4) End with "FINAL FORM" or "FINAL ANSWER"
-- Use compact headers like: "STEP 1:", "STEP 2:", ... then end with "FINAL FORM" or "FINAL ANSWER".
-- In each step, include short explanation + equation block when relevant.
+- For math/problem-solving, use step-by-step format only when the user asks for it.
+- Do not force template headers like "STEP 1", "FINAL ANSWER", "Quick Concept", or "Game Plan" unless requested.
+- For coding answers, keep each snippet in one continuous fenced block (avoid splitting one snippet into multiple code fences).
+- If markdown examples must include fences, use four backticks for the outer wrapper.
+- In each step (when requested), include short explanation + equation block when relevant.
 - Do not skip major algebra/calculus transitions.
 - Use separators like "---" only between major sections when readability improves.
-- Keep the tone clear and helpful, but avoid long fluff paragraphs.
+- Keep the tone clear and helpful, and avoid long fluff paragraphs.
 
 Factuality guardrails:
 - Never invent facts, names, rankings, dates, benchmarks, or technical specs.
@@ -6325,21 +6322,25 @@ function normalizeFenceBoundaryLines(text) {
 function mergeAdjacentCodeFences(text) {
   let output = String(text || '');
   const adjacentFencePattern = /```([a-zA-Z0-9_#+.-]*)[ \t]*\n([\s\S]*?)\n```[ \t]*\n(?:[ \t]*\n)*```([a-zA-Z0-9_#+.-]*)[ \t]*\n([\s\S]*?)\n```/g;
+  const labeledFencePattern = /```([a-zA-Z0-9_#+.-]*)[ \t]*\n([\s\S]*?)\n```[ \t]*\n(?:[ \t]*\n)*(?:[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?(?:example(?:[ \t]+usage)?|usage(?:[ \t]+example)?|output|result|demo|sample)\b[^`\n]*(?:\*\*|__)?[ \t]*\n)(?:[ \t]*\n)*```([a-zA-Z0-9_#+.-]*)[ \t]*\n([\s\S]*?)\n```/gi;
+
+  const mergeFencePair = (match, leftLang, leftBody, rightLang, rightBody) => {
+    const left = String(leftLang || '').trim().toLowerCase();
+    const right = String(rightLang || '').trim().toLowerCase();
+
+    // Merge when both fences are same language, or one side is unlabeled.
+    if (left && right && left !== right) return match;
+
+    const mergedLang = left || right;
+    return `\`\`\`${mergedLang}\n${leftBody}\n\n${rightBody}\n\`\`\``;
+  };
 
   let previous = '';
   let iterations = 0;
   while (output !== previous && iterations < 8) {
     previous = output;
-    output = output.replace(adjacentFencePattern, (match, leftLang, leftBody, rightLang, rightBody) => {
-      const left = String(leftLang || '').trim().toLowerCase();
-      const right = String(rightLang || '').trim().toLowerCase();
-
-      // Merge when both fences are same language, or one side is unlabeled.
-      if (left && right && left !== right) return match;
-
-      const mergedLang = left || right;
-      return `\`\`\`${mergedLang}\n${leftBody}\n\n${rightBody}\n\`\`\``;
-    });
+    output = output.replace(adjacentFencePattern, mergeFencePair);
+    output = output.replace(labeledFencePattern, mergeFencePair);
     iterations += 1;
   }
 

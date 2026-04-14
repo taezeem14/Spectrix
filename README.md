@@ -67,8 +67,8 @@ Built from scratch — **zero frameworks, zero bloat** — it combines:
 | Stat | Value |
 |------|-------|
 | 🗓️ Build Duration | 3+ months |
-| 🔁 Commits | 600+ |
-| 🚀 Deployments | 300+ |
+| 🔁 Commits | 530+ |
+| 🚀 Deployments | 280+ |
 | 📦 Framework | None (Vanilla JS) |
 | ⚙️ Backend | Vercel Functions |
 | 📱 Architecture | Single-file PWA (`index.html`) |
@@ -91,6 +91,7 @@ Built from scratch — **zero frameworks, zero bloat** — it combines:
 - **Auto-titled chats** — AI names your conversations after the first exchange
 - **Title model pinned** — `liquid/lfm-2.5-1.2b-instruct:free`
 - **Direct-answer guardrails** — avoids made-up headings like "Quick Concept" / "Game Plan" unless requested
+- **Request-only structured steps** — step-by-step templates are used only when explicitly requested by the user
 - **Continuous code-block formatting** — adjacent same-language code fences are auto-merged to prevent fragmented snippets
 - **Retry + Edit** — re-run any response or tweak your message mid-conversation
 - **Targeted Retry** — clicking Retry on a bot message regenerates that exact reply in place (later messages stay intact)
@@ -342,7 +343,7 @@ Idea  →  AI generates core logic
 
 > **AI is the tool — not the decision-maker.**
 > Every architectural choice, every design decision, every UX fix — made by a human. 🧠
-> 600+ commits. 300+ deployments. Obsessive iteration. That's Spectrix.
+> 530+ commits. 280+ deployments. Obsessive iteration. That's Spectrix.
 
 ---
 
