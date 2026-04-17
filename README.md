@@ -48,26 +48,20 @@
 
 - README is updated with every shipped feature and major behavior change.
 - Vercel and Cloudflare variants stay documented in parity.
+- Detailed setup, roadmap, and structure notes live in `docs/`.
 
 ---
 
-## 🔥 What is Spectrix AI?
+## 🧭 Overview
 
-**Spectrix AI** is a high-performance, PWA-first AI chatbot engineered for students, developers, and power users.
+Spectrix is a local-first AI web app built in vanilla JavaScript with a single-file frontend (`index.html`) and Vercel serverless routes in `api/`.
 
-Built from scratch — **zero frameworks, zero bloat** — it combines:
-- 🤖 Multi-model AI routing via **OpenRouter** (Gemma 4 31B IT, GPT-OSS 120B, Nemotron 3 Super)
-- ⚡ Serverless backend on **Vercel Functions** with smart key rotation + route rewrites
-- 🧮 **Full LaTeX math rendering** via KaTeX + MathJax with copy-to-clipboard
-- 📡 **Offline-first** architecture with IndexedDB local persistence
-- 🎤 **Voice I/O** — speak to it, hear it speak back
-- 🧠 **Persistent AI Memory** — remembers you automatically, across sessions
-- 🌐 **Web search mode** — real-time answers via Firecrawl + OpenRouter
-- 🖼️ **Image + Video generation** — `/img` and `/vid` commands
-- 🔒 **Incognito mode** — zero trace, zero persistence, zero cloud
-- ☁️ **Firebase Auth + Firestore + Storage** — Google Sign-In, profile management, cloud chat backup, and media sync
-
-> **Short version:** *it cooks. consistently. 🔥*
+Core strengths:
+- Multi-model chat with real-time streaming
+- Voice input/output, Markdown, and math rendering
+- Persistent memory with local-first storage and optional cloud sync
+- Installable offline-ready PWA
+- Media generation commands (`/img`, `/vid`)
 
 ---
 
@@ -102,6 +96,7 @@ Built from scratch — **zero frameworks, zero bloat** — it combines:
 - **Direct-answer guardrails** — avoids made-up headings like "Quick Concept" / "Game Plan" unless requested
 - **Request-only structured steps** — step-by-step templates are used only when explicitly requested by the user
 - **Continuous code-block formatting** — adjacent same-language code fences are auto-merged to prevent fragmented snippets
+- **Advanced `/tldr` assistant** — supports modes (`/tldr short`, `/tldr bullets`, `/tldr keypoints`, `/tldr 40`), auto-suggests on long chats, highlights key messages in-chat, and supports quick copy/download of the latest summary
 - **Retry + Edit** — re-run any response or tweak your message mid-conversation
 - **Targeted Retry** — clicking Retry on a bot message regenerates that exact reply in place (later messages stay intact)
 - **No hard prompt cap** — very long prompts are accepted (subject to model/provider token limits)
@@ -125,7 +120,7 @@ Built from scratch — **zero frameworks, zero bloat** — it combines:
 ### 🎤 Voice & Interaction
 - **Voice input** via Web Speech API — tap 🎤, speak, done
 - **Text-to-Speech output** — AI responses read aloud via the 🔊 toggle
-- **`+` quick-actions menu** — opens Attach files/photos, Voice input, and Web search actions in one place
+- **`+` quick-actions menu** — includes TL;DR modes, summary copy/download, attachments, voice input, and web search toggle
 - **TTS audio unlock** — mobile-compatible auto-unlock on first user interaction
 - **Voice confirmation** — audible "Voice enabled" on toggle so you know it works
 - **Keyboard shortcuts:**
@@ -260,7 +255,31 @@ User Browser
 
 ---
 
+## 🧹 Project Structure
+
+Spectrix is intentionally kept in one repository. Documentation has been organized into `docs/`:
+
+```text
+Spectrix/
+      index.html            # Main app runtime (UI + client logic)
+      api/                  # Vercel functions
+      sw.js                 # Service worker
+      screenshots/          # README assets
+      docs/
+            SETUP.md
+            ROADMAP.md
+            STRUCTURE.md
+```
+
+See `docs/STRUCTURE.md` for structure rules.
+
+---
+
 ## 🚀 Quick Start
+
+For full setup and troubleshooting: `docs/SETUP.md`.
+
+### Fast local start
 
 ```bash
 # Option 1 — npx serve
@@ -280,6 +299,25 @@ Then open:
 ```
 http://127.0.0.1:5500
 ```
+
+### Full-stack local mode (API routes + rewrites)
+
+```bash
+npx vercel dev
+```
+
+### Required environment variables
+
+- `WORKER_OPENROUTER_KEY`
+- `GITHUB_MODELS_KEY`
+- `HUGGINGFACE_KEY`
+
+Optional:
+
+- `WORKER_OPENROUTER_KEY_2`
+- `WORKER_OPENROUTER_KEY_3`
+- `KV_REST_API_URL`
+- `KV_REST_API_TOKEN`
 
 > Frontend still has no build step. Vercel deployment uses serverless API routes + environment variables.
 
@@ -364,10 +402,29 @@ Idea  →  AI generates core logic
 
 ## 🗺️ Roadmap
 
-- [x] Fast time-grouped chat history (pinned + recency buckets)
-- [x] Cloud memory sync across signed-in devices
-- [x] Multi-file upload support
+Active roadmap is tracked in `docs/ROADMAP.md`.
+
+Current priorities:
+
+- [ ] Memory quality pass v2 (less noise, better grouping, stronger cleanup)
+- [ ] `/tldr` enhancements (preset windows and richer topic grouping)
+- [ ] Attachment parsing reliability hardening
+- [ ] Streaming reliability metrics and regression checks
+
+Completed milestones:
+
+- [x] Time-grouped + pinned history
+- [x] Cloud memory sync
+- [x] Multi-file upload
 - [x] Conversation branching
+
+---
+
+## 🧱 Repository Strategy
+
+- Keep Spectrix in one repository for now.
+- Prioritize reliability, UX polish, and testability before any repo split.
+- Keep frontend in `index.html`, backend in `api/`, and docs in `docs/`.
 
 ---
 

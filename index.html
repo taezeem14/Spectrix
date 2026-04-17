@@ -1772,6 +1772,11 @@ body.dark .voice-btn.recording {
   box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.25), var(--shadow-sm);
 }
 
+.msg.tldr-key-highlight {
+  border-color: #22c55e;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25), var(--shadow-sm);
+}
+
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.6; }
@@ -2912,6 +2917,11 @@ body.dark .voice-btn.recording {
       <div class="quick-actions" id="quickActions">
         <button class="quick-actions-btn" id="quickActionsBtn" onclick="toggleQuickActionsMenu(event)" aria-label="Open quick actions" aria-expanded="false" aria-haspopup="menu">+</button>
         <div class="quick-actions-menu" id="quickActionsMenu" role="menu" aria-label="Quick actions">
+          <button class="quick-action-item" type="button" onclick="runTldrShortcut('short');closeQuickActionsMenu();" role="menuitem">⚡ TL;DR (Short)</button>
+          <button class="quick-action-item" type="button" onclick="runTldrShortcut('bullets');closeQuickActionsMenu();" role="menuitem">⚡ TL;DR (Bullets)</button>
+          <button class="quick-action-item" type="button" onclick="runTldrShortcut('keypoints');closeQuickActionsMenu();" role="menuitem">⚡ TL;DR (Keypoints)</button>
+          <button class="quick-action-item" type="button" onclick="copyLatestTldrSummary();closeQuickActionsMenu();" role="menuitem">📋 Copy last TL;DR</button>
+          <button class="quick-action-item" type="button" onclick="downloadLatestTldrSummary();closeQuickActionsMenu();" role="menuitem">⬇️ Download last TL;DR</button>
           <button class="quick-action-item" type="button" onclick="openAttachmentPicker();closeQuickActionsMenu();" role="menuitem">📎 Add files or photos</button>
           <button class="quick-action-item" id="voiceBtn" type="button" onclick="toggleVoiceInput();closeQuickActionsMenu();" aria-label="Start voice input" role="menuitem">🎤 Voice input</button>
           <button class="quick-action-item" id="searchToggleBtn" type="button" onclick="toggleWebSearch();closeQuickActionsMenu();" aria-label="Toggle web search" title="Web Search: OFF" role="menuitem">🌐 Web search: OFF</button>
@@ -3312,6 +3322,11 @@ const MEMORY_EXTRACT_MIN_CHARS = 24;
 const MEMORY_EXTRACT_COOLDOWN_MS = 15 * 60 * 1000;
 const MEMORY_AUTO_MAX_ITEMS = 40;
 const MEMORY_AUTO_MAX_SAVE_PER_PASS = 1;
+const TLDR_DEFAULT_WINDOW = 24;
+const TLDR_MIN_WINDOW = 6;
+const TLDR_MAX_WINDOW = 120;
+const TLDR_AUTO_SUGGEST_MIN_MESSAGES = 16;
+const TLDR_AUTO_SUGGEST_REPEAT_GAP = 14;
 const MATH_FORMAT_SYSTEM_PROMPT = `
 When writing mathematics, use valid MathJax / KaTeX LaTeX syntax.
 
@@ -4167,6 +4182,9 @@ let streamResumeRenderCallback = null;
 const AUTO_SCROLL_NEAR_BOTTOM_PX = 80;
 const chatSearchDocumentById = new Map();
 let chatSearchBackfillScheduled = false;
+const tldrSummaryBySession = new Map();
+const tldrHighlightsBySession = new Map();
+const tldrSuggestCheckpointBySession = new Map();
 const deletedChatTombstones = new Set(
   (() => {
     try {
@@ -5556,6 +5574,14 @@ function createChatMessageNode(role, content, options = {}) {
     d.appendChild(t);
   }
 
+  if (Number.isInteger(resolvedIndex)) {
+    d.dataset.msgIndex = String(resolvedIndex);
+    const currentHighlights = tldrHighlightsBySession.get(getTldrSessionKey()) || new Set();
+    if (currentHighlights.has(resolvedIndex)) {
+      d.classList.add('tldr-key-highlight');
+    }
+  }
+
   return d;
 }
 
@@ -5812,6 +5838,143 @@ function toggleWebSearch() {
   updateWebSearchToggleUi();
 }
 
+function runTldrShortcut(mode = 'bullets') {
+  if (!input) return;
+  const normalizedMode = String(mode || 'bullets').toLowerCase();
+  if (normalizedMode === 'short' || normalizedMode === 'keypoints' || normalizedMode === 'bullets') {
+    input.value = `/tldr ${normalizedMode}`;
+  } else {
+    input.value = '/tldr';
+  }
+  charCounter.textContent = `${input.value.length} chars`;
+  charCounter.style.color = "var(--muted)";
+  send();
+}
+
+function normalizeTldrMode(mode) {
+  const value = String(mode || '').toLowerCase().trim();
+  if (value === 'short' || value === 'bullets' || value === 'keypoints') return value;
+  return 'bullets';
+}
+
+function parseTldrCommand(rawInput) {
+  const text = String(rawInput || '').trim();
+  if (!text.toLowerCase().startsWith('/tldr')) return null;
+
+  const tokens = text.split(/\s+/).slice(1);
+  let mode = 'bullets';
+  let windowSize = TLDR_DEFAULT_WINDOW;
+
+  tokens.forEach((token) => {
+    const lower = String(token || '').toLowerCase().trim();
+    if (!lower) return;
+    if (/^\d{1,3}$/.test(lower)) {
+      windowSize = Number.parseInt(lower, 10);
+      return;
+    }
+    mode = normalizeTldrMode(lower);
+  });
+
+  const clampedWindow = Math.max(TLDR_MIN_WINDOW, Math.min(TLDR_MAX_WINDOW, windowSize));
+  return {
+    mode,
+    windowSize: clampedWindow
+  };
+}
+
+function getTldrSessionKey(sessionId = currentId) {
+  return String(sessionId || '');
+}
+
+function saveTldrSummaryForSession(sessionId, payload) {
+  const key = getTldrSessionKey(sessionId);
+  if (!key || !payload?.summary) return;
+  tldrSummaryBySession.set(key, {
+    summary: String(payload.summary || ''),
+    mode: normalizeTldrMode(payload.mode),
+    analyzedMessages: Number(payload.analyzedMessages || 0),
+    timestamp: Date.now()
+  });
+}
+
+function getLatestTldrSummaryForSession(sessionId = currentId) {
+  const key = getTldrSessionKey(sessionId);
+  if (!key) return null;
+  return tldrSummaryBySession.get(key) || null;
+}
+
+async function copyTextPortable(text) {
+  const value = String(text || '');
+  if (!value) return false;
+
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(value);
+      return true;
+    } catch {
+      // Continue to fallback.
+    }
+  }
+
+  const ta = document.createElement('textarea');
+  ta.value = value;
+  ta.setAttribute('readonly', '');
+  ta.style.position = 'fixed';
+  ta.style.top = '-1000px';
+  ta.style.left = '-1000px';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  ta.setSelectionRange(0, ta.value.length);
+  let copied = false;
+  try {
+    copied = document.execCommand('copy');
+  } catch {
+    copied = false;
+  }
+  document.body.removeChild(ta);
+  return copied;
+}
+
+async function copyLatestTldrSummary() {
+  const session = getCurrentSession();
+  if (!session) return;
+
+  let stored = getLatestTldrSummaryForSession(session.id);
+  if (!stored) {
+    const generated = buildChatTldr(session, { mode: 'bullets', windowSize: TLDR_DEFAULT_WINDOW });
+    stored = {
+      summary: generated.summary,
+      mode: generated.meta.mode,
+      analyzedMessages: generated.meta.windowAnalyzed
+    };
+    saveTldrSummaryForSession(session.id, stored);
+  }
+
+  const ok = await copyTextPortable(stored.summary);
+  showStatus(ok ? 'TL;DR copied to clipboard.' : 'Could not copy TL;DR on this device.');
+}
+
+function downloadLatestTldrSummary() {
+  const session = getCurrentSession();
+  if (!session) return;
+
+  let stored = getLatestTldrSummaryForSession(session.id);
+  if (!stored) {
+    const generated = buildChatTldr(session, { mode: 'bullets', windowSize: TLDR_DEFAULT_WINDOW });
+    stored = {
+      summary: generated.summary,
+      mode: generated.meta.mode,
+      analyzedMessages: generated.meta.windowAnalyzed
+    };
+    saveTldrSummaryForSession(session.id, stored);
+  }
+
+  const blob = new Blob([stored.summary], { type: 'text/markdown' });
+  downloadBlob(blob, `${slugifyFilename(session.title || 'chat')}_tldr.md`);
+  showStatus('TL;DR downloaded.');
+}
+
 // ===== EXPORT/IMPORT =====
 function slugifyFilename(inputName, fallback = 'chat') {
   const clean = String(inputName || '')
@@ -5852,6 +6015,208 @@ function buildSessionTranscriptText(session) {
   });
 
   return lines.join('\n');
+}
+
+const TLDR_STOPWORDS = new Set([
+  'the', 'a', 'an', 'and', 'or', 'to', 'of', 'in', 'on', 'for', 'with', 'from',
+  'is', 'are', 'was', 'were', 'be', 'been', 'being', 'it', 'this', 'that', 'these',
+  'those', 'as', 'at', 'by', 'if', 'then', 'than', 'but', 'so', 'can', 'could',
+  'should', 'would', 'will', 'just', 'into', 'about', 'over', 'under', 'after',
+  'before', 'you', 'your', 'yours', 'i', 'my', 'mine', 'we', 'our', 'ours', 'they',
+  'their', 'theirs', 'he', 'she', 'his', 'her', 'hers', 'them', 'me', 'us'
+]);
+
+function truncateText(value, maxLen = 160) {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  if (text.length <= maxLen) return text;
+  return `${text.slice(0, maxLen - 1).trimEnd()}...`;
+}
+
+function extractTldrKeywords(messages, limit = 6) {
+  const freq = new Map();
+
+  messages.forEach((text) => {
+    const words = String(text || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9 ]+/g, ' ')
+      .split(/\s+/)
+      .filter((word) => word.length >= 4 && !TLDR_STOPWORDS.has(word));
+
+    words.forEach((word) => {
+      freq.set(word, (freq.get(word) || 0) + 1);
+    });
+  });
+
+  return Array.from(freq.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([word]) => word);
+}
+
+function sentencePreview(text) {
+  const input = String(text || '').trim();
+  if (!input) return '';
+  return input.split(/(?<=[.!?])\s+/)[0] || input;
+}
+
+function scoreTldrMessage(text, role, keywordSet) {
+  const raw = String(text || '').trim();
+  if (!raw) return 0;
+
+  const normalized = raw.toLowerCase().replace(/[^a-z0-9 ]+/g, ' ');
+  const words = normalized.split(/\s+/).filter(Boolean);
+
+  let score = 0;
+  score += Math.min(4, words.length / 16);
+  if (raw.includes('?')) score += 1.8;
+  if (role === 'user') score += 0.7;
+  if (/\b(need|want|goal|issue|bug|problem|build|create|fix|implement|plan|roadmap|priority)\b/.test(normalized)) {
+    score += 2.2;
+  }
+  if (/```/.test(raw)) score += 1.2;
+
+  const keywordHits = words.filter((w) => w.length >= 4 && keywordSet.has(w)).length;
+  score += Math.min(3, keywordHits * 0.45);
+  return score;
+}
+
+function refreshCurrentTldrHighlights() {
+  const sessionKey = getTldrSessionKey();
+  const indices = tldrHighlightsBySession.get(sessionKey) || new Set();
+
+  chat.querySelectorAll('.msg.tldr-key-highlight').forEach((node) => {
+    node.classList.remove('tldr-key-highlight');
+  });
+
+  if (!indices.size) return;
+
+  chat.querySelectorAll('.msg[data-msg-index]').forEach((node) => {
+    const idx = Number.parseInt(String(node.dataset.msgIndex || ''), 10);
+    if (Number.isInteger(idx) && indices.has(idx)) {
+      node.classList.add('tldr-key-highlight');
+    }
+  });
+}
+
+function applyTldrHighlightsForCurrentSession(indices = []) {
+  const sessionKey = getTldrSessionKey();
+  if (!sessionKey) return;
+
+  const next = new Set((Array.isArray(indices) ? indices : [])
+    .map((n) => Number(n))
+    .filter((n) => Number.isInteger(n) && n >= 0));
+
+  if (next.size) {
+    tldrHighlightsBySession.set(sessionKey, next);
+  } else {
+    tldrHighlightsBySession.delete(sessionKey);
+  }
+
+  refreshCurrentTldrHighlights();
+}
+
+function maybeSuggestTldrForSession(session) {
+  if (!session || !Array.isArray(session.messages)) return;
+
+  const sessionKey = getTldrSessionKey(session.id);
+  if (!sessionKey) return;
+
+  const eligibleCount = session.messages.filter((msg) => (
+    typeof msg?.content === 'string' && !/^\/tldr\b/i.test(String(msg.content).trim())
+  )).length;
+
+  if (eligibleCount < TLDR_AUTO_SUGGEST_MIN_MESSAGES) return;
+
+  const lastSummary = getLatestTldrSummaryForSession(session.id);
+  if (lastSummary && (eligibleCount - Number(lastSummary.analyzedMessages || 0) < 12)) return;
+
+  const lastCheckpoint = Number(tldrSuggestCheckpointBySession.get(sessionKey) || 0);
+  if (eligibleCount - lastCheckpoint < TLDR_AUTO_SUGGEST_REPEAT_GAP) return;
+
+  tldrSuggestCheckpointBySession.set(sessionKey, eligibleCount);
+  showStatus('This convo is getting long. Want a TL;DR? Try /tldr, /tldr short, /tldr bullets, or /tldr keypoints.', 5200);
+}
+
+function buildChatTldr(session, options = {}) {
+  const mode = normalizeTldrMode(options.mode || 'bullets');
+  const requestedWindow = Number(options.windowSize || TLDR_DEFAULT_WINDOW);
+  const windowSize = Math.max(TLDR_MIN_WINDOW, Math.min(TLDR_MAX_WINDOW, requestedWindow));
+
+  const entries = (Array.isArray(session?.messages) ? session.messages : [])
+    .map((msg, idx) => ({ msg, idx }))
+    .filter((entry) => typeof entry.msg?.content === 'string')
+    .filter((entry) => !/^\/tldr\b/i.test(String(entry.msg.content).trim()));
+
+  if (!entries.length) {
+    return {
+      summary: '### TL;DR\n- No chat content yet. Send a few messages first, then run `/tldr`.',
+      highlightIndices: [],
+      meta: { mode, windowAnalyzed: 0 }
+    };
+  }
+
+  const windowed = entries.slice(-windowSize);
+  const userMessages = windowed.filter((entry) => entry.msg.role === 'user').map((entry) => String(entry.msg.content || ''));
+  const botMessages = windowed.filter((entry) => entry.msg.role === 'bot').map((entry) => String(entry.msg.content || ''));
+  const keywords = extractTldrKeywords([...userMessages, ...botMessages], 7);
+  const keywordSet = new Set(keywords);
+
+  const scored = windowed.map((entry) => ({
+    ...entry,
+    score: scoreTldrMessage(entry.msg.content, entry.msg.role, keywordSet),
+    preview: truncateText(sentencePreview(entry.msg.content), 140)
+  }));
+
+  const ranked = [...scored].sort((a, b) => b.score - a.score);
+  const highlightEntries = ranked.slice(0, Math.min(4, ranked.length)).sort((a, b) => a.idx - b.idx);
+  const highlightIndices = highlightEntries.map((entry) => entry.idx);
+
+  const latestUser = truncateText(sentencePreview(userMessages[userMessages.length - 1] || ''), 150);
+  const latestBot = truncateText(sentencePreview(botMessages[botMessages.length - 1] || ''), 150);
+  const topicText = keywords.length ? keywords.join(', ') : 'general discussion';
+
+  const lines = [];
+
+  if (mode === 'short') {
+    lines.push('### TL;DR (Short)');
+    lines.push(`- Focus: ${topicText}.`);
+    if (latestUser) lines.push(`- Latest ask: ${latestUser}`);
+    if (latestBot) lines.push(`- Latest outcome: ${latestBot}`);
+  } else if (mode === 'keypoints') {
+    lines.push('### TL;DR (Keypoints)');
+    lines.push(`1. Conversation focus: ${topicText}.`);
+    lines.push(`2. Window analyzed: ${windowed.length} messages.`);
+    if (latestUser) lines.push(`3. Current user direction: ${latestUser}`);
+    if (latestBot) lines.push(`4. Most recent assistant output: ${latestBot}`);
+    highlightEntries.slice(0, 2).forEach((entry, i) => {
+      const role = entry.msg.role === 'bot' ? 'Spectrix' : 'You';
+      lines.push(`${lines.length + 1}. Key moment ${i + 1} (${role}): ${entry.preview}`);
+    });
+  } else {
+    lines.push('### TL;DR (Bullets)');
+    lines.push(`- Window analyzed: ${windowed.length} messages (${userMessages.length} from you, ${botMessages.length} from Spectrix).`);
+    lines.push(`- Main topics: ${topicText}.`);
+    lines.push('- Key highlights:');
+    highlightEntries.forEach((entry) => {
+      const role = entry.msg.role === 'bot' ? 'Spectrix' : 'You';
+      lines.push(`  - ${role}: ${entry.preview}`);
+    });
+  }
+
+  lines.push('');
+  lines.push('> Key messages in the current chat are highlighted in green.');
+  lines.push('> Actions: use Quick Actions for Copy last TL;DR or Download last TL;DR.');
+  lines.push('> Tip: `/tldr short`, `/tldr bullets`, `/tldr keypoints`, `/tldr 40`');
+
+  return {
+    summary: lines.join('\n'),
+    highlightIndices,
+    meta: {
+      mode,
+      windowAnalyzed: windowed.length,
+      topics: keywords
+    }
+  };
 }
 
 const PDF_TEXT_REPLACEMENTS = new Map([
@@ -7412,6 +7777,11 @@ async function send(options = {}) {
   const hasPendingAttachments = !skipUserSave && pendingAttachments.length > 0;
   if (!prompt && !hasPendingAttachments) return;
 
+  const tldrCommand = parseTldrCommand(prompt);
+  const isTldrCommand = Boolean(tldrCommand);
+  const tldrWindowSize = tldrCommand?.windowSize ?? TLDR_DEFAULT_WINDOW;
+  const tldrMode = tldrCommand?.mode ?? 'bullets';
+
   if (!prompt && hasPendingAttachments) {
     prompt = 'Please analyze the attached files and answer based on them.';
   }
@@ -7475,6 +7845,33 @@ async function send(options = {}) {
     render("user", promptForRender);
     // Yield one frame so the user bubble paints immediately.
     await new Promise((resolve) => requestAnimationFrame(resolve));
+  }
+
+  if (isTldrCommand) {
+    if (attachmentQueue.length) {
+      clearPendingAttachments({ silent: true });
+      showStatus('Attachments are ignored for /tldr.', 1800);
+    }
+
+    const tldrResult = buildChatTldr(session, { mode: tldrMode, windowSize: tldrWindowSize });
+    render('bot', tldrResult.summary);
+    saveTldrSummaryForSession(session.id, {
+      summary: tldrResult.summary,
+      mode: tldrResult.meta.mode,
+      analyzedMessages: tldrResult.meta.windowAnalyzed
+    });
+    applyTldrHighlightsForCurrentSession(tldrResult.highlightIndices);
+
+    if (tldrResult.highlightIndices.length > 0) {
+      showStatus(`TL;DR ready (${tldrResult.meta.mode}, ${tldrResult.meta.windowAnalyzed} msgs). Key messages highlighted.`, 3000);
+    } else {
+      showStatus(`TL;DR ready (${tldrResult.meta.mode}, ${tldrResult.meta.windowAnalyzed} msgs).`, 2400);
+    }
+
+    isGenerating = false;
+    setStopButtonVisible(false);
+    setPauseButtonVisible(false);
+    return;
   }
 
   if (ttsEnabled && 'speechSynthesis' in window) {
@@ -7740,6 +8137,8 @@ setPauseButtonVisible(false);
 	    		extractMemories(memoryPrompt, answer).catch(err => console.warn('Memory extraction failed:', err));
  		 }, 3000);
 		}
+
+      maybeSuggestTldrForSession(getCurrentSession());
     }
   } catch (err) {
     console.error("Send error:", err);
