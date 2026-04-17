@@ -9577,11 +9577,35 @@ try {
 }
 
 const provider = new firebase.auth.GoogleAuthProvider();
+let authPersistenceReady = Promise.resolve();
+
+async function configureFirebaseAuthPersistence() {
+  const auth = firebase?.auth?.();
+  if (!auth || typeof auth.setPersistence !== 'function') return;
+
+  const persistence = firebase?.auth?.Auth?.Persistence;
+  if (!persistence) return;
+
+  try {
+    await auth.setPersistence(persistence.LOCAL);
+  } catch (localErr) {
+    try {
+      await auth.setPersistence(persistence.SESSION);
+      console.warn('Auth LOCAL persistence unavailable, using SESSION fallback:', localErr);
+    } catch (sessionErr) {
+      console.warn('Auth persistence setup skipped:', sessionErr);
+    }
+  }
+}
+
+authPersistenceReady = configureFirebaseAuthPersistence();
+
 async function signInWithGoogle() {
   if (signInInProgress) return;
   signInInProgress = true;
 
   try {
+    await authPersistenceReady;
     await firebase.auth().signInWithPopup(provider);
   } catch (e) {
     const msg = String(e?.message || e || 'Sign-in failed');

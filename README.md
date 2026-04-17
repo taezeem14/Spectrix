@@ -166,6 +166,7 @@ Built from scratch — **zero frameworks, zero bloat** — it combines:
 
 ### ☁️ Google Auth + Cloud Sync
 - **Google Sign-In** via Firebase Auth (popup with redirect fallback)
+- **Persistent login sessions** — Firebase Auth is configured for local persistence, with session fallback when local persistence is unavailable
 - **Real-time Firestore sync** — chats and memories auto-mirror create/update/delete when logged in
 - **Firebase Storage media sync** — image/video messages upload to cloud and render across signed-in devices
 - **Fallback timer sync** — polls cloud every 30s if realtime listener is blocked
