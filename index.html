@@ -3295,7 +3295,6 @@ const DELETED_CHAT_TOMBSTONES_KEY = 'Spectrix_deleted_chat_ids';
 const INCOGNITO_KEY = 'Spectrix_incognito_mode';
 const CHAT_INDEX_KEY = 'Spectrix_chat_index_v1';
 const CLOUD_SYNC_QUEUE_KEY = 'Spectrix_cloud_sync_queue_v1';
-const MAX_PROMPT_CHARS = 10000;
 const MAX_ATTACHMENT_FILES = 8;
 const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
 const MAX_ATTACHMENT_TEXT_PER_FILE = 2600;
@@ -7410,10 +7409,6 @@ async function send(options = {}) {
   let prompt = String(promptOverride ?? input.value).trim();
   const hasPendingAttachments = !skipUserSave && pendingAttachments.length > 0;
   if (!prompt && !hasPendingAttachments) return;
-  if (prompt.length > MAX_PROMPT_CHARS) {
-    showStatus(`Message too long. Max ${MAX_PROMPT_CHARS} characters.`);
-    return;
-  }
 
   if (!prompt && hasPendingAttachments) {
     prompt = 'Please analyze the attached files and answer based on them.';

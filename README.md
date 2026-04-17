@@ -35,6 +35,13 @@
 
 ---
 
+## 📝 Documentation Promise
+
+- README is updated with every shipped feature and major behavior change.
+- Vercel and Cloudflare variants stay documented in parity.
+
+---
+
 ## 🔥 What is Spectrix AI?
 
 **Spectrix AI** is a high-performance, PWA-first AI chatbot engineered for students, developers, and power users.
@@ -88,6 +95,7 @@ Built from scratch — **zero frameworks, zero bloat** — it combines:
 - **Continuous code-block formatting** — adjacent same-language code fences are auto-merged to prevent fragmented snippets
 - **Retry + Edit** — re-run any response or tweak your message mid-conversation
 - **Targeted Retry** — clicking Retry on a bot message regenerates that exact reply in place (later messages stay intact)
+- **No hard prompt cap** — very long prompts are accepted (subject to model/provider token limits)
 
 ### 🧠 AI Memory
 - **Persistent memory** across conversations — the AI knows who you are
