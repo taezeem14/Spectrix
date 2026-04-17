@@ -9578,6 +9578,34 @@ try {
 
 const provider = new firebase.auth.GoogleAuthProvider();
 let authPersistenceReady = Promise.resolve();
+let authTokenRefreshTimer = null;
+
+function stopAuthTokenRefreshTimer() {
+  if (authTokenRefreshTimer) {
+    clearInterval(authTokenRefreshTimer);
+    authTokenRefreshTimer = null;
+  }
+}
+
+function startAuthTokenRefreshTimer() {
+  stopAuthTokenRefreshTimer();
+
+  const refreshCurrentUserToken = async (force = false) => {
+    const currentUser = firebase?.auth?.().currentUser;
+    if (!currentUser) return;
+    try {
+      await currentUser.getIdToken(force);
+    } catch (err) {
+      console.warn('Auth token refresh skipped:', err);
+    }
+  };
+
+  // Prime token state once and keep it warm periodically for long-lived sessions.
+  refreshCurrentUserToken(false);
+  authTokenRefreshTimer = setInterval(() => {
+    refreshCurrentUserToken(true);
+  }, 45 * 60 * 1000);
+}
 
 async function configureFirebaseAuthPersistence() {
   const auth = firebase?.auth?.();
@@ -9599,6 +9627,21 @@ async function configureFirebaseAuthPersistence() {
 }
 
 authPersistenceReady = configureFirebaseAuthPersistence();
+
+authPersistenceReady
+  .then(async () => {
+    const auth = firebase?.auth?.();
+    if (!auth || typeof auth.getRedirectResult !== 'function') return;
+
+    try {
+      await auth.getRedirectResult();
+    } catch (err) {
+      console.warn('Auth redirect result handling skipped:', err);
+    }
+  })
+  .catch((err) => {
+    console.warn('Auth persistence bootstrap skipped:', err);
+  });
 
 async function signInWithGoogle() {
   if (signInInProgress) return;
@@ -9807,14 +9850,23 @@ firebase.auth().onAuthStateChanged(async user => {
     prePopup.style.display = user ? 'none' : (localStorage.getItem(PREPOPUP_KEY) === 'true' ? 'none' : 'flex');
   }
   if (user && !incognitoEnabled) {
+    startAuthTokenRefreshTimer();
     localStorage.setItem(PREPOPUP_KEY, 'true');
     startCloudAutoSync();
     flushCloudSyncQueue({ silent: true }).catch((err) => console.warn('Auth queue flush skipped:', err));
     syncChats(user.uid).catch((err) => console.warn('Auth chat sync skipped:', err));
     syncMemories(user.uid).catch((err) => console.warn('Auth memory sync skipped:', err));
   } else {
+    stopAuthTokenRefreshTimer();
     stopCloudAutoSync();
   }
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  const currentUser = firebase?.auth?.().currentUser;
+  if (!currentUser) return;
+  currentUser.getIdToken(true).catch((err) => console.warn('Visibility token refresh skipped:', err));
 });
 
 async function handleMemoryRealtimeSync(snapshot) {
