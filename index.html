@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2999,6 +2998,7 @@ body.dark .voice-btn.recording {
 // ===== INDEXEDDB SETUP =====
 const DB_NAME = 'Spectrix_DB';
 const DB_VERSION = 3;
+const APP_VERSION = '1.5.0';
 let db = null;
 
 async function openDB() {
@@ -3568,6 +3568,15 @@ function getAttachmentExtension(name) {
   return idx >= 0 ? fileName.slice(idx + 1).toLowerCase() : '';
 }
 
+function getAttachmentTypeBadge(file) {
+  if (isPdfAttachment(file)) return 'PDF';
+  if (isDocxAttachment(file)) return 'DOC';
+  if (isImageAttachment(file)) return 'IMG';
+  const ext = getAttachmentExtension(file?.name);
+  if (!ext) return 'FILE';
+  return ext.slice(0, 4).toUpperCase();
+}
+
 function getAttachmentKey(file) {
   return `${file.name}::${file.size}::${file.lastModified}`;
 }
@@ -3650,7 +3659,8 @@ function renderAttachmentTray() {
     const nameEl = document.createElement('span');
     nameEl.className = 'attachment-chip-name';
     nameEl.title = item.name;
-    nameEl.textContent = `${item.name} (${formatAttachmentSize(item.size)})`;
+    const badge = getAttachmentTypeBadge(item.file);
+    nameEl.textContent = `[${badge}] ${item.name} (${formatAttachmentSize(item.size)})`;
 
     const removeBtn = document.createElement('button');
     removeBtn.className = 'attachment-chip-remove';
@@ -4595,6 +4605,7 @@ const ALLOWED_ATTRS = {
 // ===== INIT =====
 async function initApp() {
   await openDB();
+  console.log(`Spectrix AI v${APP_VERSION} initializing`);
   await loadAllSessions();
   applySavedTheme();
   updateIncognitoUI();
@@ -4909,7 +4920,9 @@ function speakText(text) {
     .replace(/#{1,6}\s/g, '')
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     .replace(/<[^>]+>/g, '')
-    .replace(/[\$\\]/g, '') // strip math formatting so it doesn't read formulas weirdly
+    .replace(/\$\$[\s\S]*?\$\$/g, ' math expression ')
+    .replace(/\$[^\$\n]{1,80}\$/g, ' math expression ')
+    .replace(/\\[a-zA-Z]+/g, ' ')
     .trim();
 
   if (!cleanText) return;
@@ -5082,7 +5095,12 @@ async function clearPuter() {
     }
   }
 
-  indexedDB.deleteDatabase(DB_NAME);
+  await new Promise((resolve, reject) => {
+    const req = indexedDB.deleteDatabase(DB_NAME);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+    req.onblocked = () => resolve(); // unblock and continue
+  });
 
   await showAppAlert("Don't Get Greedy, Now Enjoy 💀", 'Spectrix Reset');
   location.reload();
@@ -5614,6 +5632,7 @@ async function renderChatWindowSlice(session, start, end, options = {}) {
   }
 
   chat.appendChild(fragment);
+  refreshCurrentTldrHighlights();
   chatWindowState.enabled = true;
   chatWindowState.sessionId = String(session.id || '');
   chatWindowState.start = safeStart;
@@ -5701,6 +5720,7 @@ async function loadChatMessages() {
   }
 
   chat.appendChild(fragment);
+  refreshCurrentTldrHighlights();
   scrollToBottom();
 }
 
@@ -6023,7 +6043,14 @@ const TLDR_STOPWORDS = new Set([
   'those', 'as', 'at', 'by', 'if', 'then', 'than', 'but', 'so', 'can', 'could',
   'should', 'would', 'will', 'just', 'into', 'about', 'over', 'under', 'after',
   'before', 'you', 'your', 'yours', 'i', 'my', 'mine', 'we', 'our', 'ours', 'they',
-  'their', 'theirs', 'he', 'she', 'his', 'her', 'hers', 'them', 'me', 'us'
+  'their', 'theirs', 'he', 'she', 'his', 'her', 'hers', 'them', 'me', 'us',
+  'have', 'has', 'had', 'do', 'does', 'did', 'not', 'no',
+  'also', 'even', 'just', 'very', 'much', 'more', 'most',
+  'some', 'any', 'all', 'each', 'when', 'where', 'what',
+  'which', 'who', 'how', 'why', 'get', 'got', 'let', 'like',
+  'make', 'made', 'know', 'think', 'want', 'need', 'use',
+  'used', 'using', 'see', 'look', 'come', 'go', 'take',
+  'give', 'work', 'way', 'thing', 'time', 'here', 'there'
 ]);
 
 function truncateText(value, maxLen = 160) {
@@ -6249,7 +6276,9 @@ function normalizePdfExportText(value) {
     .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '')
     .replace(/\t/g, '  ');
 
-  // jsPDF core fonts are WinAnsi/Latin-1. Replace unsupported glyphs safely.
+  // NOTE: jsPDF core fonts are Latin-1 only. Non-Latin characters
+  // (CJK, Arabic, Cyrillic, etc.) are replaced with '?' intentionally.
+  // To support full Unicode, switch to a jsPDF unicode font plugin.
   text = Array.from(text).map((ch) => {
     const code = ch.charCodeAt(0);
     return code <= 255 ? ch : '?';
@@ -6385,18 +6414,24 @@ async function exportChatDocx() {
 
 function copyAll() {
   const session = getCurrentSession();
+  if (!session) return;
   let text = "";
   session.messages.forEach(m => {
     if (typeof m.content === "string") {
       text += `${m.role === "bot" ? "SPECTRIX" : "YOU"}: ${m.content}\n\n`;
     }
   });
-  
-  navigator.clipboard.writeText(text);
-  showStatus("📋 Chat copied!");
+  copyTextPortable(text).then((ok) => {
+    showStatus(ok ? "📋 Chat copied!" : "Could not copy on this device.");
+  });
 }
 
 async function exportAll() {
+  for (const id of Object.keys(sessions)) {
+    if (!sessions[id]?.messagesLoaded) {
+      await ensureSessionMessagesLoaded(id);
+    }
+  }
   const data = JSON.stringify(sessions, null, 2);
   const blob = new Blob([data], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -6424,16 +6459,30 @@ async function handleImport(e) {
         okText: 'Import'
       });
       if (shouldImport) {
+        let skipped = 0;
         for (const id in imported) {
+          const entry = imported[id];
+          const isValid =
+            entry &&
+            typeof entry.id === 'string' && entry.id.trim() &&
+            typeof entry.title === 'string' &&
+            Array.isArray(entry.messages);
+          if (!isValid) {
+            skipped += 1;
+            continue;
+          }
           if (!sessions[id]) {
-            sessions[id] = imported[id];
-            await saveChat(imported[id]);
+            sessions[id] = entry;
+            await saveChat(entry);
           } else {
             const newId = Date.now().toString() + Math.floor(Math.random() * 1000);
-            imported[id].id = newId;
-            sessions[newId] = imported[id];
-            await saveChat(imported[id]);
+            entry.id = newId;
+            sessions[newId] = entry;
+            await saveChat(entry);
           }
+        }
+        if (skipped > 0) {
+          showStatus(`Skipped ${skipped} invalid chat entr${skipped === 1 ? 'y' : 'ies'} during import.`, 3200);
         }
         renderHistory();
         await showAppAlert("✅ Chats imported successfully!", 'Import Complete');
@@ -6705,7 +6754,7 @@ function mergeAdjacentCodeFences(text) {
 
   let previous = '';
   let iterations = 0;
-  while (output !== previous && iterations < 8) {
+  while (output !== previous && iterations < 3) {
     previous = output;
     output = output.replace(adjacentFencePattern, mergeFencePair);
     output = output.replace(labeledFencePattern, mergeFencePair);
@@ -7051,6 +7100,11 @@ function getOrCreateHtmlPreviewWrap(pre) {
   frame.className = 'html-preview-frame';
   frame.loading = 'lazy';
   frame.referrerPolicy = 'no-referrer';
+  // allow-scripts only (no allow-same-origin) so the sandboxed
+  // frame cannot access parent DOM or make credentialed requests.
+  // srcdoc content comes from model output and is intentionally
+  // untrusted. Cross-origin fetch from inside the frame will be
+  // blocked by CORS since same-origin is not granted.
   frame.sandbox = 'allow-scripts';
   wrap.appendChild(frame);
   pre.insertAdjacentElement('afterend', wrap);
@@ -7473,6 +7527,12 @@ async function streamBotFromSSE(payload, options = {}) {
 
   const decoder = new TextDecoder();
   const reader = res.body.getReader();
+  const onVisibilityChange = () => {
+    if (document.visibilityState === 'hidden' && !streamDone && !abortedByUser) {
+      showStatus('Tab backgrounded — stream may stall on some browsers.', 4000);
+    }
+  };
+  document.addEventListener('visibilitychange', onVisibilityChange);
   const STREAM_IDLE_TIMEOUT_MS = 20000;
 
   const readChunkWithTimeout = async () => {
@@ -7664,6 +7724,7 @@ async function streamBotFromSSE(payload, options = {}) {
     await saveChat(session);
     renderHistory();
     updateHeaderTitle();
+    document.removeEventListener('visibilitychange', onVisibilityChange);
     streamResumeRenderCallback = null;
     showStatus('Generation stopped');
     return renderedText;
@@ -7684,6 +7745,7 @@ async function streamBotFromSSE(payload, options = {}) {
   await saveChat(session);
   renderHistory();
   updateHeaderTitle();
+  document.removeEventListener('visibilitychange', onVisibilityChange);
   streamResumeRenderCallback = null;
 
   return renderedText;
@@ -7826,6 +7888,7 @@ async function send(options = {}) {
   input.style.height = "";
   charCounter.textContent = "0 chars";
   charCounter.style.color = "var(--muted)";
+  charCounter.style.display = 'none';
 
   const attachmentQueue = hasPendingAttachments ? pendingAttachments.slice() : [];
   let attachmentContext = '';
@@ -8109,10 +8172,6 @@ setStopButtonVisible(false);
 setPauseButtonVisible(false);
 
      if (shouldAutoTitle) {
-  // Mark as titled IMMEDIATELY to prevent double-firing
-  session.autoTitled = true;
-  await saveChat(session);
-
   const titledSessionId = currentId;
   setTimeout(async () => {
     if (currentId !== titledSessionId) return;
@@ -8120,12 +8179,13 @@ setPauseButtonVisible(false);
       const title = await generateTitle(firstUserPrompt, answer);
       if (title && sessions[titledSessionId]) {
         sessions[titledSessionId].title = title;
+        sessions[titledSessionId].autoTitled = true;
         await saveChat(sessions[titledSessionId]);
         renderHistory();
         if (currentId === titledSessionId) updateHeaderTitle();
       }
     } catch (err) {
-      console.error("Auto-title fallback:", err);
+      console.error('Auto-title fallback:', err);
     }
   }, 6000);
 }
@@ -8741,20 +8801,30 @@ function initEventListeners() {
 
   input.addEventListener("input", () => {
     const len = input.value.length;
-    charCounter.textContent = `${len} chars`;
-    charCounter.style.color = len > 4000 ? "#ef4444" : len > 2000 ? "#f59e0b" : "var(--muted)";
+    if (len === 0) {
+      charCounter.style.display = 'none';
+    } else {
+      charCounter.style.display = '';
+      charCounter.textContent = `${len} chars`;
+      charCounter.style.color = len > 4000 ? "#ef4444" : len > 2000 ? "#f59e0b" : "var(--muted)";
+    }
     resizeInput();
   });
 
   input.addEventListener("keydown", e => {
-  if (e.key === "Enter") {
-    if (!e.shiftKey) {
-      e.preventDefault();
-      send();
-    } 
-    // else: shift+Enter => newline, do nothing
-  }
-});
+    if (e.key === "Enter") {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        send();
+        return;
+      }
+      if (!e.shiftKey) {
+        e.preventDefault();
+        send();
+      }
+      // shift+Enter => newline, do nothing
+    }
+  });
 
   let searchTimeout = null;
   let lastSearchValue = '';
@@ -8815,6 +8885,10 @@ function initEventListeners() {
     if (key === 'escape') {
       closeQuickActionsMenu();
       closeSettingsMenu();
+      const memoryPanel = document.getElementById('memoryPanel');
+      if (memoryPanel && memoryPanel.classList.contains('visible')) {
+        toggleMemoryPanel();
+      }
     }
     if ((e.ctrlKey || e.metaKey) && key === "f") {
       e.preventDefault();
@@ -8839,6 +8913,18 @@ function initEventListeners() {
     if ((e.ctrlKey || e.metaKey) && key === "/") {
       e.preventDefault();
       searchBox.focus();
+    }
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && key === "c") {
+      const session = getCurrentSession();
+      if (!session) return;
+      const lastBot = [...session.messages].reverse().find(
+        m => m.role === 'bot' && typeof m.content === 'string'
+      );
+      if (!lastBot) return;
+      e.preventDefault();
+      copyTextPortable(lastBot.content).then((ok) => {
+        showStatus(ok ? '📋 Last response copied.' : 'Could not copy on this device.');
+      });
     }
   });
 
@@ -9299,9 +9385,6 @@ function shouldExtractMemories(userMessage) {
 
 async function extractMemories(userMessage, botReply) {
   try {
-    const requestStartedAt = Date.now();
-    localStorage.setItem(LAST_MEMORY_EXTRACT_KEY, String(requestStartedAt));
-
     const existingMemories = await getAllMemories();
     const existingFacts = existingMemories.map(m => m.content.toLowerCase());
 
@@ -9341,6 +9424,7 @@ ${existingFacts.slice(0, 20).join('\n')}`
 
     const data = await res.json();
     const rawOutput = String(data?.choices?.[0]?.message?.content || '').trim();
+    localStorage.setItem(LAST_MEMORY_EXTRACT_KEY, String(Date.now()));
     const normalizedOutput = rawOutput
       .replace(/```(?:text|txt|md|markdown|json)?/gi, '')
       .replace(/```/g, '')
