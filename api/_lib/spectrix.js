@@ -269,7 +269,7 @@ function getMaxTokensForModel(modelName) {
   const isGemma = selectedModel.includes('gemma');
   const isDeepseek = selectedModel.includes('deepseek');
   const isThinkingModel = selectedModel.includes('thinking') || selectedModel.includes('r1') || selectedModel.includes('qwq');
-  if (isGemma) return 12288;
+  if (isGemma) return 5094;
   if (isThinkingModel) return 2200;
   if (isDeepseek) return 3072;
   return 4096;
