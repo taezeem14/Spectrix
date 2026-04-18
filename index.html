@@ -2954,7 +2954,6 @@ body.dark .voice-btn.recording {
           <button class="quick-action-item" type="button" onclick="runTldrShortcut('short');closeQuickActionsMenu();" role="menuitem">⚡ TL;DR (Short)</button>
           <button class="quick-action-item" type="button" onclick="runTldrShortcut('bullets');closeQuickActionsMenu();" role="menuitem">⚡ TL;DR (Bullets)</button>
           <button class="quick-action-item" type="button" onclick="runTldrShortcut('keypoints');closeQuickActionsMenu();" role="menuitem">⚡ TL;DR (Keypoints)</button>
-          <button class="quick-action-item" type="button" onclick="runTldrShortcut('grouped');closeQuickActionsMenu();" role="menuitem">⚡ TL;DR (Grouped)</button>
           <button class="quick-action-item" type="button" onclick="copyLatestTldrSummary();closeQuickActionsMenu();" role="menuitem">📋 Copy last TL;DR</button>
           <button class="quick-action-item" type="button" onclick="downloadLatestTldrSummary();closeQuickActionsMenu();" role="menuitem">⬇️ Download last TL;DR</button>
           <button class="quick-action-item" type="button" onclick="openAttachmentPicker();closeQuickActionsMenu();" role="menuitem">📎 Add files or photos</button>
@@ -3347,9 +3346,6 @@ const MAX_ATTACHMENT_TEXT_PER_FILE = 2600;
 const MAX_ATTACHMENT_TOTAL_TEXT = 12000;
 const MAX_ATTACHMENT_PDF_PAGES = 8;
 const MAX_ATTACHMENT_OCR_IMAGE_DIMENSION = 1700;
-const ATTACHMENT_OCR_TIMEOUT_MS = 18000;
-const ATTACHMENT_PDF_PAGE_TEXT_TIMEOUT_MS = 2600;
-const ATTACHMENT_PDF_OCR_FALLBACK_PAGES = 2;
 const ATTACHMENT_TEXT_EXTENSIONS = new Set([
   'txt', 'md', 'markdown', 'csv', 'json', 'xml', 'yml', 'yaml',
   'html', 'htm', 'css', 'scss', 'js', 'jsx', 'ts', 'tsx', 'mjs', 'cjs',
@@ -3364,18 +3360,6 @@ const MEMORY_AUTO_MAX_SAVE_PER_PASS = 1;
 const TLDR_DEFAULT_WINDOW = 24;
 const TLDR_MIN_WINDOW = 6;
 const TLDR_MAX_WINDOW = 120;
-const TLDR_DEFAULT_WINDOW_HOURS = 24;
-const TLDR_MIN_WINDOW_HOURS = 1;
-const TLDR_MAX_WINDOW_HOURS = 168;
-const TLDR_WINDOW_PRESETS = new Map([
-  ['focus', 6],
-  ['recent', 12],
-  ['today', 24],
-  ['day', 24],
-  ['yesterday', 48],
-  ['week', 168],
-  ['all', 0]
-]);
 const TLDR_AUTO_SUGGEST_MIN_MESSAGES = 16;
 const TLDR_AUTO_SUGGEST_REPEAT_GAP = 14;
 const MATH_FORMAT_SYSTEM_PROMPT = `
@@ -3677,29 +3661,6 @@ function sanitizeAttachmentText(text) {
     .trim();
 }
 
-async function runAttachmentTaskWithTimeout(taskPromise, timeoutMs, message, flags = {}) {
-  const ms = Number(timeoutMs || 0);
-  if (!Number.isFinite(ms) || ms <= 0) {
-    return taskPromise;
-  }
-
-  let timeoutId;
-  try {
-    return await Promise.race([
-      taskPromise,
-      new Promise((_, reject) => {
-        timeoutId = setTimeout(() => {
-          const error = new Error(message || `Attachment task timed out after ${ms}ms`);
-          Object.assign(error, { isAttachmentTimeout: true, timeoutMs: ms }, flags);
-          reject(error);
-        }, ms);
-      })
-    ]);
-  } finally {
-    if (timeoutId) clearTimeout(timeoutId);
-  }
-}
-
 function clearPendingAttachments(options = {}) {
   const { silent = false } = options;
   pendingAttachments = [];
@@ -3994,45 +3955,6 @@ async function buildOcrImageSource(file) {
   }
 }
 
-async function extractTextFromPdfPageViaOcr(page, pageIndex) {
-  const ready = await ensureOcrRuntimeLoaded({ timeoutMs: 4500, silent: true });
-  if (!ready || !window.Tesseract?.recognize) return '';
-
-  const viewport = page.getViewport({ scale: 1.35 });
-  const maxSide = Math.max(viewport.width, viewport.height) || 1;
-  const scale = Math.min(1, MAX_ATTACHMENT_OCR_IMAGE_DIMENSION / maxSide);
-  const renderViewport = page.getViewport({ scale: Math.max(0.7, 1.35 * scale) });
-
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.floor(renderViewport.width));
-  canvas.height = Math.max(1, Math.floor(renderViewport.height));
-  const ctx = canvas.getContext('2d', { alpha: false });
-  if (!ctx) return '';
-
-  const renderTask = page.render({ canvasContext: ctx, viewport: renderViewport });
-  await runAttachmentTaskWithTimeout(
-    renderTask.promise,
-    ATTACHMENT_PDF_PAGE_TEXT_TIMEOUT_MS + 2200,
-    `PDF OCR rendering timed out on page ${pageIndex}.`,
-    { isPdfTimeout: true }
-  );
-
-  const blob = await new Promise((resolve) => {
-    canvas.toBlob(resolve, 'image/png', 0.92);
-  });
-  if (!blob) return '';
-
-  const source = await buildOcrImageSource(blob);
-  const ocrResult = await runAttachmentTaskWithTimeout(
-    window.Tesseract.recognize(source, 'eng', { logger: () => {} }),
-    ATTACHMENT_OCR_TIMEOUT_MS,
-    `OCR timed out while reading PDF page ${pageIndex}.`,
-    { isOcrTimeout: true }
-  );
-
-  return sanitizeAttachmentText(ocrResult?.data?.text || '');
-}
-
 async function extractTextFromPdfAttachment(file) {
   const ready = await ensurePdfRuntimeLoaded();
   if (!ready || !window.pdfjsLib?.getDocument) {
@@ -4040,99 +3962,27 @@ async function extractTextFromPdfAttachment(file) {
   }
 
   const data = await file.arrayBuffer();
-  const loadingTask = window.pdfjsLib.getDocument({
-    data,
-    useWorkerFetch: false,
-    isEvalSupported: false
-  });
-
-  let pdf = null;
+  const loadingTask = window.pdfjsLib.getDocument({ data });
+  const pdf = await loadingTask.promise;
+  const pageCount = Math.min(pdf.numPages || 0, MAX_ATTACHMENT_PDF_PAGES);
   let output = '';
-  let ocrFallbackPages = 0;
+
+  for (let pageIndex = 1; pageIndex <= pageCount; pageIndex += 1) {
+    const page = await pdf.getPage(pageIndex);
+    const textContent = await page.getTextContent();
+    const pageText = sanitizeAttachmentText(textContent.items.map((item) => String(item.str || '')).join(' '));
+    if (!pageText) continue;
+    output += `[Page ${pageIndex}] ${pageText}\n`;
+    if (output.length >= MAX_ATTACHMENT_TEXT_PER_FILE * 2) break;
+  }
 
   try {
-    pdf = await runAttachmentTaskWithTimeout(
-      loadingTask.promise,
-      8500,
-      `PDF parser timed out for ${file.name}.`,
-      { isPdfTimeout: true }
-    );
-
-    const pageCount = Math.min(pdf?.numPages || 0, MAX_ATTACHMENT_PDF_PAGES);
-    for (let pageIndex = 1; pageIndex <= pageCount; pageIndex += 1) {
-      try {
-        const page = await runAttachmentTaskWithTimeout(
-          pdf.getPage(pageIndex),
-          ATTACHMENT_PDF_PAGE_TEXT_TIMEOUT_MS,
-          `PDF page ${pageIndex} failed to load in time.`,
-          { isPdfTimeout: true }
-        );
-
-        let pageText = '';
-        try {
-          const textContent = await runAttachmentTaskWithTimeout(
-            page.getTextContent(),
-            ATTACHMENT_PDF_PAGE_TEXT_TIMEOUT_MS,
-            `PDF text extraction timed out on page ${pageIndex}.`,
-            { isPdfTimeout: true }
-          );
-          pageText = sanitizeAttachmentText(textContent.items.map((item) => String(item.str || '')).join(' '));
-        } catch (textError) {
-          console.warn('PDF text extraction warning:', { page: pageIndex, error: textError });
-        }
-
-        if (!pageText && pageIndex <= ATTACHMENT_PDF_OCR_FALLBACK_PAGES) {
-          try {
-            const ocrText = await extractTextFromPdfPageViaOcr(page, pageIndex);
-            if (ocrText) {
-              ocrFallbackPages += 1;
-              pageText = `[OCR] ${ocrText}`;
-            }
-          } catch (ocrError) {
-            console.warn('PDF OCR fallback warning:', { page: pageIndex, error: ocrError });
-            if (ocrError?.isAttachmentTimeout || ocrError?.isOcrTimeout) {
-              throw ocrError;
-            }
-          }
-        }
-
-        if (!pageText) continue;
-
-        output += `[Page ${pageIndex}] ${pageText}\n`;
-        if (output.length >= MAX_ATTACHMENT_TEXT_PER_FILE * 2) break;
-      } catch (pageError) {
-        console.warn('Skipping problematic PDF page:', { page: pageIndex, error: pageError });
-        if (pageError?.isAttachmentTimeout || pageError?.isOcrTimeout) {
-          throw pageError;
-        }
-      }
-    }
-
-    const cleaned = sanitizeAttachmentText(output);
-    if (!cleaned) {
-      throw new Error('No readable text found in PDF. Try a clearer copy or image pages.');
-    }
-
-    if (ocrFallbackPages > 0) {
-      return sanitizeAttachmentText(`[OCR fallback used on ${ocrFallbackPages} page${ocrFallbackPages === 1 ? '' : 's'}]\n${cleaned}`);
-    }
-
-    return cleaned;
-  } catch (error) {
-    const msg = String(error?.message || '').toLowerCase();
-    if (msg.includes('password') || msg.includes('encrypted')) {
-      const passwordErr = new Error('Password-protected PDF is not supported yet.');
-      passwordErr.isPdfPassword = true;
-      throw passwordErr;
-    }
-    throw error;
-  } finally {
-    try {
-      if (loadingTask?.destroy) await loadingTask.destroy();
-    } catch {
-      // Ignore parser cleanup issues.
-    }
+    await loadingTask.destroy();
+  } catch {
+    // Ignore parser cleanup issues.
   }
+
+  return sanitizeAttachmentText(output);
 }
 
 async function extractTextFromDocxAttachment(file) {
@@ -4146,22 +3996,16 @@ async function extractTextFromDocxAttachment(file) {
   return sanitizeAttachmentText(result?.value || '');
 }
 
-async function extractTextFromImageAttachment(file, options = {}) {
+async function extractTextFromImageAttachment(file) {
   const ready = await ensureOcrRuntimeLoaded();
   if (!ready || !window.Tesseract?.recognize) {
     throw new Error('OCR parser unavailable');
   }
 
-  const timeoutMs = Number(options.timeoutMs || ATTACHMENT_OCR_TIMEOUT_MS);
   const source = await buildOcrImageSource(file);
-  const result = await runAttachmentTaskWithTimeout(
-    window.Tesseract.recognize(source, 'eng', {
-      logger: () => {}
-    }),
-    timeoutMs,
-    `OCR timed out while reading ${file?.name || 'image attachment'}.`,
-    { isOcrTimeout: true }
-  );
+  const result = await window.Tesseract.recognize(source, 'eng', {
+    logger: () => {}
+  });
   return sanitizeAttachmentText(result?.data?.text || '');
 }
 
@@ -4206,9 +4050,7 @@ async function buildAttachmentContextBundle(attachments) {
     summary: '',
     readableCount: 0,
     skippedCount: 0,
-    gemmaBypassCount: 0,
-    ocrTimeoutCount: 0,
-    pdfTimeoutCount: 0
+    gemmaBypassCount: 0
   };
 
   if (!Array.isArray(attachments) || attachments.length === 0) {
@@ -4261,11 +4103,8 @@ async function buildAttachmentContextBundle(attachments) {
         name: attachment.name,
         text
       });
-    } catch (error) {
+    } catch {
       bundle.skippedCount += 1;
-      if (error?.isOcrTimeout) bundle.ocrTimeoutCount += 1;
-      if (error?.isPdfTimeout || error?.isPdfPassword) bundle.pdfTimeoutCount += 1;
-      console.warn('Attachment parsing skipped:', { file: attachment?.name, error });
     }
   }
 
@@ -4391,8 +4230,6 @@ let chatSearchBackfillScheduled = false;
 const tldrSummaryBySession = new Map();
 const tldrHighlightsBySession = new Map();
 const tldrSuggestCheckpointBySession = new Map();
-const streamDebugMetrics = [];
-const STREAM_DEBUG_LOG_LIMIT = 40;
 const deletedChatTombstones = new Set(
   (() => {
     try {
@@ -4431,19 +4268,6 @@ const chatWindowState = {
   start: 0,
   end: -1
 };
-
-function pushStreamDebugMetric(metric) {
-  const entry = {
-    ...metric,
-    recordedAt: new Date().toISOString()
-  };
-  streamDebugMetrics.push(entry);
-  if (streamDebugMetrics.length > STREAM_DEBUG_LOG_LIMIT) {
-    streamDebugMetrics.splice(0, streamDebugMetrics.length - STREAM_DEBUG_LOG_LIMIT);
-  }
-  window.__spectrixStreamDebug = streamDebugMetrics.slice();
-  console.debug('Spectrix stream metric:', entry);
-}
 
 function getStoredProfile() {
   if (incognitoEnabled) return { name: '', avatarUrl: '' };
@@ -4975,7 +4799,7 @@ async function saveMessage(role, content) {
   if (session.transient) {
     delete session.transient;
   }
-  session.messages.push({ role, content, timestamp: Date.now() });
+  session.messages.push({ role, content });
   session.timestamp = Date.now();
   await saveSessions();
 }
@@ -6072,7 +5896,7 @@ function toggleWebSearch() {
 function runTldrShortcut(mode = 'bullets') {
   if (!input) return;
   const normalizedMode = String(mode || 'bullets').toLowerCase();
-  if (normalizedMode === 'short' || normalizedMode === 'keypoints' || normalizedMode === 'bullets' || normalizedMode === 'grouped') {
+  if (normalizedMode === 'short' || normalizedMode === 'keypoints' || normalizedMode === 'bullets') {
     input.value = `/tldr ${normalizedMode}`;
   } else {
     input.value = '/tldr';
@@ -6084,122 +5908,8 @@ function runTldrShortcut(mode = 'bullets') {
 
 function normalizeTldrMode(mode) {
   const value = String(mode || '').toLowerCase().trim();
-  if (value === 'short' || value === 'bullets' || value === 'keypoints' || value === 'grouped' || value === 'topics') {
-    return value === 'topics' ? 'grouped' : value;
-  }
+  if (value === 'short' || value === 'bullets' || value === 'keypoints') return value;
   return 'bullets';
-}
-
-function parseTldrWindowToken(token) {
-  const lower = String(token || '').toLowerCase().trim();
-  if (!lower) return null;
-
-  if (TLDR_WINDOW_PRESETS.has(lower)) {
-    return {
-      windowHours: TLDR_WINDOW_PRESETS.get(lower),
-      preset: lower
-    };
-  }
-
-  const hourMatch = lower.match(/^(\d{1,3})h$/);
-  if (hourMatch) {
-    const parsedHours = Number.parseInt(hourMatch[1], 10);
-    const clampedHours = Math.max(TLDR_MIN_WINDOW_HOURS, Math.min(TLDR_MAX_WINDOW_HOURS, parsedHours));
-    return {
-      windowHours: clampedHours,
-      preset: `${clampedHours}h`
-    };
-  }
-
-  const dayMatch = lower.match(/^(\d{1,2})d$/);
-  if (dayMatch) {
-    const parsedDays = Number.parseInt(dayMatch[1], 10);
-    const hours = parsedDays * 24;
-    const clampedHours = Math.max(TLDR_MIN_WINDOW_HOURS, Math.min(TLDR_MAX_WINDOW_HOURS, hours));
-    return {
-      windowHours: clampedHours,
-      preset: `${parsedDays}d`
-    };
-  }
-
-  return null;
-}
-
-function formatTldrScopeLabel(windowSize, windowHours, preset) {
-  if (windowHours === 0) return 'all available messages';
-  if (Number.isFinite(windowHours) && windowHours > 0) {
-    if (preset === 'today') return 'messages from the last 24h';
-    if (preset === 'week') return 'messages from the last 7d';
-    return `messages from the last ${windowHours}h`;
-  }
-  return `last ${windowSize} messages`;
-}
-
-function escapeRegex(value) {
-  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function buildTldrTopicGroups(scoredEntries, keywords, maxGroups = 3) {
-  const seeds = Array.from(new Set((Array.isArray(keywords) ? keywords : [])
-    .map((word) => String(word || '').toLowerCase().trim())
-    .filter(Boolean)))
-    .slice(0, Math.max(1, maxGroups));
-
-  if (!seeds.length || !Array.isArray(scoredEntries) || !scoredEntries.length) {
-    return [];
-  }
-
-  const groups = new Map(seeds.map((seed) => [seed, []]));
-  const ungrouped = [];
-
-  scoredEntries.forEach((entry) => {
-    const text = String(entry?.msg?.content || '').toLowerCase();
-    let bestSeed = '';
-    let bestHits = 0;
-
-    seeds.forEach((seed) => {
-      const regex = new RegExp(`\\b${escapeRegex(seed)}\\b`, 'g');
-      const hits = (text.match(regex) || []).length;
-      if (hits > bestHits) {
-        bestHits = hits;
-        bestSeed = seed;
-      }
-    });
-
-    if (bestSeed && groups.has(bestSeed)) {
-      groups.get(bestSeed).push(entry);
-    } else {
-      ungrouped.push(entry);
-    }
-  });
-
-  const out = [];
-  groups.forEach((items, seed) => {
-    if (!items.length) return;
-    const best = [...items].sort((a, b) => b.score - a.score)[0] || items[0];
-    out.push({
-      key: seed,
-      label: seed.charAt(0).toUpperCase() + seed.slice(1),
-      count: items.length,
-      sample: truncateText(sentencePreview(best?.msg?.content || ''), 120),
-      highlightIndex: Number(best?.idx)
-    });
-  });
-
-  if (ungrouped.length) {
-    const bestUngrouped = [...ungrouped].sort((a, b) => b.score - a.score)[0] || ungrouped[0];
-    out.push({
-      key: 'general',
-      label: 'General',
-      count: ungrouped.length,
-      sample: truncateText(sentencePreview(bestUngrouped?.msg?.content || ''), 120),
-      highlightIndex: Number(bestUngrouped?.idx)
-    });
-  }
-
-  return out
-    .sort((a, b) => b.count - a.count)
-    .slice(0, Math.max(1, maxGroups));
 }
 
 function parseTldrCommand(rawInput) {
@@ -6209,24 +5919,12 @@ function parseTldrCommand(rawInput) {
   const tokens = text.split(/\s+/).slice(1);
   let mode = 'bullets';
   let windowSize = TLDR_DEFAULT_WINDOW;
-  let windowHours = TLDR_DEFAULT_WINDOW_HOURS;
-  let windowPreset = 'today';
 
   tokens.forEach((token) => {
     const lower = String(token || '').toLowerCase().trim();
     if (!lower) return;
-
-    const parsedWindow = parseTldrWindowToken(lower);
-    if (parsedWindow) {
-      windowHours = parsedWindow.windowHours;
-      windowPreset = parsedWindow.preset;
-      return;
-    }
-
     if (/^\d{1,3}$/.test(lower)) {
       windowSize = Number.parseInt(lower, 10);
-      windowHours = null;
-      windowPreset = '';
       return;
     }
     mode = normalizeTldrMode(lower);
@@ -6235,9 +5933,7 @@ function parseTldrCommand(rawInput) {
   const clampedWindow = Math.max(TLDR_MIN_WINDOW, Math.min(TLDR_MAX_WINDOW, windowSize));
   return {
     mode,
-    windowSize: clampedWindow,
-    windowHours,
-    windowPreset
+    windowSize: clampedWindow
   };
 }
 
@@ -8432,14 +8128,6 @@ async function send(options = {}) {
 
         if (attachmentBundle.gemmaBypassCount > 0) {
           showStatus(`Gemma multimodal mode: skipped image/DOCX text parsing for ${attachmentBundle.gemmaBypassCount} file${attachmentBundle.gemmaBypassCount === 1 ? '' : 's'}.`, 3400);
-        }
-
-        if (attachmentBundle.ocrTimeoutCount > 0) {
-          showStatus(`OCR timed out on ${attachmentBundle.ocrTimeoutCount} file${attachmentBundle.ocrTimeoutCount === 1 ? '' : 's'}. Try smaller or clearer images.`, 3600);
-        }
-
-        if (attachmentBundle.pdfTimeoutCount > 0) {
-          showStatus(`PDF parsing hit edge cases on ${attachmentBundle.pdfTimeoutCount} file${attachmentBundle.pdfTimeoutCount === 1 ? '' : 's'}.`, 3600);
         }
 
         if (!attachmentContext && !prompt.trim()) {
