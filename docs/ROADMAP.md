@@ -3,7 +3,6 @@
 ## Now (0-2 weeks)
 
 - [ ] Memory quality pass v2 (stronger duplicate clustering + better cleanup UX)
-- [ ] `/tldr` enhancements (topic grouping + time-window presets)
 - [ ] Attachment parser reliability (PDF edge cases + OCR timeout handling)
 - [ ] Streaming resilience metrics in debug logs
 

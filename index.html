@@ -4015,8 +4015,8 @@ async function extractTextFromAttachment(file) {
     return extractTextFromPdfAttachment(file);
   }
 
-  // Gemma 4 is multimodal; disable fallback image OCR and DOCX text extraction for this model.
-  if (isGemmaMultimodalSelected() && (isDocxAttachment(file) || isImageAttachment(file))) {
+  // Keep DOCX extraction disabled for Gemma multimodal mode.
+  if (isGemmaMultimodalSelected() && isDocxAttachment(file)) {
     return '';
   }
 
@@ -4073,7 +4073,7 @@ async function buildAttachmentContextBundle(attachments) {
       continue;
     }
 
-    if (gemmaSelected && (isDocxAttachment(file) || isImageAttachment(file))) {
+    if (gemmaSelected && isDocxAttachment(file)) {
       bundle.gemmaBypassCount += 1;
       bundle.skippedCount += 1;
       continue;
@@ -8127,7 +8127,7 @@ async function send(options = {}) {
         }
 
         if (attachmentBundle.gemmaBypassCount > 0) {
-          showStatus(`Gemma multimodal mode: skipped image/DOCX text parsing for ${attachmentBundle.gemmaBypassCount} file${attachmentBundle.gemmaBypassCount === 1 ? '' : 's'}.`, 3400);
+          showStatus(`Gemma multimodal mode: skipped DOCX text parsing for ${attachmentBundle.gemmaBypassCount} file${attachmentBundle.gemmaBypassCount === 1 ? '' : 's'}.`, 3400);
         }
 
         if (!attachmentContext && !prompt.trim()) {
