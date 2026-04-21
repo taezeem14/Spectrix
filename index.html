@@ -4195,6 +4195,17 @@ let FIXED_TEXT_MODEL = normalizeTextModelId(localStorage.getItem('Spectrix_text_
 const FIXED_VIDEO_MODEL = "ByteDance/Seedance-1.0-lite";
 const FIXED_TITLE_MODEL = "liquid/lfm-2.5-1.2b-instruct:free";
 const FIXED_MEMORY_EXTRACT_MODEL = "liquid/lfm-2.5-1.2b-instruct:free";
+const MEMORY_EXTRACT_MODEL_CANDIDATES = [
+  FIXED_MEMORY_EXTRACT_MODEL,
+  GEMMA_MULTIMODAL_MODEL,
+  "openai/gpt-oss-120b:free"
+];
+
+function getMemoryExtractModelCandidates() {
+  return Array.from(new Set(MEMORY_EXTRACT_MODEL_CANDIDATES
+    .map((model) => String(model || '').trim())
+    .filter(Boolean)));
+}
 
 let sessions = {};
 let currentId = null;
@@ -7568,7 +7579,8 @@ async function streamBotFromSSE(payload, options = {}) {
     }
   };
   document.addEventListener('visibilitychange', onVisibilityChange);
-  const STREAM_IDLE_TIMEOUT_MS = 20000;
+  const isGemmaStream = String(payload?.model || '').toLowerCase().includes('gemma');
+  const STREAM_IDLE_TIMEOUT_MS = isGemmaStream ? 45000 : 20000;
 
   const readChunkWithTimeout = async () => {
     let timeoutId;
@@ -7741,6 +7753,21 @@ async function streamBotFromSSE(payload, options = {}) {
       }
 
       boundaryIndex = buffer.indexOf("\n\n");
+    }
+  }
+
+  // Some upstream routes may return a plain JSON body even when stream=true.
+  // If that happens, recover the final text instead of failing with "Empty response".
+  if (!renderedText.trim() && buffer.trim()) {
+    try {
+      const parsed = JSON.parse(buffer.trim());
+      const recovered = String(parsed?.choices?.[0]?.message?.content || '').trim();
+      if (recovered) {
+        renderedText = recovered;
+        pendingDeltaText = '';
+      }
+    } catch {
+      // Keep normal empty-response behavior.
     }
   }
 
@@ -9618,16 +9645,7 @@ async function extractMemories(userMessage, botReply) {
     const existingMemories = await getAllMemories();
     const existingFacts = existingMemories.map(m => m.content.toLowerCase());
 
-    const res = await fetchChatApiWithFallback({
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      timeoutMs: 18000,
-      body: JSON.stringify({
-        model: FIXED_MEMORY_EXTRACT_MODEL,
-        messages: [
-          {
-            role: 'system',
-            content: `You are a memory extraction system. Analyze the conversation and extract ONLY genuinely memorable user facts.
+    const systemPrompt = `You are a memory extraction system. Analyze the conversation and extract ONLY genuinely memorable user facts.
 
 Rules:
 - Extract facts about the USER only (name, age, location, job, preferences, interests, goals, technical stack, learning topics).
@@ -9642,24 +9660,51 @@ Rules:
 - One fact per line. Max 1 fact.
 
 Existing memories (avoid near-duplicates):
-${existingFacts.slice(0, 20).join('\n')}`
-          },
-          {
-            role: 'user',
-            content: `User said: ${userMessage.slice(0, 500)}\nAssistant replied: ${botReply.slice(0, 500)}\n\nExtract memorable facts about the user:`
-          }
-        ]
-      })
-    });
+${existingFacts.slice(0, 20).join('\n')}`;
+    const userPrompt = `User said: ${userMessage.slice(0, 500)}\nAssistant replied: ${botReply.slice(0, 500)}\n\nExtract memorable facts about the user:`;
 
-    const data = await res.json();
-    const rawOutput = String(data?.choices?.[0]?.message?.content || '').trim();
-    localStorage.setItem(LAST_MEMORY_EXTRACT_KEY, String(Date.now()));
+    const modelCandidates = getMemoryExtractModelCandidates();
+    let rawOutput = '';
+    let lastError = null;
+
+    for (let i = 0; i < modelCandidates.length; i += 1) {
+      const model = modelCandidates[i];
+      try {
+        const res = await fetchChatApiWithFallback({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          timeoutMs: 24000,
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt }
+            ]
+          })
+        });
+
+        const data = await res.json();
+        rawOutput = String(data?.choices?.[0]?.message?.content || '').trim();
+        if (rawOutput) break;
+      } catch (err) {
+        lastError = err;
+        if (i >= modelCandidates.length - 1) {
+          throw err;
+        }
+      }
+    }
+
+    if (!rawOutput) {
+      if (lastError) throw lastError;
+      return;
+    }
+
     const normalizedOutput = rawOutput
       .replace(/```(?:text|txt|md|markdown|json)?/gi, '')
       .replace(/```/g, '')
       .trim();
 
+    localStorage.setItem(LAST_MEMORY_EXTRACT_KEY, String(Date.now()));
     if (!normalizedOutput || /^none[.!\s]*$/i.test(normalizedOutput)) return;
 
     const parsedFacts = [];
