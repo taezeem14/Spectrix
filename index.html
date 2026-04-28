@@ -4606,12 +4606,14 @@ function getChatModelLockKey(sessionId = currentId) {
 
 function isChatModelLockEnabled(session = getCurrentSession()) {
   const key = getChatModelLockKey(session?.id);
-  return localStorage.getItem(key) === 'true';
+  const val = localStorage.getItem(key);
+  return val !== null && val !== 'false';
 }
 
 function getLockedChatModel(session = getCurrentSession()) {
   const key = getChatModelLockKey(session?.id);
-  return String(localStorage.getItem(key) || '').trim();
+  const val = String(localStorage.getItem(key) || '').trim();
+  return (val === 'true' || val === 'false') ? '' : val;
 }
 
 function setLockedChatModel(sessionId, modelId, enabled) {
@@ -4637,6 +4639,17 @@ function updateChatModelLockUi(session = getCurrentSession()) {
   btn.title = enabled
     ? `This chat is locked to ${modelId || 'the current model'}`
     : 'Lock this chat to its current model';
+
+  const select = document.getElementById('textModelSelect');
+  if (select) {
+    if (enabled && modelId) {
+      // If locked, we display the locked model in the dropdown temporarily
+      select.value = modelId;
+    } else {
+      // Revert to global fallback
+      select.value = FIXED_TEXT_MODEL;
+    }
+  }
 }
 
 async function toggleChatModelLock() {
@@ -4645,7 +4658,8 @@ async function toggleChatModelLock() {
 
   const enabled = !isChatModelLockEnabled(session);
   if (enabled) {
-    const currentModel = FIXED_TEXT_MODEL;
+    const select = document.getElementById('textModelSelect');
+    const currentModel = select && select.value ? select.value : FIXED_TEXT_MODEL;
     setLockedChatModel(session.id, currentModel, true);
     session.lockedModel = currentModel;
   } else {
@@ -10705,8 +10719,20 @@ function initTextModelDropdown() {
   // Ensure the select reflects the active model
   sel.value = FIXED_TEXT_MODEL;
 
-  sel.addEventListener('change', (e) => {
+  sel.addEventListener('change', async (e) => {
     const nextModel = normalizeTextModelId(e.target.value);
+    
+    // If the chat is locked, update the lock for this chat instead
+    const session = getCurrentSession();
+    if (session && isChatModelLockEnabled(session)) {
+      setLockedChatModel(session.id, nextModel, true);
+      session.lockedModel = nextModel;
+      await saveChat(session);
+      updateChatModelLockUi(session);
+      console.log('Locked text model set to', nextModel);
+      return;
+    }
+
     FIXED_TEXT_MODEL = nextModel;
     sel.value = nextModel;
     localStorage.setItem('Spectrix_text_model', nextModel);
