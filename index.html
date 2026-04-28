@@ -2885,7 +2885,8 @@ body.dark .voice-btn.recording {
 }
 
 .command-palette.visible {
-  display: block;
+  display: flex;
+  flex-direction: column;
   opacity: 1;
   transform: translateX(-50%) scale(1);
 }
@@ -2893,6 +2894,7 @@ body.dark .voice-btn.recording {
 .command-palette-header {
   padding: 14px 16px;
   font-size: 13px;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
@@ -2903,10 +2905,11 @@ body.dark .voice-btn.recording {
   width: 100%;
   border: none;
   outline: none;
-  padding: 14px 16px;
+  padding: 16px 18px;
   background: transparent;
   color: var(--text);
   font-size: 16px;
+  font-weight: 600;
   font-family: inherit;
 }
 
@@ -2914,25 +2917,33 @@ body.dark .voice-btn.recording {
   max-height: 52vh;
   overflow-y: auto;
   border-top: 1px solid var(--border);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .command-palette-item {
   width: 100%;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
   text-align: left;
-  border: 0;
+  border: 1px solid transparent;
+  border-radius: 12px;
   background: transparent;
   color: var(--text);
-  padding: 12px 16px;
+  padding: 12px 14px;
   cursor: pointer;
   font-family: inherit;
+  transition: all 0.15s;
 }
 
 .command-palette-item:hover,
 .command-palette-item.active {
-  background: rgba(124, 58, 237, 0.12);
+  background: var(--accent-glow);
+  border-color: rgba(124, 58, 237, 0.3);
 }
 
 .command-palette-item-title {
@@ -2941,7 +2952,7 @@ body.dark .voice-btn.recording {
 }
 
 .command-palette-item-desc {
-  margin-top: 2px;
+  margin-top: 4px;
   font-size: 12px;
   color: var(--muted);
   line-height: 1.4;
@@ -2949,19 +2960,30 @@ body.dark .voice-btn.recording {
 
 .command-palette-item-kbd {
   margin-left: auto;
-  font-size: 11px;
+  font-size: 10px;
+  font-weight: 600;
   color: var(--muted);
   border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 2px 8px;
+  background: var(--panel);
+  border-radius: 6px;
+  padding: 4px 8px;
   flex-shrink: 0;
+  letter-spacing: 0.5px;
+}
+
+.command-palette-item.active .command-palette-item-kbd {
+  color: var(--user);
+  border-color: var(--user);
 }
 
 .command-palette-hint {
-  padding: 10px 16px 14px;
+  padding: 10px 16px 10px;
   border-top: 1px solid var(--border);
   font-size: 11px;
+  font-weight: 600;
   color: var(--muted);
+  text-align: center;
+  background: rgba(0, 0, 0, 0.1);
 }
 
 .app-modal-btn:hover {
