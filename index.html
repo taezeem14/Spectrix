@@ -1818,6 +1818,20 @@ body.dark .voice-btn.recording {
   text-overflow: ellipsis;
 }
 
+#conversationTemplateSelect {
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#chatModelLockSelect {
+  max-width: 154px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* ===== MOBILE OPTIMIZED ===== */
 @media(max-width:768px){
   body {
@@ -2711,6 +2725,32 @@ body.dark .voice-btn.recording {
   border-color: var(--user);
 }
 
+.memory-cleanup-filter {
+  width: 100%;
+  margin-bottom: 10px;
+  background: var(--chat);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 8px 10px;
+  font-size: 12px;
+  outline: none;
+}
+
+.memory-cleanup-filter:focus {
+  border-color: var(--user);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+.memory-cleanup-empty-filter {
+  padding: 12px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
 .memory-cleanup-list {
   max-height: 300px;
   overflow-y: auto;
@@ -2815,6 +2855,115 @@ body.dark .voice-btn.recording {
   color: #fff;
 }
 
+.command-palette-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.56);
+  backdrop-filter: blur(8px);
+  z-index: 10020;
+  display: none;
+}
+
+.command-palette-overlay.visible {
+  display: block;
+}
+
+.command-palette {
+  position: fixed;
+  top: 16vh;
+  left: 50%;
+  transform: translateX(-50%) scale(0.98);
+  width: min(92vw, 620px);
+  background: linear-gradient(180deg, var(--panel), var(--chat));
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow-xl);
+  z-index: 10021;
+  display: none;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.command-palette.visible {
+  display: block;
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+
+.command-palette-header {
+  padding: 14px 16px;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.command-palette-input {
+  width: 100%;
+  border: none;
+  outline: none;
+  padding: 14px 16px;
+  background: transparent;
+  color: var(--text);
+  font-size: 16px;
+  font-family: inherit;
+}
+
+.command-palette-list {
+  max-height: 52vh;
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+}
+
+.command-palette-item {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  padding: 12px 16px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.command-palette-item:hover,
+.command-palette-item.active {
+  background: rgba(124, 58, 237, 0.12);
+}
+
+.command-palette-item-title {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.command-palette-item-desc {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.command-palette-item-kbd {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 8px;
+  flex-shrink: 0;
+}
+
+.command-palette-hint {
+  padding: 10px 16px 14px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--muted);
+}
+
 .app-modal-btn:hover {
   transform: translateY(-1px);
 }
@@ -2904,6 +3053,7 @@ body.dark .voice-btn.recording {
         <button class="sidebar-settings-btn" id="settingsBtn" onclick="toggleSettingsMenu(event)" aria-expanded="false" aria-haspopup="menu" aria-label="Open settings">⚙️ Settings</button>
         <div class="settings-menu" id="settingsMenu" role="menu" aria-label="Settings menu">
           <button class="settings-item" id="settingsAuthBtn" type="button" onclick="openProfileActions();closeSettingsMenu();" role="menuitem" title="Sign in with Google">🔐 Sign in with Google</button>
+          <button class="settings-item" id="settingsModelLockBtn" type="button" onclick="toggleChatModelLock();closeSettingsMenu();" role="menuitem" title="Lock this chat to its current model">🔓 Chat model lock: OFF</button>
           <button class="settings-item" type="button" onclick="exportChat();closeSettingsMenu();" role="menuitem">💾 Export current chat</button>
           <button class="settings-item" type="button" onclick="exportChatPdf();closeSettingsMenu();" role="menuitem">📄 Export chat as PDF</button>
           <button class="settings-item" type="button" onclick="exportChatDocx();closeSettingsMenu();" role="menuitem">📝 Export chat as DOCX</button>
@@ -2927,18 +3077,26 @@ body.dark .voice-btn.recording {
         <button class="toggle tts-toggle" id="ttsToggle" onclick="toggleTTS()" title="Toggle Text-to-Speech">🔊</button>
         <div class="select-wrap">
         <select id="imageModel">
-			<option value="google/imagen-4.0-ultra">Imagen 4 Ultra</option>
-			<option value="google/imagen-4.0-fast">Imagen 4 Fast</option>
-			<option value="gemini-3-pro-image-preview">Nano Banana (Gemini Image)</option>
-			<option value="black-forest-labs/FLUX.2-max">Flux 2 Max</option>
-			<option value="gpt-image-1.5">GPT Image 1.5</option>
-		</select>
+      <option value="google/imagen-4.0-ultra">Imagen 4 Ultra</option>
+      <option value="google/imagen-4.0-fast">Imagen 4 Fast</option>
+      <option value="gemini-3-pro-image-preview">Nano Banana (Gemini Image)</option>
+      <option value="gpt-image-2">GPT Image 2</option>
+      <option value="gpt-image-1.5">GPT Image 1.5</option>
+    </select>
         </div>
           <div class="select-wrap">
             <select id="textModelSelect" title="Choose text model">
 			  <option value="google/gemma-4-31b-it:free">Gemma 4 31B IT (Main • Instruction Tuned)</option>
 			  <option value="openai/gpt-oss-120b:free">GPT-OSS 120B (Fast • Strong)</option>
               <option value="nvidia/nemotron-3-super-120b-a12b:free">Nemotron 3 Super (Deep Reasoning)</option>
+            </select>
+          </div>
+          <div class="select-wrap">
+            <select id="conversationTemplateSelect" title="Choose conversation template">
+			  <option value="default">Template: Default</option>
+			  <option value="coding">Template: Coding</option>
+			  <option value="debug">Template: Debug</option>
+			  <option value="research">Template: Research</option>
             </select>
           </div>
       </div>
@@ -2954,6 +3112,9 @@ body.dark .voice-btn.recording {
           <button class="quick-action-item" type="button" onclick="runTldrShortcut('short');closeQuickActionsMenu();" role="menuitem">⚡ TL;DR (Short)</button>
           <button class="quick-action-item" type="button" onclick="runTldrShortcut('bullets');closeQuickActionsMenu();" role="menuitem">⚡ TL;DR (Bullets)</button>
           <button class="quick-action-item" type="button" onclick="runTldrShortcut('keypoints');closeQuickActionsMenu();" role="menuitem">⚡ TL;DR (Keypoints)</button>
+          <button class="quick-action-item" type="button" onclick="applyConversationTemplatePreset('coding');closeQuickActionsMenu();" role="menuitem">🧩 Template: Coding</button>
+          <button class="quick-action-item" type="button" onclick="applyConversationTemplatePreset('debug');closeQuickActionsMenu();" role="menuitem">🧩 Template: Debug</button>
+          <button class="quick-action-item" type="button" onclick="applyConversationTemplatePreset('research');closeQuickActionsMenu();" role="menuitem">🧩 Template: Research</button>
           <button class="quick-action-item" type="button" onclick="copyLatestTldrSummary();closeQuickActionsMenu();" role="menuitem">📋 Copy last TL;DR</button>
           <button class="quick-action-item" type="button" onclick="downloadLatestTldrSummary();closeQuickActionsMenu();" role="menuitem">⬇️ Download last TL;DR</button>
           <button class="quick-action-item" type="button" onclick="openAttachmentPicker();closeQuickActionsMenu();" role="menuitem">📎 Add files or photos</button>
@@ -3011,6 +3172,14 @@ body.dark .voice-btn.recording {
     <button class="app-modal-btn" id="appModalCancel" type="button">Cancel</button>
     <button class="app-modal-btn primary" id="appModalOk" type="button">OK</button>
   </div>
+</div>
+
+<div class="command-palette-overlay" id="commandPaletteOverlay" onclick="closeCommandPalette()"></div>
+<div class="command-palette" id="commandPalette" role="dialog" aria-modal="true" aria-labelledby="commandPaletteTitle">
+  <div class="command-palette-header" id="commandPaletteTitle">Command Palette</div>
+  <input id="commandPaletteInput" class="command-palette-input" type="text" placeholder="Type a command..." aria-label="Command palette input">
+  <div id="commandPaletteList" class="command-palette-list" role="listbox" aria-label="Command palette results"></div>
+  <div class="command-palette-hint">Enter to run • Up/Down to navigate • Esc to close</div>
 </div>
 
 <div class="app-modal-overlay" id="profileActionsOverlay" onclick="closeProfileActions()"></div>
@@ -3346,6 +3515,12 @@ const MAX_ATTACHMENT_TEXT_PER_FILE = 2600;
 const MAX_ATTACHMENT_TOTAL_TEXT = 12000;
 const MAX_ATTACHMENT_PDF_PAGES = 8;
 const MAX_ATTACHMENT_OCR_IMAGE_DIMENSION = 1700;
+const MAX_ATTACHMENT_OCR_TIMEOUT_MS = 18000;
+const MAX_ATTACHMENT_PDF_LOAD_TIMEOUT_MS = 12000;
+const MAX_ATTACHMENT_PDF_PAGE_TIMEOUT_MS = 2600;
+const ATTACHMENT_ERROR_SUMMARY_LIMIT = 3;
+const DEBUG_LOG_KEY = 'Spectrix_debug_log_v1';
+const DEBUG_LOG_MAX_ITEMS = 180;
 const ATTACHMENT_TEXT_EXTENSIONS = new Set([
   'txt', 'md', 'markdown', 'csv', 'json', 'xml', 'yml', 'yaml',
   'html', 'htm', 'css', 'scss', 'js', 'jsx', 'ts', 'tsx', 'mjs', 'cjs',
@@ -3362,6 +3537,45 @@ const TLDR_MIN_WINDOW = 6;
 const TLDR_MAX_WINDOW = 120;
 const TLDR_AUTO_SUGGEST_MIN_MESSAGES = 16;
 const TLDR_AUTO_SUGGEST_REPEAT_GAP = 14;
+const DEFAULT_CONVERSATION_TEMPLATE = 'default';
+const CONVERSATION_TEMPLATE_PRESETS = {
+  default: {
+    label: 'Default',
+    systemPrompt: ''
+  },
+  coding: {
+    label: 'Coding',
+    systemPrompt: [
+      'This conversation is in Coding template mode.',
+      '- Prioritize practical implementation details and runnable solutions.',
+      '- State assumptions briefly, then provide working code with clear structure.',
+      '- Keep explanations concise and focused on architecture, tradeoffs, and edge cases.',
+      '- Call out tests or validation steps when code changes are proposed.'
+    ].join('\n')
+  },
+  debug: {
+    label: 'Debug',
+    systemPrompt: [
+      'This conversation is in Debug template mode.',
+      '- Focus on root-cause analysis before suggesting fixes.',
+      '- Ask for or infer reproducible steps, expected vs actual behavior, and relevant logs.',
+      '- Provide likely causes ordered by probability, then propose minimal-risk patches.',
+      '- Include verification steps and regression checks for each fix.'
+    ].join('\n')
+  },
+  research: {
+    label: 'Research',
+    systemPrompt: [
+      'This conversation is in Research template mode.',
+      '- Structure answers with clear findings, assumptions, and uncertainty.',
+      '- Compare alternatives with explicit pros and cons plus decision criteria.',
+      '- Distinguish verified facts from hypotheses and avoid unsupported claims.',
+      '- End with concise recommendations and next investigation steps.'
+    ].join('\n')
+  }
+};
+const CHAT_MODEL_LOCK_KEY_PREFIX = 'Spectrix_chat_model_lock_';
+const COMMAND_PALETTE_DEFINITION_KEY = 'Spectrix_command_palette_defs_v1';
 const MATH_FORMAT_SYSTEM_PROMPT = `
 When writing mathematics, use valid MathJax / KaTeX LaTeX syntax.
 
@@ -3961,28 +4175,61 @@ async function extractTextFromPdfAttachment(file) {
     throw new Error('PDF parser unavailable');
   }
 
-  const data = await file.arrayBuffer();
-  const loadingTask = window.pdfjsLib.getDocument({ data });
-  const pdf = await loadingTask.promise;
-  const pageCount = Math.min(pdf.numPages || 0, MAX_ATTACHMENT_PDF_PAGES);
-  let output = '';
-
-  for (let pageIndex = 1; pageIndex <= pageCount; pageIndex += 1) {
-    const page = await pdf.getPage(pageIndex);
-    const textContent = await page.getTextContent();
-    const pageText = sanitizeAttachmentText(textContent.items.map((item) => String(item.str || '')).join(' '));
-    if (!pageText) continue;
-    output += `[Page ${pageIndex}] ${pageText}\n`;
-    if (output.length >= MAX_ATTACHMENT_TEXT_PER_FILE * 2) break;
-  }
-
+  let loadingTask = null;
   try {
-    await loadingTask.destroy();
-  } catch {
-    // Ignore parser cleanup issues.
-  }
+    const data = await file.arrayBuffer();
+    loadingTask = window.pdfjsLib.getDocument({ data });
+    const pdf = await withOperationTimeout(
+      loadingTask.promise,
+      MAX_ATTACHMENT_PDF_LOAD_TIMEOUT_MS,
+      `PDF parser timed out while opening ${file.name}`
+    );
 
-  return sanitizeAttachmentText(output);
+    const pageCount = Math.min(pdf.numPages || 0, MAX_ATTACHMENT_PDF_PAGES);
+    let output = '';
+    let failedPages = 0;
+
+    for (let pageIndex = 1; pageIndex <= pageCount; pageIndex += 1) {
+      try {
+        const page = await withOperationTimeout(
+          pdf.getPage(pageIndex),
+          MAX_ATTACHMENT_PDF_PAGE_TIMEOUT_MS,
+          `PDF page ${pageIndex} timed out`
+        );
+        const textContent = await withOperationTimeout(
+          page.getTextContent(),
+          MAX_ATTACHMENT_PDF_PAGE_TIMEOUT_MS,
+          `PDF text extraction timed out on page ${pageIndex}`
+        );
+        const pageText = sanitizeAttachmentText(textContent.items.map((item) => String(item.str || '')).join(' '));
+        if (!pageText) continue;
+        output += `[Page ${pageIndex}] ${pageText}\n`;
+        if (output.length >= MAX_ATTACHMENT_TEXT_PER_FILE * 2) break;
+      } catch {
+        failedPages += 1;
+      }
+    }
+
+    if (!output && pageCount > 0 && failedPages >= pageCount) {
+      throw new Error(`PDF parsing failed for all ${pageCount} pages`);
+    }
+
+    return sanitizeAttachmentText(output);
+  } catch (error) {
+    const lower = String(error?.message || '').toLowerCase();
+    if (lower.includes('password') || lower.includes('incorrect password')) {
+      throw new Error('PDF is password-protected and could not be read');
+    }
+    throw error;
+  } finally {
+    if (loadingTask) {
+      try {
+        await loadingTask.destroy();
+      } catch {
+        // Ignore parser cleanup issues.
+      }
+    }
+  }
 }
 
 async function extractTextFromDocxAttachment(file) {
@@ -4002,10 +4249,16 @@ async function extractTextFromImageAttachment(file) {
     throw new Error('OCR parser unavailable');
   }
 
-  const source = await buildOcrImageSource(file);
-  const result = await window.Tesseract.recognize(source, 'eng', {
-    logger: () => {}
-  });
+  const source = await withOperationTimeout(
+    buildOcrImageSource(file),
+    5000,
+    `OCR preprocessing timed out for ${file.name}`
+  );
+  const result = await withOperationTimeout(
+    window.Tesseract.recognize(source, 'eng', { logger: () => {} }),
+    MAX_ATTACHMENT_OCR_TIMEOUT_MS,
+    `OCR timed out for ${file.name}`
+  );
   return sanitizeAttachmentText(result?.data?.text || '');
 }
 
@@ -4050,7 +4303,9 @@ async function buildAttachmentContextBundle(attachments) {
     summary: '',
     readableCount: 0,
     skippedCount: 0,
-    gemmaBypassCount: 0
+    gemmaBypassCount: 0,
+    timeoutCount: 0,
+    errorSamples: []
   };
 
   if (!Array.isArray(attachments) || attachments.length === 0) {
@@ -4103,8 +4358,13 @@ async function buildAttachmentContextBundle(attachments) {
         name: attachment.name,
         text
       });
-    } catch {
+    } catch (error) {
       bundle.skippedCount += 1;
+      const sample = summarizeAttachmentError(error, attachment?.name || file?.name || 'unknown-file');
+      if (sample.timedOut) bundle.timeoutCount += 1;
+      if (bundle.errorSamples.length < ATTACHMENT_ERROR_SUMMARY_LIMIT) {
+        bundle.errorSamples.push(sample);
+      }
     }
   }
 
@@ -4175,8 +4435,6 @@ function normalizeTextModelId(modelId) {
   return ALLOWED_TEXT_MODELS.has(candidate) ? candidate : DEFAULT_TEXT_MODEL;
 }
 
-let FIXED_TEXT_MODEL = normalizeTextModelId(localStorage.getItem('Spectrix_text_model'));
-
 function isGemmaMultimodalSelected(modelId = FIXED_TEXT_MODEL) {
   return normalizeTextModelId(modelId) === GEMMA_MULTIMODAL_MODEL;
 }
@@ -4193,6 +4451,7 @@ function resolveTextModelForRequest(modelId, webSearchOn = false) {
   return `${baseModel}:online`;
 }
 
+let FIXED_TEXT_MODEL = normalizeTextModelId(localStorage.getItem('Spectrix_text_model'));
 const FIXED_VIDEO_MODEL = "ByteDance/Seedance-1.0-lite";
 const FIXED_TITLE_MODEL = "liquid/lfm-2.5-1.2b-instruct:free";
 const FIXED_MEMORY_EXTRACT_MODEL = "liquid/lfm-2.5-1.2b-instruct:free";
@@ -4325,9 +4584,327 @@ function buildChatSearchPreview(chat) {
   return seed.replace(/\s+/g, ' ').trim().slice(0, 700);
 }
 
+function normalizeConversationTemplateId(value) {
+  const candidate = String(value || '').trim().toLowerCase();
+  if (!candidate) return DEFAULT_CONVERSATION_TEMPLATE;
+  return CONVERSATION_TEMPLATE_PRESETS[candidate] ? candidate : DEFAULT_CONVERSATION_TEMPLATE;
+}
+
+function getConversationTemplatePreset(session = getCurrentSession()) {
+  return normalizeConversationTemplateId(session?.templatePreset);
+}
+
+function getConversationTemplateSystemPrompt(templateId) {
+  const normalized = normalizeConversationTemplateId(templateId);
+  const preset = CONVERSATION_TEMPLATE_PRESETS[normalized] || CONVERSATION_TEMPLATE_PRESETS.default;
+  return String(preset?.systemPrompt || '').trim();
+}
+
+function getChatModelLockKey(sessionId = currentId) {
+  return `${CHAT_MODEL_LOCK_KEY_PREFIX}${String(sessionId || '')}`;
+}
+
+function isChatModelLockEnabled(session = getCurrentSession()) {
+  const key = getChatModelLockKey(session?.id);
+  return localStorage.getItem(key) === 'true';
+}
+
+function getLockedChatModel(session = getCurrentSession()) {
+  const key = getChatModelLockKey(session?.id);
+  return String(localStorage.getItem(key) || '').trim();
+}
+
+function setLockedChatModel(sessionId, modelId, enabled) {
+  const key = getChatModelLockKey(sessionId);
+  if (!enabled) {
+    localStorage.removeItem(key);
+    return;
+  }
+  localStorage.setItem(key, String(modelId || FIXED_TEXT_MODEL).trim());
+}
+
+function getChatModelForSession(session = getCurrentSession()) {
+  const lockedModel = getLockedChatModel(session);
+  return lockedModel || FIXED_TEXT_MODEL;
+}
+
+function updateChatModelLockUi(session = getCurrentSession()) {
+  const btn = document.getElementById('settingsModelLockBtn');
+  if (!btn) return;
+  const enabled = isChatModelLockEnabled(session);
+  const modelId = enabled ? getLockedChatModel(session) : '';
+  btn.textContent = enabled ? `🔒 Chat model lock: ON (${modelId || 'unknown'})` : '🔓 Chat model lock: OFF';
+  btn.title = enabled
+    ? `This chat is locked to ${modelId || 'the current model'}`
+    : 'Lock this chat to its current model';
+}
+
+async function toggleChatModelLock() {
+  const session = getCurrentSession();
+  if (!session) return;
+
+  const enabled = !isChatModelLockEnabled(session);
+  if (enabled) {
+    const currentModel = FIXED_TEXT_MODEL;
+    setLockedChatModel(session.id, currentModel, true);
+    session.lockedModel = currentModel;
+  } else {
+    setLockedChatModel(session.id, '', false);
+    delete session.lockedModel;
+  }
+
+  await saveChat(session);
+  updateChatModelLockUi(session);
+  renderHistory();
+  showStatus(enabled ? 'Chat model lock enabled.' : 'Chat model lock disabled.');
+}
+
+function normalizeCommandPaletteCommand(command) {
+  return String(command || '').trim().toLowerCase();
+}
+
+function getCommandPaletteDefinitions() {
+  return [
+    {
+      id: 'new-chat',
+      title: 'New Chat',
+      desc: 'Start a fresh conversation.',
+      keywords: ['new', 'chat', 'fresh'],
+      run: () => newChat()
+    },
+    {
+      id: 'toggle-template-coding',
+      title: 'Template: Coding',
+      desc: 'Switch the active chat to the coding preset.',
+      keywords: ['template', 'coding'],
+      run: () => applyConversationTemplatePreset('coding')
+    },
+    {
+      id: 'toggle-template-debug',
+      title: 'Template: Debug',
+      desc: 'Switch the active chat to the debug preset.',
+      keywords: ['template', 'debug'],
+      run: () => applyConversationTemplatePreset('debug')
+    },
+    {
+      id: 'toggle-template-research',
+      title: 'Template: Research',
+      desc: 'Switch the active chat to the research preset.',
+      keywords: ['template', 'research'],
+      run: () => applyConversationTemplatePreset('research')
+    },
+    {
+      id: 'toggle-model-lock',
+      title: 'Toggle Chat Model Lock',
+      desc: 'Lock this conversation to the current text model.',
+      keywords: ['model', 'lock'],
+      run: () => toggleChatModelLock()
+    },
+    {
+      id: 'export-chat-md',
+      title: 'Export Current Chat',
+      desc: 'Download the current chat as Markdown.',
+      keywords: ['export', 'markdown', 'md'],
+      run: () => exportChat()
+    },
+    {
+      id: 'export-chat-pdf',
+      title: 'Export Chat as PDF',
+      desc: 'Download a stable PDF transcript of the chat.',
+      keywords: ['export', 'pdf'],
+      run: () => exportChatPdf()
+    },
+    {
+      id: 'export-chat-docx',
+      title: 'Export Chat as DOCX',
+      desc: 'Download a richer DOCX transcript of the chat.',
+      keywords: ['export', 'docx'],
+      run: () => exportChatDocx()
+    },
+    {
+      id: 'toggle-search',
+      title: 'Toggle Web Search',
+      desc: 'Turn web search on or off.',
+      keywords: ['web', 'search'],
+      run: () => toggleWebSearch()
+    },
+    {
+      id: 'open-attachments',
+      title: 'Add Files or Photos',
+      desc: 'Attach files or images to the next message.',
+      keywords: ['attach', 'file', 'photo'],
+      run: () => openAttachmentPicker()
+    },
+    {
+      id: 'toggle-memory-panel',
+      title: 'Open AI Memory',
+      desc: 'Manage saved memories and cleanup suggestions.',
+      keywords: ['memory'],
+      run: () => toggleMemoryPanel()
+    }
+  ];
+}
+
+function filterCommandPaletteDefinitions(query) {
+  const needle = normalizeCommandPaletteCommand(query);
+  const definitions = getCommandPaletteDefinitions();
+  if (!needle) return definitions;
+  return definitions.filter((item) => {
+    const hay = [item.title, item.desc, ...(item.keywords || [])].join(' ').toLowerCase();
+    return hay.includes(needle);
+  });
+}
+
+function updateConversationTemplateSelectUi(templateId = null) {
+  const select = document.getElementById('conversationTemplateSelect');
+  if (!select) return;
+  const normalized = normalizeConversationTemplateId(templateId || getConversationTemplatePreset());
+  if (select.value !== normalized) {
+    select.value = normalized;
+  }
+
+  const wrap = select.closest('.custom-select-wrap');
+  if (wrap) {
+    const label = wrap.querySelector('.custom-select-label');
+    const trigger = wrap.querySelector('.custom-select-trigger');
+    const activeOption = select.options[select.selectedIndex] || select.options[0];
+    const text = activeOption ? activeOption.textContent.trim() : '';
+    if (label) label.textContent = text;
+    if (trigger) trigger.title = text;
+    wrap.querySelectorAll('.custom-select-option').forEach((btn) => {
+      const isActive = btn.dataset.value === select.value;
+      btn.classList.toggle('active', isActive);
+      btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+  }
+}
+
+function closeCommandPalette() {
+  const overlay = document.getElementById('commandPaletteOverlay');
+  const palette = document.getElementById('commandPalette');
+  if (overlay) overlay.classList.remove('visible');
+  if (palette) palette.classList.remove('visible');
+}
+
+function openCommandPalette() {
+  const overlay = document.getElementById('commandPaletteOverlay');
+  const palette = document.getElementById('commandPalette');
+  const inputEl = document.getElementById('commandPaletteInput');
+  const listEl = document.getElementById('commandPaletteList');
+  if (!overlay || !palette || !inputEl || !listEl) return;
+
+  const renderList = (items) => {
+    listEl.innerHTML = '';
+    items.forEach((item, index) => {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'command-palette-item' + (index === 0 ? ' active' : '');
+      row.setAttribute('role', 'option');
+      row.dataset.commandId = item.id;
+      row.innerHTML = `
+        <div>
+          <div class="command-palette-item-title">${item.title}</div>
+          <div class="command-palette-item-desc">${item.desc}</div>
+        </div>
+        <span class="command-palette-item-kbd">Enter</span>
+      `;
+      row.addEventListener('click', async () => {
+        closeCommandPalette();
+        await item.run();
+      });
+      listEl.appendChild(row);
+    });
+
+    if (!items.length) {
+      const empty = document.createElement('div');
+      empty.className = 'memory-cleanup-empty-filter';
+      empty.textContent = 'No matching commands.';
+      listEl.appendChild(empty);
+    }
+  };
+
+  const updateFromInput = () => {
+    const items = filterCommandPaletteDefinitions(inputEl.value);
+    renderList(items);
+    palette.dataset.commandCount = String(items.length);
+  };
+
+  if (!palette.dataset.bound) {
+    inputEl.addEventListener('input', updateFromInput);
+    inputEl.addEventListener('keydown', async (event) => {
+      const items = filterCommandPaletteDefinitions(inputEl.value);
+      const buttons = Array.from(listEl.querySelectorAll('.command-palette-item'));
+      const activeIndex = buttons.findIndex((btn) => btn.classList.contains('active'));
+
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeCommandPalette();
+        return;
+      }
+      if (event.key === 'ArrowDown' && buttons.length) {
+        event.preventDefault();
+        const nextIndex = Math.min(buttons.length - 1, activeIndex < 0 ? 0 : activeIndex + 1);
+        buttons.forEach((btn, idx) => btn.classList.toggle('active', idx === nextIndex));
+        buttons[nextIndex]?.scrollIntoView({ block: 'nearest' });
+        return;
+      }
+      if (event.key === 'ArrowUp' && buttons.length) {
+        event.preventDefault();
+        const nextIndex = Math.max(0, activeIndex < 0 ? 0 : activeIndex - 1);
+        buttons.forEach((btn, idx) => btn.classList.toggle('active', idx === nextIndex));
+        buttons[nextIndex]?.scrollIntoView({ block: 'nearest' });
+        return;
+      }
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        const activeButton = buttons.find((btn) => btn.classList.contains('active')) || buttons[0];
+        const commandId = activeButton?.dataset.commandId;
+        const command = items.find((item) => item.id === commandId) || items[0];
+        if (command) {
+          closeCommandPalette();
+          await command.run();
+        }
+      }
+    });
+    overlay.addEventListener('click', closeCommandPalette);
+    palette.dataset.bound = 'true';
+  }
+
+  inputEl.value = '';
+  updateFromInput();
+  overlay.classList.add('visible');
+  palette.classList.add('visible');
+  inputEl.focus();
+}
+
+async function applyConversationTemplatePreset(templateId, options = {}) {
+  const normalized = normalizeConversationTemplateId(templateId);
+  const session = getCurrentSession();
+  if (!session) return;
+
+  if (normalizeConversationTemplateId(session.templatePreset) === normalized) {
+    updateConversationTemplateSelectUi(normalized);
+    return;
+  }
+
+  session.templatePreset = normalized;
+  updateConversationTemplateSelectUi(normalized);
+
+  if (!session.transient) {
+    await saveChat(session);
+    renderHistory();
+  }
+
+  if (!options?.silent) {
+    const label = CONVERSATION_TEMPLATE_PRESETS[normalized]?.label || 'Default';
+    showStatus(`Conversation template set to ${label}.`, 2200);
+  }
+}
+
 function normalizeChatMeta(chat) {
   if (!chat || !chat.id) return null;
   const branchOf = typeof chat.branchOf === 'string' ? chat.branchOf : '';
+  const templatePreset = normalizeConversationTemplateId(chat.templatePreset);
   const searchPreview = buildChatSearchPreview(chat);
   return {
     id: String(chat.id),
@@ -4336,6 +4913,7 @@ function normalizeChatMeta(chat) {
     pinned: !!chat.pinned,
     autoTitled: !!chat.autoTitled,
     branchOf,
+    templatePreset,
     searchPreview
   };
 }
@@ -4374,6 +4952,7 @@ function upsertChatIndexEntry(chatData) {
       && prev.pinned === next.pinned
       && prev.autoTitled === next.autoTitled
       && prev.branchOf === next.branchOf
+      && prev.templatePreset === next.templatePreset
       && prev.searchPreview === next.searchPreview;
     if (unchanged) return;
     existing[idx] = next;
@@ -4489,6 +5068,7 @@ async function ensureSessionMessagesLoaded(id = currentId) {
     pinned: false,
     autoTitled: false,
     branchOf: '',
+    templatePreset: DEFAULT_CONVERSATION_TEMPLATE,
     searchPreview: ''
   };
   sessions[key] = {
@@ -4666,10 +5246,12 @@ async function initApp() {
   initVoiceUiState();
   initEventListeners();
   initTextModelDropdown();
+  initConversationTemplateDropdown();
   initCustomSelectDropdowns();
   initCompatibilityEnhancements();
   updateThemeColorMeta();
   initMemorySystem();
+  updateChatModelLockUi();
 }
 
 
@@ -4729,9 +5311,12 @@ async function createNewChat(options = {}) {
     pinned: false,
     autoTitled: false,
     branchOf: '',
+    templatePreset: DEFAULT_CONVERSATION_TEMPLATE,
     transient
   };
   sessions[currentId] = newSession;
+  updateConversationTemplateSelectUi(newSession.templatePreset);
+  updateChatModelLockUi(newSession);
   if (persist) {
     await saveChat(newSession);
     if (!incognitoEnabled) localStorage.setItem(CURRENT_KEY, currentId);
@@ -4787,6 +5372,7 @@ async function branchConversationFromMessage(messageIndex) {
   branched.messages = branchMessages;
   branched.autoTitled = false;
   branched.branchOf = sourceId;
+  branched.templatePreset = getConversationTemplatePreset(source);
   branched.timestamp = Date.now();
 
   await saveSessions();
@@ -5483,6 +6069,8 @@ async function loadChatHandler(id) {
   currentId = id;
   if (!incognitoEnabled) localStorage.setItem(CURRENT_KEY, currentId);
   startCloudAutoSync();
+  updateConversationTemplateSelectUi(getConversationTemplatePreset(sessions[id]));
+  updateChatModelLockUi(sessions[id]);
   updateHeaderTitle();
   await loadChatMessages();
   renderHistory();
@@ -6084,6 +6672,23 @@ function buildSessionTranscriptText(session) {
   return lines.join('\n');
 }
 
+function buildSessionExportBlocks(session) {
+  const blocks = [];
+  (Array.isArray(session?.messages) ? session.messages : []).forEach((message, index) => {
+    const role = message.role === 'bot' ? 'Spectrix' : 'You';
+    const content = typeof message.content === 'string'
+      ? message.content
+      : `[${String(message?.content?.type || 'media').toUpperCase()}]`;
+    blocks.push({
+      index,
+      role,
+      content: String(content || '').trim(),
+      isBot: message.role === 'bot'
+    });
+  });
+  return blocks;
+}
+
 const TLDR_STOPWORDS = new Set([
   'the', 'a', 'an', 'and', 'or', 'to', 'of', 'in', 'on', 'for', 'with', 'from',
   'is', 'are', 'was', 'were', 'be', 'been', 'being', 'it', 'this', 'that', 'these',
@@ -6339,6 +6944,16 @@ function normalizePdfExportText(value) {
     .trim();
 }
 
+function buildExportFriendlyMarkdown(text) {
+  return String(text || '')
+    .replace(/\r\n/g, '\n')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/```([\s\S]*?)```/g, (match, body) => `\n${String(body || '').trim()}\n`)
+    .trim();
+}
+
 function exportChat() {
   const session = getCurrentSession();
   if (!session) return;
@@ -6358,10 +6973,8 @@ async function exportChatPdf() {
     return;
   }
 
-  const transcriptRaw = buildSessionTranscriptText(session)
-    .replace(/\*\*/g, '')
-    .replace(/^#\s+/gm, '');
-  const transcript = normalizePdfExportText(transcriptRaw);
+  const exportBlocks = buildSessionExportBlocks(session);
+  const transcript = normalizePdfExportText(buildExportFriendlyMarkdown(buildSessionTranscriptText(session)));
   const safeTitle = normalizePdfExportText(session.title || 'Spectrix Chat Export') || 'Spectrix Chat Export';
 
   const { jsPDF } = window.jspdf;
@@ -6380,17 +6993,31 @@ async function exportChatPdf() {
   doc.text(safeTitle, marginX, y);
   y += 24;
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(11);
-  const lines = doc.splitTextToSize(transcript, maxWidth);
-  for (const line of lines) {
+  exportBlocks.forEach((block) => {
+    const roleLine = `${block.role}:`;
+    const contentLines = doc.splitTextToSize(normalizePdfExportText(block.content), maxWidth);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
     if (y > pageHeight - marginY) {
       doc.addPage();
       y = marginY;
     }
-    doc.text(line, marginX, y);
+    doc.text(roleLine, marginX, y);
     y += lineHeight;
-  }
+
+    doc.setFont('helvetica', 'normal');
+    contentLines.forEach((line) => {
+      if (y > pageHeight - marginY) {
+        doc.addPage();
+        y = marginY;
+      }
+      doc.text(line, marginX, y);
+      y += lineHeight;
+    });
+
+    y += 5;
+  });
 
   doc.save(`${slugifyFilename(session.title)}.pdf`);
   showStatus('Chat exported as PDF.');
@@ -6428,22 +7055,24 @@ async function exportChatDocx() {
     return;
   }
 
-  const { Document, Packer, Paragraph, HeadingLevel, TextRun } = window.docx;
+  const { Document, Packer, Paragraph, HeadingLevel, TextRun, AlignmentType, BorderStyle } = window.docx;
   const paragraphs = [
     new Paragraph({
       text: session.title || 'Spectrix Chat Export',
-      heading: HeadingLevel.HEADING_1
+      heading: HeadingLevel.HEADING_1,
+      spacing: { after: 240 }
     })
   ];
 
-  const bodyLines = buildSessionExportParagraphs(session);
-  bodyLines.forEach((line) => {
-    if (!line) {
-      paragraphs.push(new Paragraph({ text: '' }));
-      return;
-    }
+  buildSessionExportBlocks(session).forEach((block) => {
     paragraphs.push(new Paragraph({
-      children: [new TextRun({ text: line })]
+      children: [
+        new TextRun({ text: `${block.role}:`, bold: true }),
+        new TextRun({ text: ' ' + buildExportFriendlyMarkdown(block.content) })
+      ],
+      spacing: { before: 120, after: 120 },
+      border: block.isBot ? { left: { color: '6B7280', style: BorderStyle.SINGLE, size: 6 } } : undefined,
+      alignment: AlignmentType.LEFT
     }));
   });
 
@@ -7347,6 +7976,85 @@ function queueCodeBlockEnhancement(container) {
   }, 220);
 }
 
+function readDebugLogEntries() {
+  try {
+    const raw = localStorage.getItem(DEBUG_LOG_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function appendDebugLogEntry(type, payload = {}) {
+  const entry = {
+    ts: Date.now(),
+    type: String(type || 'event'),
+    payload: payload && typeof payload === 'object' ? payload : { value: payload }
+  };
+
+  try {
+    if (!incognitoEnabled) {
+      const entries = readDebugLogEntries();
+      entries.push(entry);
+      localStorage.setItem(DEBUG_LOG_KEY, JSON.stringify(entries.slice(-DEBUG_LOG_MAX_ITEMS)));
+    }
+  } catch {
+    // Ignore debug log persistence failures.
+  }
+
+  console.info('[Spectrix][debug]', entry);
+  return entry;
+}
+
+function logStreamResilienceMetric(event, details = {}) {
+  return appendDebugLogEntry('stream_resilience', {
+    event: String(event || 'unknown'),
+    ...(details && typeof details === 'object' ? details : {})
+  });
+}
+
+async function withOperationTimeout(operationPromise, timeoutMs, message) {
+  if (!(timeoutMs > 0)) return operationPromise;
+
+  let timeoutHandle;
+  try {
+    return await Promise.race([
+      operationPromise,
+      new Promise((_, reject) => {
+        timeoutHandle = setTimeout(() => {
+          const err = new Error(message || 'Operation timed out');
+          err.isTimeout = true;
+          err.timeoutMs = timeoutMs;
+          reject(err);
+        }, timeoutMs);
+      })
+    ]);
+  } finally {
+    if (timeoutHandle) clearTimeout(timeoutHandle);
+  }
+}
+
+function summarizeAttachmentError(error, fileName = '') {
+  const message = String(error?.message || 'Attachment parsing failed').trim();
+  const lower = message.toLowerCase();
+  const timedOut = Boolean(error?.isTimeout) || lower.includes('timed out') || lower.includes('stalled');
+  const parserUnavailable = lower.includes('parser unavailable');
+
+  let shortReason = message;
+  if (timedOut) shortReason = 'Timed out while parsing';
+  else if (parserUnavailable) shortReason = 'Parser runtime unavailable';
+  else if (lower.includes('password-protected')) shortReason = 'Password-protected PDF';
+
+  return {
+    fileName: String(fileName || '').trim(),
+    timedOut,
+    parserUnavailable,
+    shortReason,
+    message
+  };
+}
+
 async function fetchWithTimeoutRetry(url, options = {}, retryCount = 1) {
   const timeoutMs = options.timeoutMs || 35000;
   const { timeoutMs: ignored, ...fetchOptions } = options;
@@ -7497,11 +8205,41 @@ async function streamBotFromSSE(payload, options = {}) {
   ];
 
   const requestBody = JSON.stringify(payload);
+  const toRouteLabel = (url) => {
+    try {
+      return new URL(url).pathname || String(url || '');
+    } catch {
+      return String(url || '');
+    }
+  };
+  const streamMetrics = {
+    startedAt: Date.now(),
+    model: String(payload?.model || ''),
+    candidateCount: streamCandidates.length,
+    routeAttempts: 0,
+    routeFallbacks: 0,
+    selectedRoute: '',
+    httpStatus: null,
+    chunkCount: 0,
+    eventCount: 0,
+    deltaCount: 0,
+    bytesReceived: 0,
+    idleTimeoutMs: 0,
+    usedJsonBodyRecovery: false
+  };
+  const finalizeStreamMetrics = (outcome, extra = {}) => ({
+    ...streamMetrics,
+    outcome: String(outcome || 'unknown'),
+    durationMs: Math.max(0, Date.now() - streamMetrics.startedAt),
+    ...(extra && typeof extra === 'object' ? extra : {})
+  });
+
   let res = null;
   let lastStreamError = null;
 
   for (let index = 0; index < streamCandidates.length; index++) {
     const url = streamCandidates[index];
+    streamMetrics.routeAttempts += 1;
     try {
       const attempt = await fetch(url, {
         method: "POST",
@@ -7512,27 +8250,41 @@ async function streamBotFromSSE(payload, options = {}) {
 
       const hasNext = index < streamCandidates.length - 1;
       if (hasNext && CHAT_ROUTE_FALLBACK_STATUSES.has(attempt.status)) {
+        streamMetrics.routeFallbacks += 1;
         continue;
       }
 
       activeChatStreamApiUrl = url;
       res = attempt;
+      streamMetrics.selectedRoute = toRouteLabel(url);
+      streamMetrics.httpStatus = Number(attempt.status || 0) || null;
       break;
     } catch (error) {
       if (signal?.aborted) {
         const abortError = new Error('Generation stopped');
         abortError.isUserAbort = true;
+        abortError.streamMetrics = finalizeStreamMetrics('user_abort_before_stream');
+        logStreamResilienceMetric('user_abort_before_stream', abortError.streamMetrics);
         throw abortError;
       }
 
       lastStreamError = error;
       if (index < streamCandidates.length - 1) continue;
+      error.streamMetrics = finalizeStreamMetrics('stream_route_connect_error', {
+        lastError: String(error?.message || error || '')
+      });
+      logStreamResilienceMetric('stream_route_connect_error', error.streamMetrics);
       throw error;
     }
   }
 
   if (!res) {
-    throw lastStreamError || new Error('Streaming endpoint unavailable');
+    const err = lastStreamError || new Error('Streaming endpoint unavailable');
+    err.streamMetrics = finalizeStreamMetrics('stream_endpoint_unavailable', {
+      lastError: String(lastStreamError?.message || lastStreamError || '')
+    });
+    logStreamResilienceMetric('stream_endpoint_unavailable', err.streamMetrics);
+    throw err;
   }
 
   if (res.status === 429) {
@@ -7544,15 +8296,23 @@ async function streamBotFromSSE(payload, options = {}) {
     const err = new Error(`Rate limited — please wait ~${retryAfter}s and try again.`);
     err.isRateLimit = true;
     err.retryAfter = retryAfter;
+    err.streamMetrics = finalizeStreamMetrics('stream_rate_limited', { retryAfter });
+    logStreamResilienceMetric('stream_rate_limited', err.streamMetrics);
     throw err;
   }
 
   if (!res.ok) {
-    throw new Error(`HTTP ${res.status}`);
+    const err = new Error(`HTTP ${res.status}`);
+    err.streamMetrics = finalizeStreamMetrics('stream_http_error', { httpStatus: res.status });
+    logStreamResilienceMetric('stream_http_error', err.streamMetrics);
+    throw err;
   }
 
   if (!res.body) {
-    throw new Error("Streaming is not supported in this browser.");
+    const err = new Error("Streaming is not supported in this browser.");
+    err.streamMetrics = finalizeStreamMetrics('stream_no_body');
+    logStreamResilienceMetric('stream_no_body', err.streamMetrics);
+    throw err;
   }
 
   const d = document.createElement("div");
@@ -7580,8 +8340,13 @@ async function streamBotFromSSE(payload, options = {}) {
     }
   };
   document.addEventListener('visibilitychange', onVisibilityChange);
+  const cleanupStreamState = () => {
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+    streamResumeRenderCallback = null;
+  };
   const isGemmaStream = String(payload?.model || '').toLowerCase().includes('gemma');
   const STREAM_IDLE_TIMEOUT_MS = isGemmaStream ? 45000 : 20000;
+  streamMetrics.idleTimeoutMs = STREAM_IDLE_TIMEOUT_MS;
 
   const readChunkWithTimeout = async () => {
     let timeoutId;
@@ -7680,10 +8445,21 @@ async function streamBotFromSSE(payload, options = {}) {
         abortedByUser = true;
         break;
       }
+      const errText = String(error?.message || '').toLowerCase();
+      if (errText.includes('stream stalled')) {
+        error.isStreamStalled = true;
+        error.streamMetrics = finalizeStreamMetrics('stream_stalled_timeout', {
+          charsReceived: renderedText.length
+        });
+        logStreamResilienceMetric('stream_stalled_timeout', error.streamMetrics);
+      }
+      cleanupStreamState();
       throw error;
     }
 
     if (chunk.done) break;
+    streamMetrics.chunkCount += 1;
+    streamMetrics.bytesReceived += Number(chunk?.value?.byteLength || 0);
 
     buffer += decoder.decode(chunk.value, { stream: true });
     buffer = buffer.replace(/\r\n/g, "\n");
@@ -7692,6 +8468,7 @@ async function streamBotFromSSE(payload, options = {}) {
     while (boundaryIndex !== -1) {
       const rawEvent = buffer.slice(0, boundaryIndex).trim();
       buffer = buffer.slice(boundaryIndex + 2);
+      streamMetrics.eventCount += 1;
 
       if (rawEvent) {
         const dataLines = rawEvent
@@ -7715,6 +8492,7 @@ async function streamBotFromSSE(payload, options = {}) {
           }
 
           if (eventData?.type === "error") {
+            cleanupStreamState();
             throw new Error(eventData.message || "Streaming failed");
           }
 
@@ -7727,6 +8505,7 @@ async function streamBotFromSSE(payload, options = {}) {
           if (nextDelta) {
             renderedText += nextDelta;
             pendingDeltaText += nextDelta;
+            streamMetrics.deltaCount += 1;
             if (!streamPaused) scheduleRender();
           }
 
@@ -7766,6 +8545,7 @@ async function streamBotFromSSE(payload, options = {}) {
       if (recovered) {
         renderedText = recovered;
         pendingDeltaText = '';
+        streamMetrics.usedJsonBodyRecovery = true;
       }
     } catch {
       // Keep normal empty-response behavior.
@@ -7775,9 +8555,11 @@ async function streamBotFromSSE(payload, options = {}) {
   if (abortedByUser) {
     if (!renderedText.trim()) {
       d.remove();
-      streamResumeRenderCallback = null;
+      cleanupStreamState();
       const abortError = new Error('Generation stopped');
       abortError.isUserAbort = true;
+      abortError.streamMetrics = finalizeStreamMetrics('user_abort_empty');
+      logStreamResilienceMetric('user_abort_empty', abortError.streamMetrics);
       throw abortError;
     }
 
@@ -7787,15 +8569,20 @@ async function streamBotFromSSE(payload, options = {}) {
     await saveChat(session);
     renderHistory();
     updateHeaderTitle();
-    document.removeEventListener('visibilitychange', onVisibilityChange);
-    streamResumeRenderCallback = null;
+    cleanupStreamState();
+    logStreamResilienceMetric('user_abort_partial', finalizeStreamMetrics('user_abort_partial', {
+      charsReceived: renderedText.length
+    }));
     showStatus('Generation stopped');
     return renderedText;
   }
 
   if (!renderedText.trim()) {
-    streamResumeRenderCallback = null;
-    throw new Error("Empty response from model");
+    cleanupStreamState();
+    const err = new Error("Empty response from model");
+    err.streamMetrics = finalizeStreamMetrics('stream_empty_response');
+    logStreamResilienceMetric('stream_empty_response', err.streamMetrics);
+    throw err;
   }
 
   await finalizeRenderedMessage();
@@ -7808,8 +8595,10 @@ async function streamBotFromSSE(payload, options = {}) {
   await saveChat(session);
   renderHistory();
   updateHeaderTitle();
-  document.removeEventListener('visibilitychange', onVisibilityChange);
-  streamResumeRenderCallback = null;
+  cleanupStreamState();
+  logStreamResilienceMetric('stream_success', finalizeStreamMetrics('stream_success', {
+    charsReceived: renderedText.length
+  }));
 
   return renderedText;
 }
@@ -8154,6 +8943,20 @@ async function send(options = {}) {
           showStatus(`Used ${attachmentBundle.readableCount} file${attachmentBundle.readableCount === 1 ? '' : 's'} and skipped ${attachmentBundle.skippedCount}.`, 2800);
         }
 
+        if (attachmentBundle.timeoutCount > 0) {
+          showStatus(`Attachment parsing timed out for ${attachmentBundle.timeoutCount} file${attachmentBundle.timeoutCount === 1 ? '' : 's'}.`, 3200);
+        }
+
+        if (attachmentBundle.errorSamples.length > 0) {
+          appendDebugLogEntry('attachment_parse', {
+            totalFiles: attachmentQueue.length,
+            readableCount: attachmentBundle.readableCount,
+            skippedCount: attachmentBundle.skippedCount,
+            timeoutCount: attachmentBundle.timeoutCount,
+            samples: attachmentBundle.errorSamples
+          });
+        }
+
         if (attachmentBundle.gemmaBypassCount > 0) {
           showStatus(`Gemma multimodal mode: skipped DOCX text parsing for ${attachmentBundle.gemmaBypassCount} file${attachmentBundle.gemmaBypassCount === 1 ? '' : 's'}.`, 3400);
         }
@@ -8171,6 +8974,11 @@ async function send(options = {}) {
       let systemPrompt = MATH_FORMAT_SYSTEM_PROMPT;
     if (!webSearchEnabled) {
     systemPrompt += `\nWeb search is currently OFF. Do not make definitive claims about latest/current rankings, releases, or live data. If verification is needed, say so and ask the user to enable 🌐 Web search.`;
+    }
+    const activeTemplatePreset = getConversationTemplatePreset(session);
+    const templateSystemPrompt = getConversationTemplateSystemPrompt(activeTemplatePreset);
+    if (templateSystemPrompt) {
+    systemPrompt += `\n\nConversation template: ${CONVERSATION_TEMPLATE_PRESETS[activeTemplatePreset]?.label || 'Default'}\n${templateSystemPrompt}`;
     }
 	  const memoryContext = await buildMemoryContext();
   		if (memoryContext) {
@@ -8215,6 +9023,9 @@ try {
   answer = await streamBotFromSSE(payload, { signal: activeStreamAbortController.signal });
 } catch (streamError) {
   if (streamError?.isUserAbort) {
+    if (streamError?.streamMetrics) {
+      logStreamResilienceMetric('stream_user_abort', streamError.streamMetrics);
+    }
     isGenerating = false;
     setStopButtonVisible(false);
     setPauseButtonVisible(false);
@@ -8225,6 +9036,10 @@ try {
   }
 
   removePendingStreamBubble();
+  logStreamResilienceMetric('stream_to_json_fallback', {
+    reason: String(streamError?.message || streamError || 'unknown'),
+    ...(streamError?.streamMetrics || {})
+  });
   showStatus('Stream interrupted. Switching to standard response...');
   answer = await fetchBotAnswerViaJson(payload);
   render("bot", answer);
@@ -8958,6 +9773,11 @@ function initEventListeners() {
       showChatSearchBar();
       return;
     }
+    if ((e.ctrlKey || e.metaKey) && key === "k") {
+      e.preventDefault();
+      openCommandPalette();
+      return;
+    }
     if (key === "escape" && chatSearchBar) {
       e.preventDefault();
       hideChatSearchBar();
@@ -9198,10 +10018,21 @@ const MEMORY_CLEANUP_TOKEN_STOPWORDS = new Set([
   'like', 'want', 'need', 'use', 'used', 'using', 'are', 'was', 'were'
 ]);
 
+function normalizeMemoryCleanupToken(token) {
+  const base = String(token || '').trim();
+  if (!base) return '';
+  // Lightweight stemming keeps close variants clustered without full NLP overhead.
+  if (base.length > 5 && base.endsWith('ing')) return base.slice(0, -3);
+  if (base.length > 4 && base.endsWith('ed')) return base.slice(0, -2);
+  if (base.length > 4 && base.endsWith('es')) return base.slice(0, -2);
+  if (base.length > 3 && base.endsWith('s')) return base.slice(0, -1);
+  return base;
+}
+
 function buildMemoryCleanupTokenSet(normalizedText) {
   return new Set(String(normalizedText || '')
     .split(' ')
-    .map((token) => token.trim())
+    .map((token) => normalizeMemoryCleanupToken(token))
     .filter((token) => token.length >= 3 && !MEMORY_CLEANUP_TOKEN_STOPWORDS.has(token)));
 }
 
@@ -9253,6 +10084,15 @@ function buildMemoryCleanupCandidates(memories) {
 
   const chooseKeeper = (bucket) => {
     return [...bucket].sort((a, b) => {
+      const aSource = String(a.memory?.source || '').toLowerCase();
+      const bSource = String(b.memory?.source || '').toLowerCase();
+      const sourceRank = (source) => {
+        if (source === 'manual') return 3;
+        if (source === 'profile') return 2;
+        return 1;
+      };
+      const sourceDiff = sourceRank(bSource) - sourceRank(aSource);
+      if (sourceDiff) return sourceDiff;
       const tsDiff = Number(b.memory?.timestamp || 0) - Number(a.memory?.timestamp || 0);
       if (tsDiff) return tsDiff;
       return String(b.normalized || '').length - String(a.normalized || '').length;
@@ -9278,7 +10118,8 @@ function buildMemoryCleanupCandidates(memories) {
     }
 
     if (!isUsefulMemoryFact(raw, mem.category || 'general')) {
-      mark(mem, 'Low-value or generic fact', 'low_value', false);
+      const source = String(mem?.source || '').toLowerCase();
+      mark(mem, 'Low-value or generic fact', 'low_value', source === 'auto');
     }
 
     if (normalized.length < 12 || normalized.split(' ').length < 3) {
@@ -9330,7 +10171,9 @@ function buildMemoryCleanupCandidates(memories) {
       if (left.normalized === right.normalized) continue;
 
       const similarity = scoreMemorySimilarityForCleanup(left.tokens, right.tokens, left.normalized, right.normalized);
-      if (similarity >= 0.84) {
+      const oneContainsOther = left.normalized.includes(right.normalized) || right.normalized.includes(left.normalized);
+      const strictThreshold = (left.tokens.size <= 3 || right.tokens.size <= 3) ? 0.9 : 0.84;
+      if ((oneContainsOther && similarity >= 0.72) || similarity >= strictThreshold) {
         union(i, j);
       }
     }
@@ -9408,11 +10251,25 @@ function showMemoryCleanupReviewModal(candidates, totalCount) {
     tools.className = 'memory-cleanup-tools';
     bodyEl.appendChild(tools);
 
+    const filterInput = document.createElement('input');
+    filterInput.type = 'text';
+    filterInput.className = 'memory-cleanup-filter';
+    filterInput.placeholder = 'Filter memory candidates...';
+    filterInput.setAttribute('aria-label', 'Filter memory cleanup candidates');
+    bodyEl.appendChild(filterInput);
+
     const list = document.createElement('div');
     list.className = 'memory-cleanup-list';
     bodyEl.appendChild(list);
 
+    const emptyFilterState = document.createElement('div');
+    emptyFilterState.className = 'memory-cleanup-empty-filter';
+    emptyFilterState.textContent = 'No cleanup candidates match this filter.';
+    emptyFilterState.style.display = 'none';
+    bodyEl.appendChild(emptyFilterState);
+
     const checkboxRefs = [];
+    const itemRefs = [];
     const buttonCleanupFns = [];
     const updateSelectedState = () => {
       const selectedCount = checkboxRefs.filter((check) => check.checked).length;
@@ -9437,6 +10294,10 @@ function showMemoryCleanupReviewModal(candidates, totalCount) {
         }
         if (mode === 'duplicates') {
           check.checked = tags.includes('duplicate_exact') || tags.includes('duplicate_near');
+          return;
+        }
+        if (mode === 'low_value') {
+          check.checked = tags.includes('low_value') || tags.includes('too_short') || tags.includes('empty');
         }
       });
       updateSelectedState();
@@ -9455,6 +10316,7 @@ function showMemoryCleanupReviewModal(candidates, totalCount) {
 
     addToolButton('Select suggested', 'suggested');
     addToolButton('Select duplicates', 'duplicates');
+    addToolButton('Select low-value', 'low_value');
     addToolButton('Select all', 'all');
     addToolButton('Clear selection', 'none');
 
@@ -9474,6 +10336,8 @@ function showMemoryCleanupReviewModal(candidates, totalCount) {
       const contentWrap = document.createElement('div');
       contentWrap.className = 'memory-cleanup-content';
       contentWrap.textContent = String(candidate.memory?.content || '');
+      const searchText = normalizeMemoryTextForCleanup(`${candidate.memory?.content || ''} ${candidate.reason || ''}`);
+      item.dataset.searchText = searchText;
 
       const reason = document.createElement('span');
       reason.className = 'memory-cleanup-reason';
@@ -9493,7 +10357,22 @@ function showMemoryCleanupReviewModal(candidates, totalCount) {
       item.appendChild(check);
       item.appendChild(contentWrap);
       list.appendChild(item);
+      itemRefs.push(item);
     });
+
+    const applyFilter = () => {
+      const query = normalizeMemoryTextForCleanup(filterInput.value || '');
+      let visibleCount = 0;
+      itemRefs.forEach((item) => {
+        const hay = String(item.dataset.searchText || '');
+        const visible = !query || hay.includes(query);
+        item.style.display = visible ? '' : 'none';
+        if (visible) visibleCount += 1;
+      });
+      emptyFilterState.style.display = visibleCount === 0 ? 'block' : 'none';
+    };
+    filterInput.addEventListener('input', applyFilter);
+    applyFilter();
 
     updateSelectedState();
 
@@ -9529,6 +10408,7 @@ function showMemoryCleanupReviewModal(candidates, totalCount) {
         onCancel();
       }
       if (event.key === 'Enter') {
+        if (document.activeElement === filterInput) return;
         event.preventDefault();
         onOk();
       }
@@ -9835,6 +10715,17 @@ function initTextModelDropdown() {
   });
 }
 
+function initConversationTemplateDropdown() {
+  const sel = document.getElementById('conversationTemplateSelect');
+  if (!sel) return;
+
+  updateConversationTemplateSelectUi();
+
+  sel.addEventListener('change', async (e) => {
+    await applyConversationTemplatePreset(e.target.value, { silent: true });
+  });
+}
+
 let customSelectDropdownEventsBound = false;
 
 function closeAllCustomSelectDropdowns() {
@@ -9972,6 +10863,7 @@ function enhanceCustomSelectDropdown(selectId) {
 function initCustomSelectDropdowns() {
   enhanceCustomSelectDropdown('imageModel');
   enhanceCustomSelectDropdown('textModelSelect');
+  enhanceCustomSelectDropdown('conversationTemplateSelect');
 
   if (!customSelectDropdownEventsBound) {
     document.addEventListener('click', (e) => {

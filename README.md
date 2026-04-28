@@ -147,7 +147,7 @@ Core strengths:
 - `/img <prompt>` — generates images using your selected model:
   - Imagen 4 Ultra / Fast
   - Nano Banana (Gemini Image)
-  - FLUX.2 Max
+  - GPT Image 2
   - GPT Image 1.5
 - `/vid <prompt>` — generates short looping videos via ByteDance Seedance
 - **Dual persistence** — generated media is saved locally (IndexedDB Blobs) and synced to Firebase Storage when signed in
@@ -359,7 +359,7 @@ If KV is not set, leaderboard falls back to in-memory storage in the running fun
 | Backend | Vercel Functions (Node serverless + SSE) |
 | AI Routing | OpenRouter |
 | Web Search | Firecrawl (via OpenRouter plugins) |
-| Image Gen | Imagen 4, FLUX.2, GPT Image, Gemini Image |
+| Image Gen | Imagen 4, GPT Image 2, GPT Image 1.5, Gemini Image |
 | Video Gen | ByteDance Seedance 1.0 |
 
 ---
@@ -406,10 +406,14 @@ Active roadmap is tracked in `docs/ROADMAP.md`.
 
 Current priorities:
 
-- [ ] Memory quality pass v2 (less noise, better grouping, stronger cleanup)
+- [x] Conversation templates (coding/debug/research presets)
+- [x] Memory quality pass v2 (less noise, better grouping, stronger cleanup)
 - [ ] `/tldr` enhancements (preset windows and richer topic grouping)
-- [ ] Attachment parsing reliability hardening
-- [ ] Streaming reliability metrics and regression checks
+- [x] Attachment parsing reliability hardening
+- [x] Streaming resilience metrics in debug logs
+- [x] Better export quality (stable PDF layout + richer DOCX formatting)
+- [x] Fast global command palette (`Ctrl+K`)
+- [x] Optional chat-level model lock
 
 Completed milestones:
 

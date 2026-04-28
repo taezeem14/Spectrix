@@ -2,16 +2,16 @@
 
 ## Now (0-2 weeks)
 
-- [ ] Memory quality pass v2 (stronger duplicate clustering + better cleanup UX)
-- [ ] Attachment parser reliability (PDF edge cases + OCR timeout handling)
-- [ ] Streaming resilience metrics in debug logs
+- [x] Memory quality pass v2 (stronger duplicate clustering + better cleanup UX)
+- [x] Attachment parser reliability (PDF edge cases + OCR timeout handling)
+- [x] Streaming resilience metrics in debug logs
 
 ## Next (2-6 weeks)
 
-- [ ] Conversation templates (coding/debug/research presets)
-- [ ] Better export quality (stable PDF layout + richer DOCX formatting)
-- [ ] Fast global command palette (`Ctrl+K`)
-- [ ] Optional chat-level model lock
+- [x] Conversation templates (coding/debug/research presets)
+- [x] Better export quality (stable PDF layout + richer DOCX formatting)
+- [x] Fast global command palette (`Ctrl+K`)
+- [x] Optional chat-level model lock
 
 ## Later (6+ weeks)
 
