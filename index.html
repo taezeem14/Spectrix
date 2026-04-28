@@ -2874,6 +2874,7 @@ body.dark .voice-btn.recording {
   left: 50%;
   transform: translateX(-50%) scale(0.98);
   width: min(92vw, 620px);
+  max-height: 75vh;
   background: linear-gradient(180deg, var(--panel), var(--chat));
   border: 1px solid var(--border);
   border-radius: 18px;
@@ -2892,9 +2893,9 @@ body.dark .voice-btn.recording {
 }
 
 .command-palette-header {
+  flex-shrink: 0;
   padding: 14px 16px;
   font-size: 13px;
-  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
@@ -2902,48 +2903,41 @@ body.dark .voice-btn.recording {
 }
 
 .command-palette-input {
+  flex-shrink: 0;
   width: 100%;
   border: none;
   outline: none;
-  padding: 16px 18px;
+  padding: 14px 16px;
   background: transparent;
   color: var(--text);
   font-size: 16px;
-  font-weight: 600;
   font-family: inherit;
 }
 
 .command-palette-list {
-  max-height: 52vh;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   border-top: 1px solid var(--border);
-  padding: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
 }
 
 .command-palette-item {
   width: 100%;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  align-items: flex-start;
   gap: 12px;
   text-align: left;
-  border: 1px solid transparent;
-  border-radius: 12px;
+  border: 0;
   background: transparent;
   color: var(--text);
-  padding: 12px 14px;
+  padding: 12px 16px;
   cursor: pointer;
   font-family: inherit;
-  transition: all 0.15s;
 }
 
 .command-palette-item:hover,
 .command-palette-item.active {
-  background: var(--accent-glow);
-  border-color: rgba(124, 58, 237, 0.3);
+  background: rgba(124, 58, 237, 0.12);
 }
 
 .command-palette-item-title {
@@ -2952,7 +2946,7 @@ body.dark .voice-btn.recording {
 }
 
 .command-palette-item-desc {
-  margin-top: 4px;
+  margin-top: 2px;
   font-size: 12px;
   color: var(--muted);
   line-height: 1.4;
@@ -2960,30 +2954,20 @@ body.dark .voice-btn.recording {
 
 .command-palette-item-kbd {
   margin-left: auto;
-  font-size: 10px;
-  font-weight: 600;
+  font-size: 11px;
   color: var(--muted);
   border: 1px solid var(--border);
-  background: var(--panel);
-  border-radius: 6px;
-  padding: 4px 8px;
+  border-radius: 999px;
+  padding: 2px 8px;
   flex-shrink: 0;
-  letter-spacing: 0.5px;
-}
-
-.command-palette-item.active .command-palette-item-kbd {
-  color: var(--user);
-  border-color: var(--user);
 }
 
 .command-palette-hint {
-  padding: 10px 16px 10px;
+  flex-shrink: 0;
+  padding: 10px 16px 14px;
   border-top: 1px solid var(--border);
   font-size: 11px;
-  font-weight: 600;
   color: var(--muted);
-  text-align: center;
-  background: rgba(0, 0, 0, 0.1);
 }
 
 .app-modal-btn:hover {
