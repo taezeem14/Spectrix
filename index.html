@@ -5797,7 +5797,7 @@ async function retryMessageAt(targetBotIndex = null) {
   }
 
   const payload = {
-    model: resolveTextModelForRequest(FIXED_TEXT_MODEL, webSearchEnabled),
+    model: resolveTextModelForRequest(getChatModelForSession(session), webSearchEnabled),
     messages: [{ role: "system", content: systemPrompt }, ...contextMessages]
   };
 
@@ -8930,7 +8930,7 @@ async function send(options = {}) {
     }
     else {
       activeMediaGenerationToken = 0;
-      const model = FIXED_TEXT_MODEL;
+      const model = getChatModelForSession(session);
 
       if (attachmentQueue.length) {
         showStatus(`Processing ${attachmentQueue.length} attached file${attachmentQueue.length > 1 ? 's' : ''}...`, 2200);
