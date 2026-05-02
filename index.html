@@ -4240,35 +4240,18 @@ async function extractTextFromPdfAttachment(file) {
     let failedPages = 0;
 
     for (let pageIndex = 1; pageIndex <= pageCount; pageIndex += 1) {
-      let pageText = '';
       try {
         const page = await withOperationTimeout(
           pdf.getPage(pageIndex),
           MAX_ATTACHMENT_PDF_PAGE_TIMEOUT_MS,
           `PDF page ${pageIndex} timed out`
         );
-        try {
-          const textContent = await withOperationTimeout(
-            page.getTextContent(),
-            MAX_ATTACHMENT_PDF_PAGE_TIMEOUT_MS,
-            `PDF text extraction timed out on page ${pageIndex}`
-          );
-          pageText = sanitizeAttachmentText(textContent.items.map((item) => String(item.str || '')).join(' '));
-        } catch {
-          pageText = '';
-        }
-
-        if (!pageText) {
-          const ocrSource = await withOperationTimeout(
-            buildPdfPageOcrSource(page),
-            MAX_ATTACHMENT_PDF_LOAD_TIMEOUT_MS,
-            `PDF rendering timed out on page ${pageIndex}`
-          );
-          if (ocrSource) {
-            pageText = await extractTextFromOcrSource(ocrSource, `${file.name} page ${pageIndex}`);
-          }
-        }
-
+        const textContent = await withOperationTimeout(
+          page.getTextContent(),
+          MAX_ATTACHMENT_PDF_PAGE_TIMEOUT_MS,
+          `PDF text extraction timed out on page ${pageIndex}`
+        );
+        const pageText = sanitizeAttachmentText(textContent.items.map((item) => String(item.str || '')).join(' '));
         if (!pageText) continue;
 
         output += `[Page ${pageIndex}] ${pageText}\n`;
@@ -4320,14 +4303,16 @@ async function extractTextFromImageAttachment(file) {
   return extractTextFromOcrSource(source, file.name);
 }
 
-async function extractTextFromAttachment(file) {
+async function extractTextFromAttachment(file, options = {}) {
+  const { gemmaSelected = false } = options;
+
   if (isPdfAttachment(file)) {
     showStatus(`Reading PDF: ${file.name}`);
     return extractTextFromPdfAttachment(file);
   }
 
-  // Keep DOCX extraction disabled for Gemma multimodal mode.
-  if (isGemmaMultimodalSelected() && isDocxAttachment(file)) {
+  // Keep OCR-backed parsing disabled for Gemma multimodal mode.
+  if (gemmaSelected && (isDocxAttachment(file) || isImageAttachment(file))) {
     return '';
   }
 
@@ -4386,16 +4371,19 @@ async function buildAttachmentContextBundle(attachments) {
       continue;
     }
 
-    if (gemmaSelected && isDocxAttachment(file)) {
+    if (gemmaSelected && (isDocxAttachment(file) || isImageAttachment(file))) {
       bundle.gemmaBypassCount += 1;
-      bundle.skippedCount += 1;
       continue;
     }
 
     try {
-      let text = await extractTextFromAttachment(file);
+      let text = await extractTextFromAttachment(file, { gemmaSelected });
       text = sanitizeAttachmentText(text);
       if (!text) {
+        if (gemmaSelected && isPdfAttachment(file)) {
+          bundle.gemmaBypassCount += 1;
+          continue;
+        }
         bundle.skippedCount += 1;
         continue;
       }
@@ -4417,7 +4405,11 @@ async function buildAttachmentContextBundle(attachments) {
         text
       });
     } catch (error) {
-      bundle.skippedCount += 1;
+      if (gemmaSelected && isPdfAttachment(file)) {
+        bundle.gemmaBypassCount += 1;
+      } else {
+        bundle.skippedCount += 1;
+      }
       const sample = summarizeAttachmentError(error, attachment?.name || file?.name || 'unknown-file');
       if (sample.timedOut) bundle.timeoutCount += 1;
       if (bundle.errorSamples.length < ATTACHMENT_ERROR_SUMMARY_LIMIT) {
@@ -9031,7 +9023,7 @@ async function send(options = {}) {
         }
 
         if (attachmentBundle.gemmaBypassCount > 0) {
-          showStatus(`Gemma multimodal mode: skipped DOCX text parsing for ${attachmentBundle.gemmaBypassCount} file${attachmentBundle.gemmaBypassCount === 1 ? '' : 's'}.`, 3400);
+          showStatus(`Gemma multimodal mode: bypassed OCR/text parsing for ${attachmentBundle.gemmaBypassCount} file${attachmentBundle.gemmaBypassCount === 1 ? '' : 's'}.`, 3400);
         }
 
         if (!attachmentContext && !prompt.trim()) {
@@ -9089,17 +9081,11 @@ if (webSearchEnabled) {
 loading.remove();
 if (activeGenerationLoadingNode === loading) activeGenerationLoadingNode = null;
 let answer;
-const useStreamingResponse = !String(payload?.model || '').toLowerCase().includes('gemma');
 try {
   activeStreamAbortController = new AbortController();
-  if (useStreamingResponse) {
-    streamPaused = false;
-    setPauseButtonVisible(true);
-    answer = await streamBotFromSSE(payload, { signal: activeStreamAbortController.signal });
-  } else {
-    answer = await fetchBotAnswerViaJson(payload, { signal: activeStreamAbortController.signal });
-    render("bot", answer);
-  }
+  streamPaused = false;
+  setPauseButtonVisible(true);
+  answer = await streamBotFromSSE(payload, { signal: activeStreamAbortController.signal });
 } catch (streamError) {
   if (streamError?.isUserAbort || streamError?.name === 'AbortError' || activeStreamAbortController?.signal?.aborted) {
     if (streamError?.streamMetrics) {
@@ -9115,18 +9101,14 @@ try {
     throw streamError;
   }
 
-  if (useStreamingResponse) {
-    removePendingStreamBubble();
-    logStreamResilienceMetric('stream_to_json_fallback', {
-      reason: String(streamError?.message || streamError || 'unknown'),
-      ...(streamError?.streamMetrics || {})
-    });
-    showStatus('Stream interrupted. Switching to standard response...');
-    answer = await fetchBotAnswerViaJson(payload, { signal: activeStreamAbortController.signal });
-    render("bot", answer);
-  } else {
-    throw streamError;
-  }
+  removePendingStreamBubble();
+  logStreamResilienceMetric('stream_to_json_fallback', {
+    reason: String(streamError?.message || streamError || 'unknown'),
+    ...(streamError?.streamMetrics || {})
+  });
+  showStatus('Stream interrupted. Switching to standard response...');
+  answer = await fetchBotAnswerViaJson(payload, { signal: activeStreamAbortController.signal });
+  render("bot", answer);
 }
 activeStreamAbortController = null;
 isGenerating = false;
