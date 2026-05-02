@@ -4136,7 +4136,7 @@ function appendAttachmentPreviewsToMessageNode(messageNode, attachments) {
   });
 
   if (!row.childNodes.length) return;
-  messageNode.appendChild(row);
+  messageNode.prepend(row);
 }
 
 async function ensurePdfRuntimeLoaded(options = {}) {
@@ -4335,6 +4335,71 @@ async function buildOcrImageSource(file) {
   }
 }
 
+async function buildEnhancedOcrImageSource(source) {
+  if (typeof createImageBitmap !== 'function') return source;
+
+  const bitmap = await createImageBitmap(source);
+  try {
+    const largestSide = Math.max(bitmap.width, bitmap.height);
+    const targetLargest = Math.min(2400, Math.max(MAX_ATTACHMENT_OCR_IMAGE_DIMENSION, Math.round(largestSide * 1.6)));
+    const scale = largestSide > 0 ? (targetLargest / largestSide) : 1;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+
+    const ctx = canvas.getContext('2d', { alpha: false, willReadFrequently: true });
+    if (!ctx) return source;
+
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+
+    for (let i = 0; i < data.length; i += 4) {
+      const luminance = Math.round((data[i] * 0.299) + (data[i + 1] * 0.587) + (data[i + 2] * 0.114));
+      const normalized = Math.min(255, Math.max(0, (luminance - 110) * 2.1));
+      const bw = normalized > 120 ? 255 : 0;
+      data[i] = bw;
+      data[i + 1] = bw;
+      data[i + 2] = bw;
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+
+    const blob = await new Promise((resolve) => {
+      canvas.toBlob(resolve, 'image/png', 0.94);
+    });
+
+    return blob || source;
+  } finally {
+    if (typeof bitmap.close === 'function') bitmap.close();
+  }
+}
+
+async function extractTextWithTextDetector(source) {
+  if (typeof TextDetector !== 'function' || typeof createImageBitmap !== 'function') {
+    return '';
+  }
+
+  const detector = new TextDetector();
+  const bitmap = await createImageBitmap(source);
+  try {
+    const blocks = await detector.detect(bitmap);
+    if (!Array.isArray(blocks) || blocks.length === 0) return '';
+
+    const text = blocks
+      .map((block) => String(block?.rawValue || block?.text || '').trim())
+      .filter(Boolean)
+      .join('\n');
+
+    return sanitizeAttachmentText(text);
+  } catch {
+    return '';
+  } finally {
+    if (typeof bitmap.close === 'function') bitmap.close();
+  }
+}
+
 async function buildPdfPageOcrSource(page) {
   if (!page?.getViewport) return null;
 
@@ -4471,13 +4536,35 @@ async function extractTextFromDocxAttachment(file) {
   return sanitizeAttachmentText(result?.value || '');
 }
 
-async function extractTextFromImageAttachment(file) {
+async function extractTextFromImageAttachment(file, options = {}) {
+  const { gemmaSelected = false } = options;
+  const primaryTimeoutMs = gemmaSelected ? Math.round(MAX_ATTACHMENT_OCR_TIMEOUT_MS * 1.8) : MAX_ATTACHMENT_OCR_TIMEOUT_MS;
+
   const source = await withOperationTimeout(
     buildOcrImageSource(file),
     5000,
     `OCR preprocessing timed out for ${file.name}`
   );
-  return extractTextFromOcrSource(source, file.name);
+
+  let text = await extractTextFromOcrSource(source, file.name, { timeoutMs: primaryTimeoutMs });
+  if (text) return text;
+
+  text = await extractTextWithTextDetector(source);
+  if (text) return text;
+
+  const enhancedSource = await withOperationTimeout(
+    buildEnhancedOcrImageSource(source),
+    7000,
+    `OCR enhancement timed out for ${file.name}`
+  );
+
+  text = await extractTextFromOcrSource(enhancedSource, `${file.name} (enhanced)`, {
+    timeoutMs: Math.round(primaryTimeoutMs * 1.2)
+  });
+  if (text) return text;
+
+  text = await extractTextWithTextDetector(enhancedSource);
+  return sanitizeAttachmentText(text || '');
 }
 
 async function extractTextFromAttachment(file, options = {}) {
@@ -4488,8 +4575,8 @@ async function extractTextFromAttachment(file, options = {}) {
     return extractTextFromPdfAttachment(file, { allowOcrFallback: gemmaSelected });
   }
 
-  // Keep OCR-backed parsing disabled for Gemma multimodal mode.
-  if (gemmaSelected && (isDocxAttachment(file) || isImageAttachment(file))) {
+  // Keep DOCX parsing disabled for Gemma multimodal mode.
+  if (gemmaSelected && isDocxAttachment(file)) {
     return '';
   }
 
@@ -4499,7 +4586,7 @@ async function extractTextFromAttachment(file, options = {}) {
   }
   if (isImageAttachment(file)) {
     showStatus(`Running OCR: ${file.name}`);
-    return extractTextFromImageAttachment(file);
+    return extractTextFromImageAttachment(file, { gemmaSelected });
   }
   if (isTextAttachment(file)) {
     const rawText = await file.text();
@@ -9008,10 +9095,6 @@ async function send(options = {}) {
   const isVideo = prompt.startsWith("/vid ");
 
   if (isImage || isVideo) prompt = prompt.slice(5);
-
-  if (attachmentSummary) {
-    promptForRender = `${promptForRender}\n\n[${attachmentSummary}]`;
-  }
 
   if (!skipUserRender) {
     const userNode = render("user", promptForRender);

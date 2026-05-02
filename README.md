@@ -139,7 +139,7 @@ Core strengths:
 ### 📎 Multi-file Context
 - **Multi-file attachments** in chat input (up to 8 files)
 - **Text extraction** from plain/code files, PDF, and DOCX
-- **Image OCR extraction** via Tesseract.js (client-side, lazy-loaded)
+- **Image OCR extraction** via Tesseract.js with fallback passes (TextDetector + enhanced high-contrast retry)
 - **Gemma attachment behavior** — image files and scanned PDFs use external OCR fallback; DOCX extraction (Mammoth.js) stays bypassed for Gemma mode
 - **Clipboard image attachments** — paste copied images directly into the composer; they appear as attachment preview chips and in the sent user bubble
 - **Safe truncation caps** for per-file and total extracted context
