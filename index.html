@@ -1686,6 +1686,23 @@ body.dark .voice-btn.recording {
   color: var(--text);
   font-size: 11px;
   line-height: 1.2;
+  position: relative;
+}
+
+.attachment-chip-preview {
+  max-width: min(100%, 280px);
+  border-radius: 12px;
+  padding: 6px 8px;
+  gap: 8px;
+}
+
+.attachment-chip-preview-image {
+  width: 42px;
+  height: 42px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.18);
 }
 
 .attachment-chip-name {
@@ -1703,6 +1720,19 @@ body.dark .voice-btn.recording {
   padding: 0;
   font-size: 12px;
   line-height: 1;
+}
+
+.attachment-chip-preview .attachment-chip-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.8);
+  color: #fff;
+  font-size: 11px;
+  padding: 0;
 }
 
 .attachment-chip-remove:hover,
@@ -3885,8 +3915,85 @@ function sanitizeAttachmentText(text) {
     .trim();
 }
 
+function revokeAttachmentPreviewUrl(item) {
+  if (!item?.previewUrl) return;
+  try {
+    URL.revokeObjectURL(item.previewUrl);
+  } catch {
+    // Ignore blob URL cleanup failures.
+  }
+}
+
+function normalizeAttachmentFile(file, sourceLabel = 'attachment') {
+  if (!(file instanceof File)) return null;
+  const existingName = String(file.name || '').trim();
+  if (existingName) return file;
+
+  const mime = String(file.type || '').toLowerCase();
+  const inferredExt = mime.startsWith('image/')
+    ? mime.slice('image/'.length).replace(/[^a-z0-9]/gi, '').toLowerCase()
+    : 'bin';
+  const ext = inferredExt || 'bin';
+  const safeLabel = String(sourceLabel || 'attachment').replace(/[^a-z0-9_-]/gi, '').toLowerCase() || 'attachment';
+  const generatedName = `${safeLabel}-${Date.now()}-${Math.floor(Math.random() * 1000)}.${ext}`;
+
+  return new File([file], generatedName, {
+    type: file.type || 'application/octet-stream',
+    lastModified: Date.now()
+  });
+}
+
+function getAttachmentPreviewUrl(file) {
+  if (!isImageAttachment(file)) return '';
+  try {
+    return URL.createObjectURL(file);
+  } catch {
+    return '';
+  }
+}
+
+function appendFilesToPendingAttachments(files, options = {}) {
+  const { sourceLabel = 'attachment' } = options;
+  const fileList = Array.from(files || []);
+  if (!fileList.length) return { added: 0, skippedForLimit: 0 };
+
+  const seen = new Set(pendingAttachments.map((item) => item.key));
+  let added = 0;
+  let skippedForLimit = 0;
+
+  for (const incoming of fileList) {
+    const normalizedFile = normalizeAttachmentFile(incoming, sourceLabel);
+    if (!normalizedFile) continue;
+
+    if (pendingAttachments.length >= MAX_ATTACHMENT_FILES) {
+      skippedForLimit += 1;
+      continue;
+    }
+
+    const key = getAttachmentKey(normalizedFile);
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    attachmentCounter += 1;
+    pendingAttachments.push({
+      id: `att_${Date.now()}_${attachmentCounter}`,
+      key,
+      file: normalizedFile,
+      name: normalizedFile.name,
+      size: normalizedFile.size,
+      type: normalizedFile.type || '',
+      previewUrl: getAttachmentPreviewUrl(normalizedFile)
+    });
+    added += 1;
+  }
+
+  renderAttachmentTray();
+  return { added, skippedForLimit };
+}
+
 function clearPendingAttachments(options = {}) {
   const { silent = false } = options;
+  pendingAttachments.forEach((item) => revokeAttachmentPreviewUrl(item));
   pendingAttachments = [];
   if (attachmentInput) attachmentInput.value = '';
   renderAttachmentTray();
@@ -3894,9 +4001,10 @@ function clearPendingAttachments(options = {}) {
 }
 
 function removePendingAttachment(attachmentId) {
-  const before = pendingAttachments.length;
+  const match = pendingAttachments.find((item) => item.id === attachmentId);
+  if (!match) return;
+  revokeAttachmentPreviewUrl(match);
   pendingAttachments = pendingAttachments.filter((item) => item.id !== attachmentId);
-  if (pendingAttachments.length === before) return;
   renderAttachmentTray();
 }
 
@@ -3914,6 +4022,15 @@ function renderAttachmentTray() {
   pendingAttachments.forEach((item) => {
     const chip = document.createElement('div');
     chip.className = 'attachment-chip';
+    if (item.previewUrl) {
+      chip.classList.add('attachment-chip-preview');
+      const preview = document.createElement('img');
+      preview.className = 'attachment-chip-preview-image';
+      preview.src = item.previewUrl;
+      preview.alt = item.name;
+      preview.loading = 'lazy';
+      chip.appendChild(preview);
+    }
 
     const nameEl = document.createElement('span');
     nameEl.className = 'attachment-chip-name';
@@ -3946,37 +4063,37 @@ function handleAttachmentInput(event) {
   const fileList = Array.from(event?.target?.files || []);
   if (!fileList.length) return;
 
-  const seen = new Set(pendingAttachments.map((item) => item.key));
-  let added = 0;
-  let skippedForLimit = 0;
-
-  for (const file of fileList) {
-    if (pendingAttachments.length >= MAX_ATTACHMENT_FILES) {
-      skippedForLimit += 1;
-      continue;
-    }
-
-    const key = getAttachmentKey(file);
-    if (seen.has(key)) continue;
-    seen.add(key);
-
-    attachmentCounter += 1;
-    pendingAttachments.push({
-      id: `att_${Date.now()}_${attachmentCounter}`,
-      key,
-      file,
-      name: file.name,
-      size: file.size,
-      type: file.type || ''
-    });
-    added += 1;
-  }
+  const { added, skippedForLimit } = appendFilesToPendingAttachments(fileList, { sourceLabel: 'file' });
 
   if (attachmentInput) attachmentInput.value = '';
-  renderAttachmentTray();
 
   if (added > 0) {
     showStatus(`Attached ${added} file${added > 1 ? 's' : ''}.`, 1700);
+  }
+  if (skippedForLimit > 0) {
+    showStatus(`Attachment limit is ${MAX_ATTACHMENT_FILES} files.`, 2600);
+  }
+}
+
+function handleComposerPaste(event) {
+  const clipboardItems = Array.from(event?.clipboardData?.items || []);
+  if (!clipboardItems.length) return;
+
+  const pastedFiles = [];
+  for (const item of clipboardItems) {
+    if (item.kind !== 'file') continue;
+    const file = item.getAsFile();
+    if (!file) continue;
+    pastedFiles.push(file);
+  }
+
+  if (!pastedFiles.length) return;
+
+  event.preventDefault();
+  const { added, skippedForLimit } = appendFilesToPendingAttachments(pastedFiles, { sourceLabel: 'clipboard' });
+
+  if (added > 0) {
+    showStatus(`Pasted ${added} image${added === 1 ? '' : 's'} as attachment${added === 1 ? '' : 's'}.`, 1900);
   }
   if (skippedForLimit > 0) {
     showStatus(`Attachment limit is ${MAX_ATTACHMENT_FILES} files.`, 2600);
@@ -4205,7 +4322,8 @@ async function buildPdfPageOcrSource(page) {
   return blob || canvas;
 }
 
-async function extractTextFromOcrSource(source, label) {
+async function extractTextFromOcrSource(source, label, options = {}) {
+  const { timeoutMs = MAX_ATTACHMENT_OCR_TIMEOUT_MS } = options;
   const ready = await ensureOcrRuntimeLoaded();
   if (!ready || !window.Tesseract?.recognize) {
     throw new Error('OCR parser unavailable');
@@ -4213,7 +4331,7 @@ async function extractTextFromOcrSource(source, label) {
 
   const result = await withOperationTimeout(
     window.Tesseract.recognize(source, 'eng', { logger: () => {} }),
-    MAX_ATTACHMENT_OCR_TIMEOUT_MS,
+    timeoutMs,
     `OCR timed out for ${label}`
   );
   return sanitizeAttachmentText(result?.data?.text || '');
@@ -4266,7 +4384,9 @@ async function extractTextFromPdfAttachment(file, options = {}) {
             `PDF rendering timed out on page ${pageIndex}`
           );
           if (ocrSource) {
-            pageText = await extractTextFromOcrSource(ocrSource, `${file.name} page ${pageIndex}`);
+            pageText = await extractTextFromOcrSource(ocrSource, `${file.name} page ${pageIndex}`, {
+              timeoutMs: MAX_ATTACHMENT_OCR_TIMEOUT_MS * 2
+            });
           }
         }
 
@@ -4358,7 +4478,7 @@ function formatAttachmentSummary(items) {
   return `Attached ${names.length} files: ${names.slice(0, 2).join(', ')} +${names.length - 2} more`;
 }
 
-async function buildAttachmentContextBundle(attachments) {
+async function buildAttachmentContextBundle(attachments, options = {}) {
   const bundle = {
     context: '',
     summary: '',
@@ -4375,7 +4495,9 @@ async function buildAttachmentContextBundle(attachments) {
 
   const readable = [];
   let totalChars = 0;
-  const gemmaSelected = isGemmaMultimodalSelected();
+  const gemmaSelected = typeof options.gemmaSelected === 'boolean'
+    ? options.gemmaSelected
+    : isGemmaMultimodalSelected();
 
   for (const attachment of attachments) {
     const file = attachment?.file;
@@ -8420,7 +8542,13 @@ async function streamBotFromSSE(payload, options = {}) {
     streamResumeRenderCallback = null;
   };
   const isGemmaStream = String(payload?.model || '').toLowerCase().includes('gemma');
-  const STREAM_IDLE_TIMEOUT_MS = isGemmaStream ? 45000 : 20000;
+  const hasAttachmentContext = Boolean(payload?.hasAttachmentContext) ||
+    (Array.isArray(payload?.messages) && payload.messages.some((msg) =>
+      typeof msg?.content === 'string' && msg.content.includes('Attached file context from the user')
+    ));
+  const STREAM_IDLE_TIMEOUT_MS = hasAttachmentContext
+    ? (isGemmaStream ? 120000 : 90000)
+    : (isGemmaStream ? 45000 : 20000);
   streamMetrics.idleTimeoutMs = STREAM_IDLE_TIMEOUT_MS;
 
   const readChunkWithTimeout = async () => {
@@ -9006,10 +9134,13 @@ async function send(options = {}) {
     else {
       activeMediaGenerationToken = 0;
       const model = getChatModelForSession(session);
+      const gemmaSelectedForAttachments = isGemmaMultimodalSelected(model);
 
       if (attachmentQueue.length) {
         showStatus(`Processing ${attachmentQueue.length} attached file${attachmentQueue.length > 1 ? 's' : ''}...`, 2200);
-        const attachmentBundle = await buildAttachmentContextBundle(attachmentQueue);
+        const attachmentBundle = await buildAttachmentContextBundle(attachmentQueue, {
+          gemmaSelected: gemmaSelectedForAttachments
+        });
         attachmentContext = attachmentBundle.context;
         if (attachmentBundle.summary) attachmentSummary = attachmentBundle.summary;
         clearPendingAttachments({ silent: true });
@@ -9075,7 +9206,8 @@ async function send(options = {}) {
 // 🧠 DYNAMIC SEARCH PAYLOAD
 const payload = {
   model: resolveTextModelForRequest(model, webSearchEnabled),
-  messages: messages
+  messages: messages,
+  hasAttachmentContext: Boolean(attachmentContext)
 };
 
 if (webSearchEnabled) {
@@ -9779,6 +9911,8 @@ function initEventListeners() {
       // shift+Enter => newline, do nothing
     }
   });
+
+  input.addEventListener("paste", handleComposerPaste);
 
   let searchTimeout = null;
   let lastSearchValue = '';
