@@ -238,9 +238,9 @@ User Browser
     │     ├── Web Speech API         → Voice input + TTS output
     │     ├── KaTeX + MathJax        → Dual-engine math rendering
     │     ├── Firebase Auth          → Google Sign-In
-    │     ├── Firebase Firestore     → Cloud chat + memory backup + real-time sync
-    │     ├── Firebase Storage       → Cloud image/video blob storage
-    │     ├── Image/Video model endpoints → Puter.js
+            │     ├── Firebase Firestore     → Cloud chat + memory backup + real-time sync
+            │     ├── Firebase Storage       → Cloud image/video blob storage
+            │     ├── Image/Video model endpoints → Puter.js
     │
     └── Vercel Functions (`/api/*` + rewrites)
           ├── `/chat`           → OpenRouter JSON completion

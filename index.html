@@ -4179,6 +4179,46 @@ async function buildOcrImageSource(file) {
   }
 }
 
+async function buildPdfPageOcrSource(page) {
+  if (!page?.getViewport) return null;
+
+  const baseViewport = page.getViewport({ scale: 1 });
+  const largestSide = Math.max(baseViewport.width || 0, baseViewport.height || 0);
+  const scale = largestSide > 0
+    ? Math.min(2, MAX_ATTACHMENT_OCR_IMAGE_DIMENSION / largestSide)
+    : 1;
+  const viewport = page.getViewport({ scale: Math.max(scale, 0.25) });
+
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(viewport.width));
+  canvas.height = Math.max(1, Math.round(viewport.height));
+
+  const ctx = canvas.getContext('2d', { alpha: false });
+  if (!ctx) return null;
+
+  await page.render({ canvasContext: ctx, viewport }).promise;
+
+  const blob = await new Promise((resolve) => {
+    canvas.toBlob(resolve, 'image/png', 0.92);
+  });
+
+  return blob || canvas;
+}
+
+async function extractTextFromOcrSource(source, label) {
+  const ready = await ensureOcrRuntimeLoaded();
+  if (!ready || !window.Tesseract?.recognize) {
+    throw new Error('OCR parser unavailable');
+  }
+
+  const result = await withOperationTimeout(
+    window.Tesseract.recognize(source, 'eng', { logger: () => {} }),
+    MAX_ATTACHMENT_OCR_TIMEOUT_MS,
+    `OCR timed out for ${label}`
+  );
+  return sanitizeAttachmentText(result?.data?.text || '');
+}
+
 async function extractTextFromPdfAttachment(file) {
   const ready = await ensurePdfRuntimeLoaded();
   if (!ready || !window.pdfjsLib?.getDocument) {
@@ -4200,19 +4240,37 @@ async function extractTextFromPdfAttachment(file) {
     let failedPages = 0;
 
     for (let pageIndex = 1; pageIndex <= pageCount; pageIndex += 1) {
+      let pageText = '';
       try {
         const page = await withOperationTimeout(
           pdf.getPage(pageIndex),
           MAX_ATTACHMENT_PDF_PAGE_TIMEOUT_MS,
           `PDF page ${pageIndex} timed out`
         );
-        const textContent = await withOperationTimeout(
-          page.getTextContent(),
-          MAX_ATTACHMENT_PDF_PAGE_TIMEOUT_MS,
-          `PDF text extraction timed out on page ${pageIndex}`
-        );
-        const pageText = sanitizeAttachmentText(textContent.items.map((item) => String(item.str || '')).join(' '));
+        try {
+          const textContent = await withOperationTimeout(
+            page.getTextContent(),
+            MAX_ATTACHMENT_PDF_PAGE_TIMEOUT_MS,
+            `PDF text extraction timed out on page ${pageIndex}`
+          );
+          pageText = sanitizeAttachmentText(textContent.items.map((item) => String(item.str || '')).join(' '));
+        } catch {
+          pageText = '';
+        }
+
+        if (!pageText) {
+          const ocrSource = await withOperationTimeout(
+            buildPdfPageOcrSource(page),
+            MAX_ATTACHMENT_PDF_LOAD_TIMEOUT_MS,
+            `PDF rendering timed out on page ${pageIndex}`
+          );
+          if (ocrSource) {
+            pageText = await extractTextFromOcrSource(ocrSource, `${file.name} page ${pageIndex}`);
+          }
+        }
+
         if (!pageText) continue;
+
         output += `[Page ${pageIndex}] ${pageText}\n`;
         if (output.length >= MAX_ATTACHMENT_TEXT_PER_FILE * 2) break;
       } catch {
@@ -4254,22 +4312,12 @@ async function extractTextFromDocxAttachment(file) {
 }
 
 async function extractTextFromImageAttachment(file) {
-  const ready = await ensureOcrRuntimeLoaded();
-  if (!ready || !window.Tesseract?.recognize) {
-    throw new Error('OCR parser unavailable');
-  }
-
   const source = await withOperationTimeout(
     buildOcrImageSource(file),
     5000,
     `OCR preprocessing timed out for ${file.name}`
   );
-  const result = await withOperationTimeout(
-    window.Tesseract.recognize(source, 'eng', { logger: () => {} }),
-    MAX_ATTACHMENT_OCR_TIMEOUT_MS,
-    `OCR timed out for ${file.name}`
-  );
-  return sanitizeAttachmentText(result?.data?.text || '');
+  return extractTextFromOcrSource(source, file.name);
 }
 
 async function extractTextFromAttachment(file) {
@@ -7348,10 +7396,11 @@ function stopGeneration() {
   }
 }
 
-async function fetchBotAnswerViaJson(payload) {
+async function fetchBotAnswerViaJson(payload, options = {}) {
   const res = await fetchChatApiWithFallback({
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    signal: options.signal,
     timeoutMs: 90000,
     body: JSON.stringify(payload)
   }, 1);
@@ -9040,33 +9089,44 @@ if (webSearchEnabled) {
 loading.remove();
 if (activeGenerationLoadingNode === loading) activeGenerationLoadingNode = null;
 let answer;
+const useStreamingResponse = !String(payload?.model || '').toLowerCase().includes('gemma');
 try {
-  streamPaused = false;
-  setPauseButtonVisible(true);
   activeStreamAbortController = new AbortController();
-  answer = await streamBotFromSSE(payload, { signal: activeStreamAbortController.signal });
+  if (useStreamingResponse) {
+    streamPaused = false;
+    setPauseButtonVisible(true);
+    answer = await streamBotFromSSE(payload, { signal: activeStreamAbortController.signal });
+  } else {
+    answer = await fetchBotAnswerViaJson(payload, { signal: activeStreamAbortController.signal });
+    render("bot", answer);
+  }
 } catch (streamError) {
-  if (streamError?.isUserAbort) {
+  if (streamError?.isUserAbort || streamError?.name === 'AbortError' || activeStreamAbortController?.signal?.aborted) {
     if (streamError?.streamMetrics) {
       logStreamResilienceMetric('stream_user_abort', streamError.streamMetrics);
     }
     isGenerating = false;
     setStopButtonVisible(false);
     setPauseButtonVisible(false);
+    activeStreamAbortController = null;
     return;
   }
   if (streamError?.isRateLimit) {
     throw streamError;
   }
 
-  removePendingStreamBubble();
-  logStreamResilienceMetric('stream_to_json_fallback', {
-    reason: String(streamError?.message || streamError || 'unknown'),
-    ...(streamError?.streamMetrics || {})
-  });
-  showStatus('Stream interrupted. Switching to standard response...');
-  answer = await fetchBotAnswerViaJson(payload);
-  render("bot", answer);
+  if (useStreamingResponse) {
+    removePendingStreamBubble();
+    logStreamResilienceMetric('stream_to_json_fallback', {
+      reason: String(streamError?.message || streamError || 'unknown'),
+      ...(streamError?.streamMetrics || {})
+    });
+    showStatus('Stream interrupted. Switching to standard response...');
+    answer = await fetchBotAnswerViaJson(payload, { signal: activeStreamAbortController.signal });
+    render("bot", answer);
+  } else {
+    throw streamError;
+  }
 }
 activeStreamAbortController = null;
 isGenerating = false;
