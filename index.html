@@ -4219,7 +4219,8 @@ async function extractTextFromOcrSource(source, label) {
   return sanitizeAttachmentText(result?.data?.text || '');
 }
 
-async function extractTextFromPdfAttachment(file) {
+async function extractTextFromPdfAttachment(file, options = {}) {
+  const { allowOcrFallback = false } = options;
   const ready = await ensurePdfRuntimeLoaded();
   if (!ready || !window.pdfjsLib?.getDocument) {
     throw new Error('PDF parser unavailable');
@@ -4240,18 +4241,35 @@ async function extractTextFromPdfAttachment(file) {
     let failedPages = 0;
 
     for (let pageIndex = 1; pageIndex <= pageCount; pageIndex += 1) {
+      let pageText = '';
       try {
         const page = await withOperationTimeout(
           pdf.getPage(pageIndex),
           MAX_ATTACHMENT_PDF_PAGE_TIMEOUT_MS,
           `PDF page ${pageIndex} timed out`
         );
-        const textContent = await withOperationTimeout(
-          page.getTextContent(),
-          MAX_ATTACHMENT_PDF_PAGE_TIMEOUT_MS,
-          `PDF text extraction timed out on page ${pageIndex}`
-        );
-        const pageText = sanitizeAttachmentText(textContent.items.map((item) => String(item.str || '')).join(' '));
+        try {
+          const textContent = await withOperationTimeout(
+            page.getTextContent(),
+            MAX_ATTACHMENT_PDF_PAGE_TIMEOUT_MS,
+            `PDF text extraction timed out on page ${pageIndex}`
+          );
+          pageText = sanitizeAttachmentText(textContent.items.map((item) => String(item.str || '')).join(' '));
+        } catch {
+          pageText = '';
+        }
+
+        if (!pageText && allowOcrFallback) {
+          const ocrSource = await withOperationTimeout(
+            buildPdfPageOcrSource(page),
+            MAX_ATTACHMENT_PDF_LOAD_TIMEOUT_MS,
+            `PDF rendering timed out on page ${pageIndex}`
+          );
+          if (ocrSource) {
+            pageText = await extractTextFromOcrSource(ocrSource, `${file.name} page ${pageIndex}`);
+          }
+        }
+
         if (!pageText) continue;
 
         output += `[Page ${pageIndex}] ${pageText}\n`;
@@ -4308,7 +4326,7 @@ async function extractTextFromAttachment(file, options = {}) {
 
   if (isPdfAttachment(file)) {
     showStatus(`Reading PDF: ${file.name}`);
-    return extractTextFromPdfAttachment(file);
+    return extractTextFromPdfAttachment(file, { allowOcrFallback: gemmaSelected });
   }
 
   // Keep OCR-backed parsing disabled for Gemma multimodal mode.
@@ -4380,10 +4398,6 @@ async function buildAttachmentContextBundle(attachments) {
       let text = await extractTextFromAttachment(file, { gemmaSelected });
       text = sanitizeAttachmentText(text);
       if (!text) {
-        if (gemmaSelected && isPdfAttachment(file)) {
-          bundle.gemmaBypassCount += 1;
-          continue;
-        }
         bundle.skippedCount += 1;
         continue;
       }
@@ -4405,11 +4419,7 @@ async function buildAttachmentContextBundle(attachments) {
         text
       });
     } catch (error) {
-      if (gemmaSelected && isPdfAttachment(file)) {
-        bundle.gemmaBypassCount += 1;
-      } else {
-        bundle.skippedCount += 1;
-      }
+      bundle.skippedCount += 1;
       const sample = summarizeAttachmentError(error, attachment?.name || file?.name || 'unknown-file');
       if (sample.timedOut) bundle.timeoutCount += 1;
       if (bundle.errorSamples.length < ATTACHMENT_ERROR_SUMMARY_LIMIT) {
