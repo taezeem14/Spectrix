@@ -140,7 +140,8 @@ Core strengths:
 - **Multi-file attachments** in chat input (up to 8 files)
 - **Text extraction** from plain/code files, PDF, and DOCX
 - **Image OCR extraction** via Tesseract.js (client-side, lazy-loaded)
-- **Gemma multimodal bypass** — when `google/gemma-4-31b-it:free` is selected, image files (OCR path) and DOCX extraction (Mammoth.js) are skipped from text parsing
+- **Gemma attachment behavior** — image files and scanned PDFs use external OCR fallback; DOCX extraction (Mammoth.js) stays bypassed for Gemma mode
+- **Clipboard image attachments** — paste copied images directly into the composer; they appear as attachment preview chips and in the sent user bubble
 - **Safe truncation caps** for per-file and total extracted context
 
 ### 🖼️ Media Generation
@@ -355,7 +356,7 @@ If KV is not set, leaderboard falls back to in-memory storage in the running fun
 | Math | KaTeX + MathJax (dual-engine) |
 | Markdown | Marked.js (with custom math extension) |
 | Code | Highlight.js |
-| Attachment Parsing | PDF.js + Mammoth + Tesseract.js (OCR), with Gemma multimodal bypass for image and DOCX text parsing |
+| Attachment Parsing | PDF.js + Mammoth + Tesseract.js (OCR), with PDF OCR fallback and Gemma DOCX-only parsing bypass |
 | Backend | Vercel Functions (Node serverless + SSE) |
 | AI Routing | OpenRouter |
 | Web Search | Firecrawl (via OpenRouter plugins) |

@@ -1747,6 +1747,22 @@ body.dark .voice-btn.recording {
   font-size: 11px;
 }
 
+.msg-attachment-previews {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.msg-attachment-preview {
+  width: 68px;
+  height: 68px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.18);
+}
+
 .chat-search-bar {
   position: sticky;
   top: 0;
@@ -4100,6 +4116,29 @@ function handleComposerPaste(event) {
   }
 }
 
+function appendAttachmentPreviewsToMessageNode(messageNode, attachments) {
+  if (!messageNode || !Array.isArray(attachments) || attachments.length === 0) return;
+  const imageItems = attachments.filter((item) => isImageAttachment(item?.file));
+  if (!imageItems.length) return;
+
+  const row = document.createElement('div');
+  row.className = 'msg-attachment-previews';
+
+  imageItems.forEach((item) => {
+    const src = item?.previewUrl || '';
+    if (!src) return;
+    const img = document.createElement('img');
+    img.className = 'msg-attachment-preview';
+    img.src = src;
+    img.alt = item.name || 'Attached image';
+    img.loading = 'lazy';
+    row.appendChild(img);
+  });
+
+  if (!row.childNodes.length) return;
+  messageNode.appendChild(row);
+}
+
 async function ensurePdfRuntimeLoaded(options = {}) {
   const { timeoutMs = 3000, silent = true } = options;
 
@@ -4494,6 +4533,7 @@ async function buildAttachmentContextBundle(attachments, options = {}) {
   }
 
   const readable = [];
+  const imageOnly = [];
   let totalChars = 0;
   const gemmaSelected = typeof options.gemmaSelected === 'boolean'
     ? options.gemmaSelected
@@ -4511,7 +4551,7 @@ async function buildAttachmentContextBundle(attachments, options = {}) {
       continue;
     }
 
-    if (gemmaSelected && (isDocxAttachment(file) || isImageAttachment(file))) {
+    if (gemmaSelected && isDocxAttachment(file)) {
       bundle.gemmaBypassCount += 1;
       continue;
     }
@@ -4520,6 +4560,10 @@ async function buildAttachmentContextBundle(attachments, options = {}) {
       let text = await extractTextFromAttachment(file, { gemmaSelected });
       text = sanitizeAttachmentText(text);
       if (!text) {
+        if (isImageAttachment(file)) {
+          imageOnly.push({ name: attachment.name || file.name || 'image' });
+          continue;
+        }
         bundle.skippedCount += 1;
         continue;
       }
@@ -4553,13 +4597,23 @@ async function buildAttachmentContextBundle(attachments, options = {}) {
   bundle.readableCount = readable.length;
   bundle.summary = formatAttachmentSummary(attachments);
 
-  if (!readable.length) {
+  if (!readable.length && !imageOnly.length) {
     return bundle;
   }
 
+  const contextParts = ['Attached file context from the user (may be truncated):'];
+  if (readable.length) {
+    contextParts.push(...readable.map((entry, index) => `File ${index + 1}: ${entry.name}\n${entry.text}`));
+  }
+  if (imageOnly.length) {
+    contextParts.push(
+      'Image attachments were provided. OCR detected little or no readable text in these image files:',
+      ...imageOnly.map((entry, index) => `Image ${index + 1}: ${entry.name}`)
+    );
+  }
+
   bundle.context = [
-    'Attached file context from the user (may be truncated):',
-    ...readable.map((entry, index) => `File ${index + 1}: ${entry.name}\n${entry.text}`)
+    ...contextParts
   ].join('\n\n');
 
   return bundle;
@@ -8960,7 +9014,10 @@ async function send(options = {}) {
   }
 
   if (!skipUserRender) {
-    render("user", promptForRender);
+    const userNode = render("user", promptForRender);
+    if (attachmentQueue.length) {
+      appendAttachmentPreviewsToMessageNode(userNode, attachmentQueue);
+    }
     // Yield one frame so the user bubble paints immediately.
     await new Promise((resolve) => requestAnimationFrame(resolve));
   }
@@ -9164,7 +9221,7 @@ async function send(options = {}) {
         }
 
         if (attachmentBundle.gemmaBypassCount > 0) {
-          showStatus(`Gemma multimodal mode: bypassed OCR/text parsing for ${attachmentBundle.gemmaBypassCount} file${attachmentBundle.gemmaBypassCount === 1 ? '' : 's'}.`, 3400);
+          showStatus(`Gemma multimodal mode: skipped DOCX parsing for ${attachmentBundle.gemmaBypassCount} file${attachmentBundle.gemmaBypassCount === 1 ? '' : 's'}.`, 3400);
         }
 
         if (!attachmentContext && !prompt.trim()) {
