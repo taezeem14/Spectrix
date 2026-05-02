@@ -1755,12 +1755,12 @@ body.dark .voice-btn.recording {
 }
 
 .msg-attachment-preview {
-  width: 68px;
-  height: 68px;
-  border-radius: 10px;
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
   object-fit: cover;
   border: 1px solid var(--border);
-  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.18);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
 }
 
 .chat-search-bar {
@@ -4621,6 +4621,7 @@ async function buildAttachmentContextBundle(attachments, options = {}) {
 
   const readable = [];
   const imageOnly = [];
+  const unreadableFiles = [];
   let totalChars = 0;
   const gemmaSelected = typeof options.gemmaSelected === 'boolean'
     ? options.gemmaSelected
@@ -4651,6 +4652,7 @@ async function buildAttachmentContextBundle(attachments, options = {}) {
           imageOnly.push({ name: attachment.name || file.name || 'image' });
           continue;
         }
+        unreadableFiles.push({ name: attachment.name || file.name || 'file' });
         bundle.skippedCount += 1;
         continue;
       }
@@ -4672,6 +4674,7 @@ async function buildAttachmentContextBundle(attachments, options = {}) {
         text
       });
     } catch (error) {
+      unreadableFiles.push({ name: attachment?.name || file?.name || 'unknown-file' });
       bundle.skippedCount += 1;
       const sample = summarizeAttachmentError(error, attachment?.name || file?.name || 'unknown-file');
       if (sample.timedOut) bundle.timeoutCount += 1;
@@ -4684,7 +4687,7 @@ async function buildAttachmentContextBundle(attachments, options = {}) {
   bundle.readableCount = readable.length;
   bundle.summary = formatAttachmentSummary(attachments);
 
-  if (!readable.length && !imageOnly.length) {
+  if (!readable.length && !imageOnly.length && !unreadableFiles.length) {
     return bundle;
   }
 
@@ -4696,6 +4699,13 @@ async function buildAttachmentContextBundle(attachments, options = {}) {
     contextParts.push(
       'Image attachments were provided. OCR detected little or no readable text in these image files:',
       ...imageOnly.map((entry, index) => `Image ${index + 1}: ${entry.name}`)
+    );
+  }
+  if (unreadableFiles.length) {
+    contextParts.push(
+      'Some attachments were received but could not be parsed into readable text:',
+      ...unreadableFiles.map((entry, index) => `File ${index + 1}: ${entry.name}`),
+      'Treat these files as provided context and avoid claiming no file was attached.'
     );
   }
 
@@ -9347,7 +9357,7 @@ async function send(options = {}) {
 const payload = {
   model: resolveTextModelForRequest(model, webSearchEnabled),
   messages: messages,
-  hasAttachmentContext: Boolean(attachmentContext)
+  hasAttachmentContext: attachmentQueue.length > 0 || Boolean(attachmentContext)
 };
 
 if (webSearchEnabled) {
