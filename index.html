@@ -3143,6 +3143,7 @@ body.dark .voice-btn.recording {
           <div class="select-wrap">
             <select id="textModelSelect" title="Choose text model">
 			  <option value="google/gemma-4-31b-it:free">Gemma 4 31B IT (Main • Instruction Tuned)</option>
+			  <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet (Balanced • Reliable)</option>
 			  <option value="openai/gpt-oss-120b:free">GPT-OSS 120B (Fast • Strong)</option>
               <option value="nvidia/nemotron-3-super-120b-a12b:free">Nemotron 3 Super (Deep Reasoning)</option>
             </select>
@@ -3585,7 +3586,7 @@ const ATTACHMENT_TEXT_EXTENSIONS = new Set([
 ]);
 const ATTACHMENT_IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'tif', 'tiff']);
 const MEMORY_EXTRACT_MIN_CHARS = 24;
-const MEMORY_EXTRACT_COOLDOWN_MS = 15 * 60 * 1000;
+const MEMORY_EXTRACT_COOLDOWN_MS = 5 * 60 * 1000;
 const MEMORY_AUTO_MAX_ITEMS = 40;
 const MEMORY_AUTO_MAX_SAVE_PER_PASS = 1;
 const TLDR_DEFAULT_WINDOW = 24;
@@ -4782,8 +4783,10 @@ async function fetchChatApiWithFallback(options = {}, retryCount = 1) {
   throw lastError || new Error('Chat request failed');
 }
 const DEFAULT_TEXT_MODEL = GEMMA_MULTIMODAL_MODEL;
+const CLAUDE_TEXT_MODEL = "anthropic/claude-3.5-sonnet";
 const ALLOWED_TEXT_MODELS = new Set([
   GEMMA_MULTIMODAL_MODEL,
+  CLAUDE_TEXT_MODEL,
   "openai/gpt-oss-120b:free",
   "nvidia/nemotron-3-super-120b-a12b:free"
 ]);
@@ -4825,9 +4828,10 @@ function resolveTextModelForRequest(modelId, webSearchOn = false) {
 let FIXED_TEXT_MODEL = normalizeTextModelId(localStorage.getItem('Spectrix_text_model'));
 const FIXED_VIDEO_MODEL = "ByteDance/Seedance-1.0-lite";
 const FIXED_TITLE_MODEL = "liquid/lfm-2.5-1.2b-instruct:free";
-const FIXED_MEMORY_EXTRACT_MODEL = "liquid/lfm-2.5-1.2b-instruct:free";
+const FIXED_MEMORY_EXTRACT_MODEL = CLAUDE_TEXT_MODEL;
 const MEMORY_EXTRACT_MODEL_CANDIDATES = [
   FIXED_MEMORY_EXTRACT_MODEL,
+  "liquid/lfm-2.5-1.2b-instruct:free",
   GEMMA_MULTIMODAL_MODEL,
   "openai/gpt-oss-120b:free"
 ];
@@ -10908,6 +10912,11 @@ function shouldExtractMemories(userMessage) {
   const message = String(userMessage || '').trim();
   if (message.length <= MEMORY_EXTRACT_MIN_CHARS) return false;
 
+  // Respect explicit user intent even during cooldown windows.
+  if (/\b(remember|save\s+this|store\s+this|add\s+to\s+memory|memory)\b/i.test(message)) {
+    return true;
+  }
+
   const last = Number(localStorage.getItem(LAST_MEMORY_EXTRACT_KEY) || 0);
   const now = Date.now();
   if (now - last < MEMORY_EXTRACT_COOLDOWN_MS) return false;
@@ -10987,6 +10996,30 @@ ${existingFacts.slice(0, 20).join('\n')}`;
     if (!normalizedOutput || /^none[.!\s]*$/i.test(normalizedOutput)) return;
 
     const parsedFacts = [];
+
+    // Accept structured responses too (common with Claude and JSON-first models).
+    try {
+      const jsonText = normalizedOutput
+        .replace(/^```json\s*/i, '')
+        .replace(/^```/i, '')
+        .replace(/```$/i, '')
+        .trim();
+      const parsed = JSON.parse(jsonText);
+      const candidateFacts = Array.isArray(parsed)
+        ? parsed
+        : Array.isArray(parsed?.memories)
+          ? parsed.memories
+          : [];
+
+      for (const item of candidateFacts) {
+        const categoryPart = String(item?.category || item?.type || '').trim();
+        const fact = String(item?.fact || item?.content || item?.text || '').trim();
+        if (fact) parsedFacts.push({ categoryPart, fact });
+      }
+    } catch {
+      // Fall back to line parsing below.
+    }
+
     const lines = normalizedOutput.split('\n').map(line => line.trim()).filter(Boolean);
     for (const rawLine of lines) {
       const line = rawLine

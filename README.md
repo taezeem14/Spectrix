@@ -104,13 +104,15 @@ Core strengths:
 ### 🧠 AI Memory
 - **Persistent memory** across conversations — the AI knows who you are
 - **Auto-extraction** — silently learns your name, preferences, goals, and tech stack
-- **Memory extraction model pinned** — `liquid/lfm-2.5-1.2b-instruct:free`
+- **Memory extraction model pinned** — `anthropic/claude-3.5-sonnet` with automatic fallback to `liquid/lfm-2.5-1.2b-instruct:free`, Gemma, and GPT-OSS
 - **Manual memory** — add facts yourself via the 🧠 panel
 - **Categorized** — personal, preference, technical, interest, context, general
 - **Full control** — view all memories, delete individually, or wipe clean
 - **Toggle on/off** — disable auto-learning anytime
-- **Cooldown-throttled** — extraction runs max once every 15 minutes to prevent memory spam
+- **Cooldown-throttled** — extraction runs max once every 5 minutes to prevent memory spam
 - **High-signal capture only** — auto-extraction runs only when messages contain clear personal/profile/preference signals
+- **Explicit memory intent override** — phrases like "remember this" bypass cooldown/signal checks
+- **Flexible parser** — accepts both `category|fact` lines and JSON memory outputs
 - **Single-fact auto-save** — each extraction pass saves at most one strong memory
 - **Auto-memory cap** — oldest auto memories are trimmed beyond 40 items to keep the panel clean
 - **Deduplication** — near-identical facts are never saved twice
@@ -219,6 +221,7 @@ User sends message
 | Mode | Model | Best For |
 |------|-------|----------|
 | 🌟 Main | `google/gemma-4-31b-it:free` | Instruction-tuned coding and productivity workflows |
+| 🤝 Balanced | `anthropic/claude-3.5-sonnet` | Reliable everyday chat and profile/memory extraction |
 | ⚡ Quick | `openai/gpt-oss-120b:free` | Fast chats, tools, and agent loops |
 | 🧠 Reasoning | `nvidia/nemotron-3-super-120b-a12b:free` | Deep reasoning and long-context tasks |
 
