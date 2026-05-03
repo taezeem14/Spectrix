@@ -4400,14 +4400,23 @@ async function extractTextWithTextDetector(source) {
   }
 }
 
-async function buildPdfPageOcrSource(page) {
+async function buildPdfPageOcrSource(page, options = {}) {
   if (!page?.getViewport) return null;
+
+  const { overrideScale = null } = options;
 
   const baseViewport = page.getViewport({ scale: 1 });
   const largestSide = Math.max(baseViewport.width || 0, baseViewport.height || 0);
-  const scale = largestSide > 0
-    ? Math.min(2, MAX_ATTACHMENT_OCR_IMAGE_DIMENSION / largestSide)
-    : 1;
+
+  let scale;
+  if (overrideScale && typeof overrideScale === 'number' && overrideScale > 0) {
+    scale = overrideScale;
+  } else {
+    scale = largestSide > 0
+      ? Math.min(2, MAX_ATTACHMENT_OCR_IMAGE_DIMENSION / largestSide)
+      : 1;
+  }
+
   const viewport = page.getViewport({ scale: Math.max(scale, 0.25) });
 
   const canvas = document.createElement('canvas');
@@ -4482,15 +4491,44 @@ async function extractTextFromPdfAttachment(file, options = {}) {
         }
 
         if (!pageText && allowOcrFallback) {
-          const ocrSource = await withOperationTimeout(
-            buildPdfPageOcrSource(page),
-            MAX_ATTACHMENT_PDF_LOAD_TIMEOUT_MS,
-            `PDF rendering timed out on page ${pageIndex}`
-          );
-          if (ocrSource) {
-            pageText = await extractTextFromOcrSource(ocrSource, `${file.name} page ${pageIndex}`, {
-              timeoutMs: MAX_ATTACHMENT_OCR_TIMEOUT_MS * 2
-            });
+          const labelBase = `${file.name} page ${pageIndex}`;
+          const scales = [1.5, 2, 3];
+
+          for (const s of scales) {
+            try {
+              const ocrSource = await withOperationTimeout(
+                buildPdfPageOcrSource(page, { overrideScale: s }),
+                MAX_ATTACHMENT_PDF_LOAD_TIMEOUT_MS,
+                `PDF rendering timed out on page ${pageIndex} at scale ${s}`
+              );
+              if (!ocrSource) continue;
+
+              pageText = await extractTextFromOcrSource(ocrSource, `${labelBase} (scale ${s})`, {
+                timeoutMs: Math.round(MAX_ATTACHMENT_OCR_TIMEOUT_MS * 2)
+              });
+              if (pageText) break;
+
+              pageText = await extractTextWithTextDetector(ocrSource);
+              if (pageText) break;
+
+              const enhancedSource = await withOperationTimeout(
+                buildEnhancedOcrImageSource(ocrSource),
+                8000,
+                `OCR enhancement timed out for ${labelBase} (scale ${s})`
+              );
+              if (enhancedSource) {
+                pageText = await extractTextFromOcrSource(enhancedSource, `${labelBase} (enhanced scale ${s})`, {
+                  timeoutMs: Math.round(MAX_ATTACHMENT_OCR_TIMEOUT_MS * 2.2)
+                });
+                if (pageText) break;
+                pageText = await extractTextWithTextDetector(enhancedSource);
+                if (pageText) break;
+              }
+
+              await new Promise((r) => setTimeout(r, 250));
+            } catch {
+              // Ignore per-scale errors and continue to the next scale
+            }
           }
         }
 
