@@ -4828,11 +4828,11 @@ function resolveTextModelForRequest(modelId, webSearchOn = false) {
 let FIXED_TEXT_MODEL = normalizeTextModelId(localStorage.getItem('Spectrix_text_model'));
 const FIXED_VIDEO_MODEL = "ByteDance/Seedance-1.0-lite";
 const FIXED_TITLE_MODEL = "liquid/lfm-2.5-1.2b-instruct:free";
-const FIXED_MEMORY_EXTRACT_MODEL = "liquid/lfm-2.5-1.2b-instruct:free";
+const FIXED_MEMORY_EXTRACT_MODEL = GEMMA_MULTIMODAL_MODEL;
 const MEMORY_EXTRACT_MODEL_CANDIDATES = [
   FIXED_MEMORY_EXTRACT_MODEL,
+  "liquid/lfm-2.5-1.2b-instruct:free",
   CLAUDE_TEXT_MODEL,
-  GEMMA_MULTIMODAL_MODEL,
   "openai/gpt-oss-120b:free"
 ];
 
@@ -11057,8 +11057,10 @@ ${existingFacts.slice(0, 20).join('\n')}`;
       const rawCat = String(entry.categoryPart || '').toLowerCase().replace(/[^a-z]/g, '');
       const category = MEMORY_CATEGORIES[rawCat] ? rawCat : 'general';
       const fact = String(entry.fact || '').trim();
+      const categoryOnlyFactPattern = /^(?:personal|preference|technical|interest|context|general)(?:\s*[\|,\/&+-]\s*(?:personal|preference|technical|interest|context|general))*$/i;
 
       if (!fact || fact.length < 4 || fact.length > 200) continue;
+      if (categoryOnlyFactPattern.test(fact)) continue;
       if (/^(the\s+user|user|they)\b/i.test(fact)) continue;
       if (!isUsefulMemoryFact(fact, category)) continue;
       if (autoMemoryCount >= MEMORY_AUTO_MAX_ITEMS) break;
