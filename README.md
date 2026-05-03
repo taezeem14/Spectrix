@@ -104,7 +104,7 @@ Core strengths:
 ### 🧠 AI Memory
 - **Persistent memory** across conversations — the AI knows who you are
 - **Auto-extraction** — silently learns your name, preferences, goals, and tech stack
-- **Memory extraction model pinned** — `anthropic/claude-3.5-sonnet` with automatic fallback to `liquid/lfm-2.5-1.2b-instruct:free`, Gemma, and GPT-OSS
+- **Memory extraction model pinned** — `liquid/lfm-2.5-1.2b-instruct:free` with automatic fallback to `anthropic/claude-3.5-sonnet`, Gemma, and GPT-OSS
 - **Manual memory** — add facts yourself via the 🧠 panel
 - **Categorized** — personal, preference, technical, interest, context, general
 - **Full control** — view all memories, delete individually, or wipe clean
