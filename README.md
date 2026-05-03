@@ -104,7 +104,7 @@ Core strengths:
 ### 🧠 AI Memory
 - **Persistent memory** across conversations — the AI knows who you are
 - **Auto-extraction** — silently learns your name, preferences, goals, and tech stack
-- **Memory extraction model pinned** — `google/gemma-4-31b-it:free` with automatic fallback to `liquid/lfm-2.5-1.2b-instruct:free`, `anthropic/claude-3.5-sonnet`, and GPT-OSS
+- **Memory extraction model pinned** — `google/gemma-4-31b-it:free` with automatic fallback to `liquid/lfm-2.5-1.2b-instruct:free` and GPT-OSS
 - **Manual memory** — add facts yourself via the 🧠 panel
 - **Categorized** — personal, preference, technical, interest, context, general
 - **Full control** — view all memories, delete individually, or wipe clean
@@ -221,7 +221,6 @@ User sends message
 | Mode | Model | Best For |
 |------|-------|----------|
 | 🌟 Main | `google/gemma-4-31b-it:free` | Instruction-tuned coding and productivity workflows |
-| 🤝 Balanced | `anthropic/claude-3.5-sonnet` | Reliable everyday chat and profile/memory extraction |
 | ⚡ Quick | `openai/gpt-oss-120b:free` | Fast chats, tools, and agent loops |
 | 🧠 Reasoning | `nvidia/nemotron-3-super-120b-a12b:free` | Deep reasoning and long-context tasks |
 

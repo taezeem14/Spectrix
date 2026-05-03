@@ -3143,7 +3143,6 @@ body.dark .voice-btn.recording {
           <div class="select-wrap">
             <select id="textModelSelect" title="Choose text model">
 			  <option value="google/gemma-4-31b-it:free">Gemma 4 31B IT (Main • Instruction Tuned)</option>
-			  <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet (Balanced • Reliable)</option>
 			  <option value="openai/gpt-oss-120b:free">GPT-OSS 120B (Fast • Strong)</option>
               <option value="nvidia/nemotron-3-super-120b-a12b:free">Nemotron 3 Super (Deep Reasoning)</option>
             </select>
@@ -4783,10 +4782,8 @@ async function fetchChatApiWithFallback(options = {}, retryCount = 1) {
   throw lastError || new Error('Chat request failed');
 }
 const DEFAULT_TEXT_MODEL = GEMMA_MULTIMODAL_MODEL;
-const CLAUDE_TEXT_MODEL = "anthropic/claude-3.5-sonnet";
 const ALLOWED_TEXT_MODELS = new Set([
   GEMMA_MULTIMODAL_MODEL,
-  CLAUDE_TEXT_MODEL,
   "openai/gpt-oss-120b:free",
   "nvidia/nemotron-3-super-120b-a12b:free"
 ]);
@@ -4832,7 +4829,6 @@ const FIXED_MEMORY_EXTRACT_MODEL = GEMMA_MULTIMODAL_MODEL;
 const MEMORY_EXTRACT_MODEL_CANDIDATES = [
   FIXED_MEMORY_EXTRACT_MODEL,
   "liquid/lfm-2.5-1.2b-instruct:free",
-  CLAUDE_TEXT_MODEL,
   "openai/gpt-oss-120b:free"
 ];
 
@@ -10997,7 +10993,7 @@ ${existingFacts.slice(0, 20).join('\n')}`;
 
     const parsedFacts = [];
 
-    // Accept structured responses too (common with Claude and JSON-first models).
+    // Accept structured responses too (common with JSON-first models).
     try {
       const jsonText = normalizedOutput
         .replace(/^```json\s*/i, '')
