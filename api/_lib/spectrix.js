@@ -289,6 +289,9 @@ async function openRouterRequest(payload, { stream = false } = {}) {
     const apiKey = key.value;
     markOpenRouterKeyAttempt(key.name);
 
+    let abortController = new AbortController();
+    let timeoutHandle = setTimeout(() => abortController.abort(), 115000);
+
     try {
       lastResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
@@ -296,9 +299,12 @@ async function openRouterRequest(payload, { stream = false } = {}) {
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ ...payload, stream })
+        body: JSON.stringify({ ...payload, stream }),
+        signal: abortController.signal
       });
+      clearTimeout(timeoutHandle);
     } catch (error) {
+      clearTimeout(timeoutHandle);
       markOpenRouterKeyFailure(key.name);
       if (attempt < maxRetries - 1) {
         await delay(Math.min(350 * Math.pow(2, attempt), 2500));

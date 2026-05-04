@@ -3258,7 +3258,7 @@ body.dark .voice-btn.recording {
 // ===== INDEXEDDB SETUP =====
 const DB_NAME = 'Spectrix_DB';
 const DB_VERSION = 3;
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.5.1';
 let db = null;
 
 async function openDB() {
@@ -3567,9 +3567,9 @@ const CHAT_INDEX_KEY = 'Spectrix_chat_index_v1';
 const CLOUD_SYNC_QUEUE_KEY = 'Spectrix_cloud_sync_queue_v1';
 const MAX_ATTACHMENT_FILES = 8;
 const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
-const MAX_ATTACHMENT_TEXT_PER_FILE = 2600;
-const MAX_ATTACHMENT_TOTAL_TEXT = 12000;
-const MAX_ATTACHMENT_PDF_PAGES = 8;
+const MAX_ATTACHMENT_TEXT_PER_FILE = 4000;
+const MAX_ATTACHMENT_TOTAL_TEXT = 16000;
+const MAX_ATTACHMENT_PDF_PAGES = 16;
 const MAX_ATTACHMENT_OCR_IMAGE_DIMENSION = 1700;
 const MAX_ATTACHMENT_OCR_TIMEOUT_MS = 18000;
 const MAX_ATTACHMENT_PDF_LOAD_TIMEOUT_MS = 12000;
