@@ -1751,16 +1751,18 @@ body.dark .voice-btn.recording {
   margin-top: 10px;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 12px;
 }
 
 .msg-attachment-preview {
-  width: 72px;
-  height: 72px;
-  border-radius: 8px;
-  object-fit: cover;
+  max-width: 400px;
+  height: auto;
+  border-radius: 12px;
+  object-fit: contain;
+  background: transparent;
   border: 1px solid var(--border);
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1);
+  margin-bottom: 8px;
 }
 
 .chat-search-bar {
