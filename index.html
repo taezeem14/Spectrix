@@ -1755,10 +1755,10 @@ body.dark .voice-btn.recording {
 }
 
 .msg-attachment-preview {
-  max-width: 400px;
-  height: auto;
+  max-width: 250px;
+  max-height: 250px;
   border-radius: 12px;
-  object-fit: contain;
+  object-fit: cover;
   background: transparent;
   border: 1px solid var(--border);
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1);
@@ -4120,19 +4120,32 @@ function handleComposerPaste(event) {
 
 function appendAttachmentPreviewsToMessageNode(messageNode, attachments) {
   if (!messageNode || !Array.isArray(attachments) || attachments.length === 0) return;
-  const imageItems = attachments.filter((item) => isImageAttachment(item?.file));
+  
+  // Try to safely detect image items. If item itself is a File without a structure, handle it.
+  const imageItems = attachments.filter((item) => {
+    const fn = item?.file ? item.file : (item instanceof File ? item : null);
+    return isImageAttachment(fn);
+  });
+  
   if (!imageItems.length) return;
 
   const row = document.createElement('div');
   row.className = 'msg-attachment-previews';
 
   imageItems.forEach((item) => {
-    const src = item?.previewUrl || '';
+    let src = item?.previewUrl || '';
+    if (!src) {
+      const file = item?.file ? item.file : (item instanceof File ? item : null);
+      if (file) {
+        src = URL.createObjectURL(file);
+        activeMediaObjectUrls.push(src); // Ensure future cleanup
+      }
+    }
     if (!src) return;
     const img = document.createElement('img');
     img.className = 'msg-attachment-preview';
     img.src = src;
-    img.alt = item.name || 'Attached image';
+    img.alt = item.name || (item instanceof File ? item.name : 'Attached image');
     img.loading = 'lazy';
     row.appendChild(img);
   });
@@ -5778,13 +5791,20 @@ async function saveSessions() {
   }
 }
 
-async function saveMessage(role, content) {
+async function saveMessage(role, content, attachments = null, attachmentContext = null) {
   const session = getCurrentSession();
   if (!session) return;
   if (session.transient) {
     delete session.transient;
   }
-  session.messages.push({ role, content });
+  const msgObj = { role, content };
+  if (attachments) {
+    msgObj.attachments = attachments;
+  }
+  if (attachmentContext) {
+    msgObj.attachmentContext = attachmentContext;
+  }
+  session.messages.push(msgObj);
   session.timestamp = Date.now();
   await saveSessions();
 }
@@ -6491,7 +6511,7 @@ function hydrateMediaMessageNode(node, role, content, options = {}) {
   if (content.src) return;
   if (!content.mediaId && !content.cloudUrl) return;
 
-  const { messageIndex = null } = options;
+  const { messageIndex = null, attachments = null } = options;
   resolveMessageContentForDisplay(content)
     .then((resolvedContent) => {
       if (!resolvedContent || resolvedContent === content) return;
@@ -6499,7 +6519,8 @@ function hydrateMediaMessageNode(node, role, content, options = {}) {
 
       const replacement = createChatMessageNode(role, resolvedContent, {
         saveIt: false,
-        messageIndex
+        messageIndex,
+        attachments
       });
       if (node.dataset.msgIndex) {
         replacement.dataset.msgIndex = node.dataset.msgIndex;
@@ -6512,7 +6533,7 @@ function hydrateMediaMessageNode(node, role, content, options = {}) {
 }
 
 function createChatMessageNode(role, content, options = {}) {
-  const { saveIt = false, messageIndex = null } = options;
+  const { saveIt = false, messageIndex = null, attachments = null } = options;
   const d = document.createElement("div");
   d.className = "msg " + role;
   let actions = null;
@@ -6522,6 +6543,10 @@ function createChatMessageNode(role, content, options = {}) {
     if (session?.messages) {
       resolvedIndex = session.messages.length;
     }
+  }
+
+  if (attachments && Array.isArray(attachments) && attachments.length > 0) {
+    appendAttachmentPreviewsToMessageNode(d, attachments);
   }
 
   if (typeof content === "object" && content.type === "image") {
@@ -6643,10 +6668,14 @@ async function renderChatWindowSlice(session, start, end, options = {}) {
 
   for (let idx = safeStart; idx <= safeEnd; idx += 1) {
     const message = session.messages[idx];
-    const node = createChatMessageNode(message.role, message.content, { saveIt: false, messageIndex: idx });
+    const node = createChatMessageNode(message.role, message.content, { 
+       saveIt: false, 
+       messageIndex: idx, 
+       attachments: message.attachments 
+    });
     node.dataset.msgIndex = String(idx);
     fragment.appendChild(node);
-    hydrateMediaMessageNode(node, message.role, message.content, { messageIndex: idx });
+    hydrateMediaMessageNode(node, message.role, message.content, { messageIndex: idx, attachments: message.attachments });
 
     if ((idx - safeStart + 1) % 12 === 0) {
       await new Promise((resolve) => requestAnimationFrame(resolve));
@@ -6732,9 +6761,13 @@ async function loadChatMessages() {
   const fragment = document.createDocumentFragment();
   for (let idx = 0; idx < totalMessages; idx += 1) {
     const message = session.messages[idx];
-    const node = createChatMessageNode(message.role, message.content, { saveIt: false, messageIndex: idx });
+    const node = createChatMessageNode(message.role, message.content, { 
+       saveIt: false, 
+       messageIndex: idx, 
+       attachments: message.attachments 
+    });
     fragment.appendChild(node);
-    hydrateMediaMessageNode(node, message.role, message.content, { messageIndex: idx });
+    hydrateMediaMessageNode(node, message.role, message.content, { messageIndex: idx, attachments: message.attachments });
 
     if ((idx + 1) % 14 === 0) {
       await new Promise((resolve) => requestAnimationFrame(resolve));
@@ -8517,8 +8550,8 @@ async function fetchWithTimeoutRetry(url, options = {}, retryCount = 1) {
 }
 
 // ===== RENDER MESSAGE =====
-function render(role, content, saveIt = true, messageIndex = null) {
-  const d = createChatMessageNode(role, content, { saveIt, messageIndex });
+function render(role, content, saveIt = true, messageIndex = null, attachments = null) {
+  const d = createChatMessageNode(role, content, { saveIt, messageIndex, attachments });
 
   chat.appendChild(d);
 
@@ -8536,7 +8569,7 @@ function render(role, content, saveIt = true, messageIndex = null) {
 
   scrollChatToLatest({ smooth: false });
 
-  if (saveIt) saveMessage(role, content);
+  if (saveIt) saveMessage(role, content, attachments);
   return d;
 }
 
@@ -9147,7 +9180,7 @@ async function send(options = {}) {
   if (isImage || isVideo) prompt = prompt.slice(5);
 
   if (!skipUserRender) {
-    const userNode = render("user", promptForRender);
+    const userNode = render("user", promptForRender, true, null, attachmentQueue);
     if (attachmentQueue.length) {
       appendAttachmentPreviewsToMessageNode(userNode, attachmentQueue);
     }
@@ -9360,11 +9393,36 @@ async function send(options = {}) {
         if (!attachmentContext && !prompt.trim()) {
           throw new Error('No readable text could be extracted from the attached files.');
         }
+        
+        // Dynamically append the full generated context and attachment bytes back to the user's latest message in local storage
+        if (!skipUserRender && session.messages.length > 0) {
+          const lastMsg = session.messages[session.messages.length - 1];
+          if (lastMsg.role === 'user') {
+             lastMsg.attachmentContext = attachmentContext;
+             saveSessions();
+          }
+        }
       }
 
-      const messages = session.messages
-        .filter(m => typeof m.content === "string")
-        .map(m => ({ role: m.role === "bot" ? "assistant" : "user", content: m.content }));
+      // Build messages array for the API
+      const messages = [];
+
+      for (const m of session.messages) {
+        if (typeof m.content !== "string") continue;
+        
+        // Exclude the very last message from this loop if it matches the current prompt,
+        // because we append it explicitly at the end with dynamic attachments.
+        if (m === session.messages[session.messages.length - 1] && m.role === 'user' && !skipUserSave) {
+            continue;
+        }
+
+        const role = m.role === "bot" ? "assistant" : "user";
+        
+        if (m.attachmentContext) {
+            messages.push({ role: 'user', content: m.attachmentContext });
+        }
+        messages.push({ role, content: m.content });
+      }
 
       // 🧠 Build system prompt with memory context
       let systemPrompt = MATH_FORMAT_SYSTEM_PROMPT;
