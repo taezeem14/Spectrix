@@ -5791,6 +5791,60 @@ async function saveSessions() {
   }
 }
 
+async function serializeAttachmentsForStorage(attachments) {
+  if (!Array.isArray(attachments) || attachments.length === 0) return null;
+  
+  const serialized = [];
+  for (const item of attachments) {
+    const file = item?.file ? item.file : (item instanceof File ? item : null);
+    if (!file) continue;
+    
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      serialized.push({
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        data: base64,
+        previewUrl: item?.previewUrl || ''
+      });
+    } catch (err) {
+      console.warn('Failed to serialize attachment:', file.name, err);
+    }
+  }
+  
+  return serialized.length > 0 ? serialized : null;
+}
+
+function deserializeAttachmentsForDisplay(serialized) {
+  if (!Array.isArray(serialized)) return null;
+  
+  return serialized.map((item) => {
+    if (!item.data) return item;
+    try {
+      const binaryString = atob(item.data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: item.type || 'application/octet-stream' });
+      const blobUrl = URL.createObjectURL(blob);
+      activeMediaObjectUrls.push(blobUrl);
+      return {
+        name: item.name,
+        type: item.type,
+        size: item.size,
+        previewUrl: blobUrl,
+        blob: blob
+      };
+    } catch (err) {
+      console.warn('Failed to deserialize attachment:', item.name, err);
+      return item;
+    }
+  });
+}
+
 async function saveMessage(role, content, attachments = null, attachmentContext = null) {
   const session = getCurrentSession();
   if (!session) return;
@@ -5799,7 +5853,10 @@ async function saveMessage(role, content, attachments = null, attachmentContext 
   }
   const msgObj = { role, content };
   if (attachments) {
-    msgObj.attachments = attachments;
+    const serialized = await serializeAttachmentsForStorage(attachments);
+    if (serialized) {
+      msgObj.attachments = serialized;
+    }
   }
   if (attachmentContext) {
     msgObj.attachmentContext = attachmentContext;
@@ -6761,13 +6818,14 @@ async function loadChatMessages() {
   const fragment = document.createDocumentFragment();
   for (let idx = 0; idx < totalMessages; idx += 1) {
     const message = session.messages[idx];
+    const displayAttachments = message.attachments ? deserializeAttachmentsForDisplay(message.attachments) : null;
     const node = createChatMessageNode(message.role, message.content, { 
        saveIt: false, 
        messageIndex: idx, 
-       attachments: message.attachments 
+       attachments: displayAttachments 
     });
     fragment.appendChild(node);
-    hydrateMediaMessageNode(node, message.role, message.content, { messageIndex: idx, attachments: message.attachments });
+    hydrateMediaMessageNode(node, message.role, message.content, { messageIndex: idx, attachments: displayAttachments });
 
     if ((idx + 1) % 14 === 0) {
       await new Promise((resolve) => requestAnimationFrame(resolve));
