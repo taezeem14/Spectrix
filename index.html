@@ -5801,7 +5801,13 @@ async function serializeAttachmentsForStorage(attachments) {
     
     try {
       const arrayBuffer = await file.arrayBuffer();
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      let binary = '';
+      const bytes = new Uint8Array(arrayBuffer);
+      const len = bytes.byteLength;
+      for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      const base64 = btoa(binary);
       serialized.push({
         name: file.name,
         type: file.type,
@@ -5831,11 +5837,15 @@ function deserializeAttachmentsForDisplay(serialized) {
       const blob = new Blob([bytes], { type: item.type || 'application/octet-stream' });
       const blobUrl = URL.createObjectURL(blob);
       activeMediaObjectUrls.push(blobUrl);
+      
+      const fileObj = new File([blob], item.name || 'attachment', { type: item.type || 'application/octet-stream' });
+      
       return {
         name: item.name,
         type: item.type,
         size: item.size,
         previewUrl: blobUrl,
+        file: fileObj,
         blob: blob
       };
     } catch (err) {
@@ -5852,18 +5862,23 @@ async function saveMessage(role, content, attachments = null, attachmentContext 
     delete session.transient;
   }
   const msgObj = { role, content };
-  if (attachments) {
-    const serialized = await serializeAttachmentsForStorage(attachments);
-    if (serialized) {
-      msgObj.attachments = serialized;
-    }
-  }
   if (attachmentContext) {
     msgObj.attachmentContext = attachmentContext;
   }
+  
   session.messages.push(msgObj);
   session.timestamp = Date.now();
-  await saveSessions();
+
+  try {
+    if (attachments) {
+      const serialized = await serializeAttachmentsForStorage(attachments);
+      if (serialized) {
+        msgObj.attachments = serialized;
+      }
+    }
+  } finally {
+    await saveSessions();
+  }
 }
 
 // ===== VOICE SETUP =====
@@ -6725,14 +6740,15 @@ async function renderChatWindowSlice(session, start, end, options = {}) {
 
   for (let idx = safeStart; idx <= safeEnd; idx += 1) {
     const message = session.messages[idx];
+    const displayAttachments = message.attachments ? deserializeAttachmentsForDisplay(message.attachments) : null;
     const node = createChatMessageNode(message.role, message.content, { 
        saveIt: false, 
        messageIndex: idx, 
-       attachments: message.attachments 
+       attachments: displayAttachments 
     });
     node.dataset.msgIndex = String(idx);
     fragment.appendChild(node);
-    hydrateMediaMessageNode(node, message.role, message.content, { messageIndex: idx, attachments: message.attachments });
+    hydrateMediaMessageNode(node, message.role, message.content, { messageIndex: idx, attachments: displayAttachments });
 
     if ((idx - safeStart + 1) % 12 === 0) {
       await new Promise((resolve) => requestAnimationFrame(resolve));
