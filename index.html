@@ -5791,6 +5791,20 @@ async function saveSessions() {
   }
 }
 
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      // result is "data:type/subtype;base64,....."
+      const base64 = result.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = error => reject(error);
+    reader.readAsDataURL(file);
+  });
+}
+
 async function serializeAttachmentsForStorage(attachments) {
   if (!Array.isArray(attachments) || attachments.length === 0) return null;
   
@@ -5800,14 +5814,7 @@ async function serializeAttachmentsForStorage(attachments) {
     if (!file) continue;
     
     try {
-      const arrayBuffer = await file.arrayBuffer();
-      let binary = '';
-      const bytes = new Uint8Array(arrayBuffer);
-      const len = bytes.byteLength;
-      for (let i = 0; i < len; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      const base64 = btoa(binary);
+      const base64 = await fileToBase64(file);
       serialized.push({
         name: file.name,
         type: file.type,
@@ -5829,22 +5836,22 @@ function deserializeAttachmentsForDisplay(serialized) {
   return serialized.map((item) => {
     if (!item.data) return item;
     try {
+      // Use Data URI for robustness and instant rendering without blob GC issues
+      const dataUri = `data:${item.type || 'application/octet-stream'};base64,${item.data}`;
+      
       const binaryString = atob(item.data);
       const bytes = new Uint8Array(binaryString.length);
       for (let i = 0; i < binaryString.length; i++) {
         bytes[i] = binaryString.charCodeAt(i);
       }
       const blob = new Blob([bytes], { type: item.type || 'application/octet-stream' });
-      const blobUrl = URL.createObjectURL(blob);
-      activeMediaObjectUrls.push(blobUrl);
-      
       const fileObj = new File([blob], item.name || 'attachment', { type: item.type || 'application/octet-stream' });
       
       return {
         name: item.name,
         type: item.type,
         size: item.size,
-        previewUrl: blobUrl,
+        previewUrl: dataUri,
         file: fileObj,
         blob: blob
       };
