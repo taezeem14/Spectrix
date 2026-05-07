@@ -5817,13 +5817,40 @@ async function serializeAttachmentsForStorage(attachments) {
     if (!file) continue;
     
     try {
+      // Prefer uploading to Firebase Storage when available so we don't persist
+      // temporary blob: or data: preview URLs in sessions. If upload succeeds
+      // store `mediaId`/`cloudUrl`. Otherwise fall back to base64 data.
+      if (canUseFirebaseStorage()) {
+        const mediaId = `att_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+        try {
+          // Save locally into media store for quick hydration, then upload to cloud
+          await saveMedia(mediaId, file);
+        } catch (err) {
+          // ignore local save failures
+        }
+        try {
+          const cloudUrl = await uploadMediaBlobToCloud(mediaId, file, { mediaType: 'attachment' });
+          if (cloudUrl) {
+            serialized.push({
+              name: file.name,
+              type: file.type,
+              size: file.size,
+              mediaId,
+              cloudUrl
+            });
+            continue;
+          }
+        } catch (err) {
+          console.warn('Cloud upload failed for attachment, falling back to base64:', file.name, err);
+        }
+      }
+
       const base64 = await fileToBase64(file);
       serialized.push({
         name: file.name,
         type: file.type,
         size: file.size,
-        data: base64,
-        previewUrl: item?.previewUrl || ''
+        data: base64
       });
     } catch (err) {
       console.warn('Failed to serialize attachment:', file.name, err);
@@ -5837,12 +5864,43 @@ function deserializeAttachmentsForDisplay(serialized) {
   if (!Array.isArray(serialized)) return null;
   
   return serialized.map((item) => {
+    // If the serialized item contains a cloudUrl (Firebase Storage) prefer that
+    // as the preview URL. If it contains a mediaId we can try hydrating from
+    // the local media store (IndexedDB) to produce an object URL.
+    if (item.cloudUrl) {
+      item.previewUrl = item.cloudUrl;
+      return item;
+    }
+
+    if (item.mediaId) {
+      // Attempt to hydrate from local media store synchronously where possible.
+      try {
+        const blobPromise = getMedia(item.mediaId);
+        // If blob exists, create an object URL lazily when displayed by
+        // `appendAttachmentPreviewsToMessageNode` which already handles
+        // `item.previewUrl` or will create an object URL from `item.file`.
+        blobPromise.then((b) => {
+          if (!b) return;
+          try {
+            const url = URL.createObjectURL(b);
+            item.previewUrl = url;
+            activeMediaObjectUrls.push(url);
+          } catch (e) {
+            // ignore object URL creation failures
+          }
+        }).catch(() => {});
+      } catch (err) {
+        // ignore
+      }
+      return item;
+    }
+
     if (!item.data) return item;
-    
+
     // Generate dataUri immediately so display is guaranteed even if File rebuilding fails
     const dataUri = `data:${item.type || 'application/octet-stream'};base64,${item.data}`;
     item.previewUrl = dataUri;
-    
+
     try {
       const binaryString = atob(item.data);
       const bytes = new Uint8Array(binaryString.length);
