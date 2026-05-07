@@ -5838,10 +5838,12 @@ function deserializeAttachmentsForDisplay(serialized) {
   
   return serialized.map((item) => {
     if (!item.data) return item;
+    
+    // Generate dataUri immediately so display is guaranteed even if File rebuilding fails
+    const dataUri = `data:${item.type || 'application/octet-stream'};base64,${item.data}`;
+    item.previewUrl = dataUri;
+    
     try {
-      // Use Data URI for robustness and instant rendering without blob GC issues
-      const dataUri = `data:${item.type || 'application/octet-stream'};base64,${item.data}`;
-      
       const binaryString = atob(item.data);
       const bytes = new Uint8Array(binaryString.length);
       for (let i = 0; i < binaryString.length; i++) {
@@ -5850,16 +5852,15 @@ function deserializeAttachmentsForDisplay(serialized) {
       const blob = new Blob([bytes], { type: item.type || 'application/octet-stream' });
       const fileObj = new File([blob], item.name || 'attachment', { type: item.type || 'application/octet-stream' });
       
+      // Override properties with the fully hydrated File object
       return {
-        name: item.name,
-        type: item.type,
-        size: item.size,
-        previewUrl: dataUri,
+        ...item,
         file: fileObj,
         blob: blob
       };
     } catch (err) {
-      console.warn('Failed to deserialize attachment:', item.name, err);
+      console.warn('Failed to deserialize attachment File structure (UI will still render data URI):', item.name, err);
+      // Return the item which now has the safe dataUri injected
       return item;
     }
   });
