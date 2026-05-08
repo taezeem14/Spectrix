@@ -3147,9 +3147,13 @@ body.dark .voice-btn.recording {
         </div>
           <div class="select-wrap">
             <select id="textModelSelect" title="Choose text model">
-			  <option value="google/gemma-4-31b-it:free">Gemma 4 31B IT (Main • Instruction Tuned)</option>
-			  <option value="openai/gpt-oss-120b:free">GPT-OSS 120B (Fast • Strong)</option>
-              <option value="nvidia/nemotron-3-super-120b-a12b:free">Nemotron 3 Super (Deep Reasoning)</option>
+			  <option value="tencent/hy3-preview:free">🔥 Hy3 Preview (Premium • Reasoning)</option>
+			  <option value="poolside/laguna-m.1:free">💻 Laguna M.1 (Coding • Engineering)</option>
+			  <option value="nvidia/nemotron-3-super-120b:free">🧠 Nemotron 3 Super (Long Context • 1M)</option>
+			  <option value="z-ai/glm-4.5-air:free">⚡ GLM 4.5 Air (Fast • Daily Driver)</option>
+			  <option value="google/gemma-4-31b-it:free">🖼️ Gemma 4 31B (Multimodal • Images)</option>
+			  <option value="poolside/laguna-xs-2:free">🚀 Laguna XS.2 (Lightweight • Fallback)</option>
+			  <option value="openai/gpt-oss-120b:free">✨ GPT-OSS 120B (Structured • Polish)</option>
             </select>
           </div>
           <div class="select-wrap">
@@ -3720,7 +3724,14 @@ function shouldFallbackToNextChatRoute(error) {
 
 const CHAT_API_URL_CANDIDATES = buildChatApiCandidates(['/chat', '/api/chat']);
 const CHAT_STREAM_API_URL_CANDIDATES = buildChatApiCandidates(['/chat/stream', '/api/chat/stream']);
+// 🔥 OPTIMIZED MODELS FOR SPECTRIX - INTELLIGENT ROUTING
+const HY3_PREVIEW_MODEL = "tencent/hy3-preview:free";
+const LAGUNA_M1_MODEL = "poolside/laguna-m.1:free";
+const NEMOTRON_SUPER_MODEL = "nvidia/nemotron-3-super-120b:free";
+const GLM_AIR_MODEL = "z-ai/glm-4.5-air:free";
 const GEMMA_MULTIMODAL_MODEL = "google/gemma-4-31b-it:free";
+const LAGUNA_XS_MODEL = "poolside/laguna-xs-2:free";
+const GPT_OSS_MODEL = "openai/gpt-oss-120b:free";
 let activeChatApiUrl = CHAT_API_URL_CANDIDATES[0];
 let activeChatStreamApiUrl = CHAT_STREAM_API_URL_CANDIDATES[0];
 const MARKED_SCRIPT_CANDIDATES = [
@@ -4799,14 +4810,19 @@ async function fetchChatApiWithFallback(options = {}, retryCount = 1) {
 
   throw lastError || new Error('Chat request failed');
 }
-const DEFAULT_TEXT_MODEL = GEMMA_MULTIMODAL_MODEL;
+const DEFAULT_TEXT_MODEL = HY3_PREVIEW_MODEL;  // Premium default: Hy3 Preview
 const ALLOWED_TEXT_MODELS = new Set([
+  HY3_PREVIEW_MODEL,
+  LAGUNA_M1_MODEL,
+  NEMOTRON_SUPER_MODEL,
+  GLM_AIR_MODEL,
   GEMMA_MULTIMODAL_MODEL,
-  "openai/gpt-oss-120b:free",
-  "nvidia/nemotron-3-super-120b-a12b:free"
+  LAGUNA_XS_MODEL,
+  GPT_OSS_MODEL
 ]);
 const LEGACY_TEXT_MODEL_MIGRATIONS = new Map([
-  ["openai/gpt-oss-20b:free", GEMMA_MULTIMODAL_MODEL]
+  ["openai/gpt-oss-20b:free", HY3_PREVIEW_MODEL],
+  ["google/gemma-4-31b-it:free", HY3_PREVIEW_MODEL]
 ]);
 const DEPRECATED_TEXT_MODELS = new Set([
   "stepfun/step-3.5-flash:free",
@@ -6631,7 +6647,7 @@ function hydrateMediaMessageNode(node, role, content, options = {}) {
 }
 
 function createChatMessageNode(role, content, options = {}) {
-  const { saveIt = false, messageIndex = null, attachments = null } = options;
+  const { saveIt = false, messageIndex = null, attachments = null, modelUsed = null } = options;
   const d = document.createElement("div");
   d.className = "msg " + role;
   let actions = null;
@@ -6726,7 +6742,31 @@ function createChatMessageNode(role, content, options = {}) {
 
   const t = document.createElement("div");
   t.className = "timestamp";
-  t.textContent = time();
+  
+  // 🤖 Add model info if available for bot messages
+  let timeContent = time();
+  if (role === "bot" && modelUsed) {
+    const getModelEmoji = (modelId) => {
+      if (modelId.includes('laguna-m')) return '💻';
+      if (modelId.includes('hy3-preview')) return '🔥';
+      if (modelId.includes('nemotron')) return '🧠';
+      if (modelId.includes('glm-4.5-air')) return '⚡';
+      if (modelId.includes('gemma')) return '🖼️';
+      if (modelId.includes('laguna-xs')) return '🚀';
+      if (modelId.includes('gpt-oss')) return '✨';
+      return '🤖';
+    };
+    const modelEmoji = getModelEmoji(modelUsed);
+    const modelDisplayName = modelUsed
+      .replace('tencent/', '').replace('poolside/', '').replace('nvidia/', '')
+      .replace('z-ai/', '').replace('google/', '').replace('openai/', '')
+      .replace(':free', '').split('-').slice(0, 3).join(' ');
+    timeContent += ` • ${modelEmoji} ${modelDisplayName}`;
+  }
+  t.textContent = timeContent;
+  t.style.fontSize = '0.8em';
+  t.style.opacity = '0.7';
+  
   if (actions) {
     const meta = document.createElement("div");
     meta.className = "msg-meta";
@@ -6770,7 +6810,8 @@ async function renderChatWindowSlice(session, start, end, options = {}) {
     const node = createChatMessageNode(message.role, message.content, { 
        saveIt: false, 
        messageIndex: idx, 
-       attachments: displayAttachments 
+       attachments: displayAttachments,
+       modelUsed: message.modelUsed
     });
     node.dataset.msgIndex = String(idx);
     fragment.appendChild(node);
@@ -6864,7 +6905,8 @@ async function loadChatMessages() {
     const node = createChatMessageNode(message.role, message.content, { 
        saveIt: false, 
        messageIndex: idx, 
-       attachments: displayAttachments 
+       attachments: displayAttachments,
+       modelUsed: message.modelUsed
     });
     fragment.appendChild(node);
     hydrateMediaMessageNode(node, message.role, message.content, { messageIndex: idx, attachments: displayAttachments });
@@ -8838,7 +8880,26 @@ async function streamBotFromSSE(payload, options = {}) {
 
   const d = document.createElement("div");
   d.className = "msg bot";
-  d.innerHTML = '<span class="stream-placeholder">Thinking<span class="stream-dots" aria-hidden="true"></span></span>';
+  
+  // 🤖 Get model info for display
+  const modelName = payload?.model || 'Assistant';
+  const getModelEmoji = (modelId) => {
+    if (modelId.includes('laguna-m')) return '💻';
+    if (modelId.includes('hy3-preview')) return '🔥';
+    if (modelId.includes('nemotron')) return '🧠';
+    if (modelId.includes('glm-4.5-air')) return '⚡';
+    if (modelId.includes('gemma')) return '🖼️';
+    if (modelId.includes('laguna-xs')) return '🚀';
+    if (modelId.includes('gpt-oss')) return '✨';
+    return '🤖';
+  };
+  const modelEmoji = getModelEmoji(modelName);
+  const modelDisplayName = modelName
+    .replace('tencent/', '').replace('poolside/', '').replace('nvidia/', '')
+    .replace('z-ai/', '').replace('google/', '').replace('openai/', '')
+    .replace(':free', '').split('-').slice(0, 3).join(' ');
+  
+  d.innerHTML = `<span class="stream-placeholder">${modelEmoji} Thinking<span class="stream-dots" aria-hidden="true"></span></span><div class="model-info" style="font-size: 0.8em; opacity: 0.6; margin-top: 4px;">via ${modelDisplayName}</div>`;
   chat.appendChild(d);
   scrollChatToLatest({ smooth: false, force: true });
 
@@ -9091,7 +9152,11 @@ async function streamBotFromSSE(payload, options = {}) {
     }
 
     await finalizeRenderedMessage();
-    session.messages.push({ role: "bot", content: renderedText });
+    const msgObj = { role: "bot", content: renderedText };
+    if (window.lastSelectedModel) {
+      msgObj.modelUsed = window.lastSelectedModel;
+    }
+    session.messages.push(msgObj);
     session.timestamp = Date.now();
     await saveChat(session);
     renderHistory();
@@ -9117,7 +9182,11 @@ async function streamBotFromSSE(payload, options = {}) {
   // Play TTS once final text is complete.
   speakText(renderedText);
 
-  session.messages.push({ role: "bot", content: renderedText });
+  const msgObj = { role: "bot", content: renderedText };
+  if (window.lastSelectedModel) {
+    msgObj.modelUsed = window.lastSelectedModel;
+  }
+  session.messages.push(msgObj);
   session.timestamp = Date.now();
   await saveChat(session);
   renderHistory();
@@ -9199,6 +9268,67 @@ Create a concise title that captures the main topic of this conversation.
       ? userPrompt.replace(/\s+/g, " ").trim().split(" ").slice(0, 5).join(" ")
       : "New Chat";
   }
+}
+
+// 🧠 INTELLIGENT TASK DETECTION FOR MODEL ROUTING
+function detectTaskType(prompt, attachments = []) {
+  const lowerPrompt = prompt.toLowerCase();
+  
+  // Check for code/debug signals
+  const codingKeywords = ['code', 'debug', 'fix', 'refactor', 'implement', 'architecture', 'function', 'class', 'bug', 'error', 'syntax', 'stack trace', 'exception'];
+  const hasCodeSignal = codingKeywords.some(kw => lowerPrompt.includes(kw));
+  
+  // Check for multimodal content (images/screenshots)
+  const hasImages = attachments.some(a => a.type && a.type.startsWith('image/'));
+  
+  // Check for structured/complex tasks
+  const structuredKeywords = ['analyze', 'compare', 'summarize', 'report', 'json', 'structured', 'format', 'convert', 'transform'];
+  const hasStructuredSignal = structuredKeywords.some(kw => lowerPrompt.includes(kw));
+  
+  // Check for speed-critical requests
+  const speedKeywords = ['quick', 'fast', 'asap', 'soon', 'now', 'immediately', 'urgent'];
+  const hasSpeedSignal = speedKeywords.some(kw => lowerPrompt.includes(kw));
+  
+  // Check for long context needs (file analysis, logs)
+  const longContextKeywords = ['analyze log', 'large file', 'entire codebase', 'full transcript', 'book', 'documentation', 'repository'];
+  const hasLongContextSignal = longContextKeywords.some(kw => lowerPrompt.includes(kw)) || 
+                               (attachments && attachments.reduce((sum, a) => sum + (a.size || 0), 0) > 5000000);
+  
+  return {
+    isCoding: hasCodeSignal,
+    hasImages: hasImages,
+    isStructured: hasStructuredSignal,
+    needsSpeed: hasSpeedSignal,
+    needsLongContext: hasLongContextSignal
+  };
+}
+
+// 🤖 INTELLIGENT MODEL ROUTER
+function selectOptimalModel(taskType) {
+  // Priority: Long context > Code > Images > Speed > Structured > Default
+  
+  if (taskType.needsLongContext) {
+    return NEMOTRON_SUPER_MODEL;  // 1M token context
+  }
+  
+  if (taskType.isCoding) {
+    return LAGUNA_M1_MODEL;  // Built for software engineering
+  }
+  
+  if (taskType.hasImages) {
+    return GEMMA_MULTIMODAL_MODEL;  // Image understanding
+  }
+  
+  if (taskType.needsSpeed) {
+    return GLM_AIR_MODEL;  // Fast snappy responses
+  }
+  
+  if (taskType.isStructured) {
+    return GPT_OSS_MODEL;  // Polished structured output
+  }
+  
+  // Default: Premium reasoning model
+  return HY3_PREVIEW_MODEL;
 }
 
 // ===== SEND MESSAGE =====
@@ -9453,7 +9583,21 @@ async function send(options = {}) {
     }
     else {
       activeMediaGenerationToken = 0;
-      const model = getChatModelForSession(session);
+      const manuallySelectedModel = getChatModelForSession(session);
+      
+      // 🤖 INTELLIGENT MODEL ROUTING: Auto-detect task and select optimal model
+      const taskType = detectTaskType(prompt, attachmentQueue);
+      const optimalModel = selectOptimalModel(taskType);
+      
+      // Respect manual selection if user chose a non-default model
+      const model = (manuallySelectedModel && manuallySelectedModel !== DEFAULT_TEXT_MODEL) 
+        ? manuallySelectedModel 
+        : optimalModel;
+      
+      // Store which model was used (for display in chat)
+      window.lastSelectedModel = model;
+      window.lastTaskType = taskType;
+      
       const gemmaSelectedForAttachments = isGemmaMultimodalSelected(model);
 
       if (attachmentQueue.length) {
