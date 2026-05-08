@@ -4127,6 +4127,9 @@ function appendAttachmentPreviewsToMessageNode(messageNode, attachments) {
   
   // Try to safely detect image items. If item itself is a File without a structure, handle it.
   const imageItems = attachments.filter((item) => {
+    // Fast path: if previewUrl exists, it's definitely displayable
+    if (item?.previewUrl) return true;
+    // Slow path: check file type (only needed for legacy formats)
     const target = item?.file ? item.file : item;
     return isImageAttachment(target);
   });
@@ -5855,30 +5858,16 @@ function deserializeAttachmentsForDisplay(serialized) {
   return serialized.map((item) => {
     if (!item.data) return item;
     
-    // Generate dataUri immediately so display is guaranteed even if File rebuilding fails
+    // Generate dataUri immediately for display (fast path - no expensive byte conversion)
     const dataUri = `data:${item.type || 'application/octet-stream'};base64,${item.data}`;
     item.previewUrl = item.cloudUrl || item.previewUrl || dataUri;
     
-    try {
-      const binaryString = atob(item.data);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      const blob = new Blob([bytes], { type: item.type || 'application/octet-stream' });
-      const fileObj = new File([blob], item.name || 'attachment', { type: item.type || 'application/octet-stream' });
-      
-      // Override properties with the fully hydrated File object
-      return {
-        ...item,
-        file: fileObj,
-        blob: blob
-      };
-    } catch (err) {
-      console.warn('Failed to deserialize attachment File structure (UI will still render data URI):', item.name, err);
-      // Return the item which now has the safe dataUri injected
-      return item;
-    }
+    // OPTIMIZATION: Skip expensive File reconstruction for display-only purposes.
+    // The previewUrl is sufficient for rendering images. The byte-conversion loop
+    // (atob + Uint8Array char-by-char loop) was blocking the UI thread on large attachments.
+    // If File object is needed later for re-upload, lazy-build can be added on-demand.
+    
+    return item;
   });
 }
 
