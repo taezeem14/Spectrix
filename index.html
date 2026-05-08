@@ -3148,7 +3148,8 @@ body.dark .voice-btn.recording {
           <div class="select-wrap">
             <select id="textModelSelect" title="Choose text model">
 			  <option value="google/gemma-4-31b-it:free">Gemma 4 31B IT (Main • Instruction Tuned)</option>
-        <option value="tencent/hy3-preview:free">Tencent Hy3 (Reasoning • Programming)</option>
+        <option value="tencent/hy3-preview:free">Tencent Hy3 (Reasoning • Programming)
+        </option>
 			  <option value="openai/gpt-oss-120b:free">GPT-OSS 120B (Fast • Strong)</option>
               <option value="nvidia/nemotron-3-super-120b-a12b:free">Nemotron 3 Super (Deep Reasoning)</option>
             </select>
@@ -4127,9 +4128,6 @@ function appendAttachmentPreviewsToMessageNode(messageNode, attachments) {
   
   // Try to safely detect image items. If item itself is a File without a structure, handle it.
   const imageItems = attachments.filter((item) => {
-    // Fast path: if previewUrl exists, it's definitely displayable
-    if (item?.previewUrl) return true;
-    // Slow path: check file type (only needed for legacy formats)
     const target = item?.file ? item.file : item;
     return isImageAttachment(target);
   });
@@ -4140,7 +4138,7 @@ function appendAttachmentPreviewsToMessageNode(messageNode, attachments) {
   row.className = 'msg-attachment-previews';
 
   imageItems.forEach((item) => {
-    let src = item?.cloudUrl || item?.previewUrl || '';
+    let src = item?.previewUrl || '';
     if (!src) {
       const file = item?.file ? item.file : (item instanceof File ? item : null);
       if (file) {
@@ -5816,33 +5814,18 @@ async function serializeAttachmentsForStorage(attachments) {
   if (!Array.isArray(attachments) || attachments.length === 0) return null;
   
   const serialized = [];
-  for (let index = 0; index < attachments.length; index += 1) {
-    const item = attachments[index];
+  for (const item of attachments) {
     const file = item?.file ? item.file : (item instanceof File ? item : null);
     if (!file) continue;
     
     try {
-      const attachmentType = String(file.type || item?.type || '').toLowerCase();
-      const isPreviewImage = attachmentType.startsWith('image/');
-      let cloudUrl = String(item?.cloudUrl || '').trim();
-
-      if (!cloudUrl && isPreviewImage) {
-        const previewMediaId = `attachment_${Date.now()}_${index}`;
-        try {
-          cloudUrl = await uploadMediaBlobToCloud(previewMediaId, file, { mediaType: 'image' });
-        } catch (uploadErr) {
-          console.warn('Attachment preview upload skipped:', file.name, uploadErr);
-        }
-      }
-
       const base64 = await fileToBase64(file);
       serialized.push({
         name: file.name,
         type: file.type,
         size: file.size,
         data: base64,
-        previewUrl: item?.previewUrl || cloudUrl || '',
-        cloudUrl
+        previewUrl: item?.previewUrl || ''
       });
     } catch (err) {
       console.warn('Failed to serialize attachment:', file.name, err);
@@ -5858,16 +5841,30 @@ function deserializeAttachmentsForDisplay(serialized) {
   return serialized.map((item) => {
     if (!item.data) return item;
     
-    // Generate dataUri immediately for display (fast path - no expensive byte conversion)
+    // Generate dataUri immediately so display is guaranteed even if File rebuilding fails
     const dataUri = `data:${item.type || 'application/octet-stream'};base64,${item.data}`;
-    item.previewUrl = item.cloudUrl || item.previewUrl || dataUri;
+    item.previewUrl = dataUri;
     
-    // OPTIMIZATION: Skip expensive File reconstruction for display-only purposes.
-    // The previewUrl is sufficient for rendering images. The byte-conversion loop
-    // (atob + Uint8Array char-by-char loop) was blocking the UI thread on large attachments.
-    // If File object is needed later for re-upload, lazy-build can be added on-demand.
-    
-    return item;
+    try {
+      const binaryString = atob(item.data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: item.type || 'application/octet-stream' });
+      const fileObj = new File([blob], item.name || 'attachment', { type: item.type || 'application/octet-stream' });
+      
+      // Override properties with the fully hydrated File object
+      return {
+        ...item,
+        file: fileObj,
+        blob: blob
+      };
+    } catch (err) {
+      console.warn('Failed to deserialize attachment File structure (UI will still render data URI):', item.name, err);
+      // Return the item which now has the safe dataUri injected
+      return item;
+    }
   });
 }
 
@@ -9271,6 +9268,9 @@ async function send(options = {}) {
 
   if (!skipUserRender) {
     const userNode = render("user", promptForRender, true, null, attachmentQueue);
+    if (attachmentQueue.length) {
+      appendAttachmentPreviewsToMessageNode(userNode, attachmentQueue);
+    }
     // Yield one frame so the user bubble paints immediately.
     await new Promise((resolve) => requestAnimationFrame(resolve));
   }
