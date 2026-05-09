@@ -684,7 +684,7 @@ pre .line-number-gutter{
   position:absolute;
   top:44px;
   left:0;
-  bottom:14px;
+  bottom:auto;
   width:42px;
   padding:0 8px 0 10px;
   border-right:1px solid rgba(255,255,255,0.08);
@@ -8236,8 +8236,8 @@ function syncLineNumberGutter(pre) {
   if (!pre) return;
   const gutter = pre.querySelector('.line-number-gutter');
   if (!gutter) return;
-  const offsetY = Math.round(pre.scrollTop || 0);
-  gutter.style.transform = `translate3d(0, ${-offsetY}px, 0)`;
+  const offsetX = Math.round(pre.scrollLeft || 0);
+  gutter.style.transform = `translate3d(${offsetX}px, 0, 0)`;
 }
 
 function decorateCodeBlocks(container) {
@@ -8767,23 +8767,8 @@ async function streamBotFromSSE(payload, options = {}) {
     (Array.isArray(payload?.messages) && payload.messages.some((msg) =>
       typeof msg?.content === 'string' && msg.content.includes('Attached file context from the user')
     ));
-  const STREAM_IDLE_TIMEOUT_MS = hasAttachmentContext
-    ? (isGemmaStream ? 120000 : 90000)
-    : (isGemmaStream ? 45000 : 20000);
-  streamMetrics.idleTimeoutMs = STREAM_IDLE_TIMEOUT_MS;
-
   const readChunkWithTimeout = async () => {
-    let timeoutId;
-    try {
-      return await Promise.race([
-        reader.read(),
-        new Promise((_, reject) => {
-          timeoutId = setTimeout(() => reject(new Error('Stream stalled.')), STREAM_IDLE_TIMEOUT_MS);
-        })
-      ]);
-    } finally {
-      if (timeoutId) clearTimeout(timeoutId);
-    }
+    return await reader.read();
   };
 
   let lastStreamRenderAt = 0;
