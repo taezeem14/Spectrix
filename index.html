@@ -4128,8 +4128,8 @@ function appendAttachmentPreviewsToMessageNode(messageNode, attachments) {
   
   // Try to safely detect image items. If item itself is a File without a structure, handle it.
   const imageItems = attachments.filter((item) => {
-    const target = item?.file ? item.file : item;
-    return isImageAttachment(target);
+    const fn = item?.file ? item.file : (item instanceof File ? item : null);
+    return isImageAttachment(fn);
   });
   
   if (!imageItems.length) return;
@@ -9352,8 +9352,8 @@ async function send(options = {}) {
         await saveMedia(mediaId, blob);
         const cloudUrl = await uploadMediaBlobToCloud(mediaId, blob, { mediaType: 'image' });
         const imageContent = cloudUrl
-          ? { type: "image", mediaId, cloudUrl }
-          : { type: "image", mediaId };
+          ? { type: "image", src: base64, mediaId, cloudUrl }
+          : { type: "image", src: base64, mediaId };
         await saveMessage("bot", imageContent);
 
         const div = document.createElement("div");
@@ -9424,8 +9424,8 @@ async function send(options = {}) {
           await saveMedia(mediaId, blob);
           const cloudUrl = await uploadMediaBlobToCloud(mediaId, blob, { mediaType: 'video' });
           const videoContent = cloudUrl
-            ? { type: "video", mediaId, cloudUrl }
-            : { type: "video", mediaId };
+            ? { type: "video", src: reader.result, mediaId, cloudUrl }
+            : { type: "video", src: reader.result, mediaId };
           await saveMessage("bot", videoContent);
         };
         reader.readAsDataURL(blob);
