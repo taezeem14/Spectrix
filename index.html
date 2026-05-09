@@ -628,72 +628,56 @@ body.dark .bot {
 
 pre{
   position:relative;
-  background:var(--code-bg);
-  border-radius:12px;
-  padding:0;
-  margin-top:12px;
-  overflow:hidden;
-  transition:max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background:
+    linear-gradient(180deg, var(--code-toolbar), rgba(0,0,0,0) 54px),
+    linear-gradient(180deg, var(--code-bg-2), var(--code-bg));
+  border-radius:var(--radius-sm);
+  padding:44px 14px 14px;
+  margin-top:10px;
+  overflow-x:auto;
+  max-height:400px;
+  transition:max-height 0.26s ease;
   border:1px solid var(--code-border);
   box-shadow: 0 12px 30px rgba(2,6,23,0.24);
-  display:flex;
-  flex-direction:column;
+  overscroll-behavior: contain;
 }
 
-pre.collapsed{max-height:44px !important;}
+pre.collapsed{max-height:80px;overflow:hidden;}
 
-pre.collapsed code, pre.collapsed .line-number-gutter {
-  opacity:0;
+pre.collapsed::after{
+  content:"";
+  position:absolute;
+  left:0;right:0;bottom:0;
+  height:42px;
   pointer-events:none;
+  background:linear-gradient(180deg, rgba(15,23,42,0), var(--code-bg));
 }
 
-pre .code-header {
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  height:44px;
-  padding:0 12px 0 16px;
-  background:rgba(15,23,42,0.6);
-  border-bottom:1px solid rgba(255,255,255,0.06);
-  user-select:none;
-  cursor:pointer;
-  flex-shrink:0;
-  backdrop-filter:blur(10px);
-}
-
-pre .code-header-left {
-  display:flex;
-  align-items:center;
-  gap:8px;
-  font-size:13px;
-  font-family:inherit;
-  color:#e2e8f0;
-  font-weight:600;
-}
-
-pre .code-header-right {
-  display:flex;
-  align-items:center;
-  gap:6px;
+pre::before{
+  content:attr(data-lang);
+  position:absolute;
+  top:9px;
+  left:12px;
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  color:#cbd5e1;
+  padding:4px 8px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,0.18);
+  background:rgba(15,23,42,0.36);
 }
 
 pre code{
   display:block;
-  overflow:auto;
-  padding:14px;
-  flex-grow:1;
-  width:100%;
-  max-height:400px;
-  box-sizing:border-box;
+  width:max-content;
+  min-width:100%;
   font-size:13px;
   font-family:'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace;
   line-height:1.7;
   color:var(--code-text);
   white-space:pre;
-}
-
-pre.line-numbers code{
-  padding-left:56px;
 }
 
 pre .line-number-gutter{
@@ -702,7 +686,7 @@ pre .line-number-gutter{
   left:0;
   bottom:auto;
   width:42px;
-  padding:14px 8px 14px 10px;
+  padding:0 8px 0 10px;
   border-right:1px solid rgba(255,255,255,0.08);
   color:rgba(203,213,225,0.72);
   font-size:13px;
@@ -716,6 +700,15 @@ pre .line-number-gutter{
   display:none;
   background:linear-gradient(180deg, rgba(15,23,42,0.16), rgba(15,23,42,0.05));
   will-change: transform;
+}
+
+pre .line-number-gutter span{
+  display:block;
+  height:1.7em;
+}
+
+pre.line-numbers{
+  padding-left:56px;
 }
 
 pre.line-numbers .line-number-gutter{
@@ -732,29 +725,30 @@ pre .hljs {
 }
 
 .copy-btn, .collapse-btn, .lines-btn, .preview-btn{
-  position:relative;
-  min-height:26px;
+  position:absolute;
+  top:8px;
+  min-height:24px;
   background:linear-gradient(180deg, rgba(15,23,42,0.86), rgba(15,23,42,0.64));
   border:1px solid rgba(148,163,184,0.34);
   color:#e8e8ed;
-  font-size:11px;
-  letter-spacing:0.04em;
+  font-size:10px;
+  letter-spacing:0.05em;
   text-transform:uppercase;
-  padding:0 10px;
-  border-radius:6px;
+  padding:4px 9px;
+  border-radius:7px;
   cursor:pointer;
   font-family:inherit;
   font-weight:700;
-  transition:background 0.15s, transform 0.15s, border-color 0.15s;
-  display:flex;
-  align-items:center;
-  justify-content:center;
+  transition:background 0.15s, transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+  backdrop-filter: none;
+  box-shadow:none;
 }
 
 .copy-btn:hover, .collapse-btn:hover, .lines-btn:hover, .preview-btn:hover{
   background:linear-gradient(180deg, rgba(30,41,59,0.92), rgba(15,23,42,0.8));
   border-color:rgba(191,219,254,0.44);
   transform: translateY(-1px);
+  box-shadow:none;
 }
 
 .lines-btn.active, .preview-btn.active{
@@ -767,7 +761,13 @@ pre .hljs {
   opacity:0.5;
   cursor:not-allowed;
   transform:none !important;
+  box-shadow:none !important;
 }
+
+.copy-btn{right:8px;}
+.lines-btn{right:72px;}
+.collapse-btn{right:136px;}
+.preview-btn{right:204px;}
 
 .html-preview-wrap{
   display:none;
@@ -8256,10 +8256,9 @@ function buildLineNumberGutter(block, pre) {
 function syncLineNumberGutter(pre) {
   if (!pre) return;
   const gutter = pre.querySelector('.line-number-gutter');
-  const code = pre.querySelector('code');
-  if (!gutter || !code) return;
-  const offsetY = Math.round(code.scrollTop || 0);
-  gutter.style.transform = `translate3d(0, ${-offsetY}px, 0)`;
+  if (!gutter) return;
+  const offsetX = Math.round(pre.scrollLeft || 0);
+  gutter.style.transform = `translate3d(${offsetX}px, 0, 0)`;
 }
 
 function decorateCodeBlocks(container) {
@@ -8302,12 +8301,12 @@ function decorateCodeBlocks(container) {
     pre.dataset.lang = formatCodeLanguageLabel(resolvedLang);
 
     const hasLineNumberGutter = buildLineNumberGutter(block, pre);
-    block.scrollTop = 0;
+    pre.scrollTop = 0;
     syncLineNumberGutter(pre);
 
     if (pre.dataset.lineScrollBound !== 'true') {
       let syncFrameId = 0;
-      block.addEventListener('scroll', () => {
+      pre.addEventListener('scroll', () => {
         if (syncFrameId) return;
         syncFrameId = requestAnimationFrame(() => {
           syncFrameId = 0;
@@ -8319,32 +8318,11 @@ function decorateCodeBlocks(container) {
 
     pre.dataset.enhanced = 'true';
 
-    let header = pre.querySelector('.code-header');
-    if (!header) {
-      header = document.createElement('div');
-      header.className = 'code-header';
-      header.innerHTML = `
-        <div class="code-header-left">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
-          <span>${formatCodeLanguageLabel(resolvedLang)}</span>
-        </div>
-        <div class="code-header-right"></div>
-      `;
-      header.onclick = (e) => {
-        if (e.target.tagName === 'BUTTON') return;
-        pre.classList.toggle('collapsed');
-      };
-      pre.insertBefore(header, block);
-    }
-    const rightSide = header.querySelector('.code-header-right');
-    rightSide.innerHTML = '';
-
     const collapseBtn = document.createElement("button");
     collapseBtn.className = "collapse-btn";
     collapseBtn.textContent = "Fold";
     collapseBtn.title = "Collapse code block";
-    collapseBtn.onclick = (e) => {
-      e.stopPropagation();
+    collapseBtn.onclick = () => {
       pre.classList.toggle("collapsed");
       const isCollapsed = pre.classList.contains("collapsed");
       collapseBtn.textContent = isCollapsed ? "Unfold" : "Fold";
@@ -8359,8 +8337,7 @@ function decorateCodeBlocks(container) {
     if (!hasLineNumberGutter) {
       linesBtn.disabled = true;
     }
-    linesBtn.onclick = (e) => {
-      e.stopPropagation();
+    linesBtn.onclick = () => {
       if (pre.dataset.linesAvailable !== 'true') {
         showStatus('Line numbers are disabled for very large code blocks.');
         return;
@@ -8374,8 +8351,7 @@ function decorateCodeBlocks(container) {
     copyBtn.className = "copy-btn";
     copyBtn.textContent = "Copy";
     copyBtn.title = "Copy code";
-    copyBtn.onclick = async (e) => {
-      e.stopPropagation();
+    copyBtn.onclick = async () => {
       try {
         await navigator.clipboard.writeText(block.textContent || '');
         copyBtn.textContent = "Copied";
@@ -8393,8 +8369,7 @@ function decorateCodeBlocks(container) {
       previewBtn.textContent = 'Live';
       previewBtn.title = 'Show live HTML preview';
       previewBtn.setAttribute('aria-pressed', 'false');
-      previewBtn.onclick = (e) => {
-        e.stopPropagation();
+      previewBtn.onclick = () => {
         const wrap = getOrCreateHtmlPreviewWrap(pre);
         const frame = wrap.querySelector('iframe');
         const shouldShow = !wrap.classList.contains('active');
@@ -8413,12 +8388,12 @@ function decorateCodeBlocks(container) {
           }, 60);
         }
       };
-      rightSide.appendChild(previewBtn);
+      pre.appendChild(previewBtn);
     }
 
-    rightSide.appendChild(collapseBtn);
-    rightSide.appendChild(linesBtn);
-    rightSide.appendChild(copyBtn);
+    pre.appendChild(collapseBtn);
+    pre.appendChild(linesBtn);
+    pre.appendChild(copyBtn);
   });
 }
 
@@ -8833,16 +8808,17 @@ async function streamBotFromSSE(payload, options = {}) {
 
   const renderCurrentState = () => {
     if (streamPaused) return;
-    // During stream, append incremental plain text for smoother FPS; finalize markdown once at the end.
-    if (!streamTextNode) {
-      d.textContent = "";
-      streamTextNode = document.createTextNode("");
-      d.appendChild(streamTextNode);
+    
+    if (window.marked) {
+      d.innerHTML = renderMarkdownSafely(renderedText);
+      promoteInlineCodeMath(d);
+      queueCodeBlockEnhancement(d);
+    } else {
+      d.textContent = renderedText;
     }
-    if (pendingDeltaText) {
-      streamTextNode.appendData(pendingDeltaText);
-      pendingDeltaText = "";
-    }
+    renderMath(d);
+    
+    pendingDeltaText = "";
     scrollChatToLatest({ smooth: false });
   };
 
