@@ -70,8 +70,8 @@ Core strengths:
 | Stat | Value |
 |------|-------|
 | 🗓️ Build Duration | 3+ months |
-| 🔁 Commits | 600+ |
-| 🚀 Deployments | 300+ |
+| 🔁 Commits | 670+ |
+| 🚀 Deployments | 400+ |
 | 📦 Framework | None (Vanilla JS) |
 | ⚙️ Backend | Vercel Functions |
 | 📱 Architecture | Single-file PWA (`index.html`) |
