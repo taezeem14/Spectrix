@@ -8812,7 +8812,6 @@ async function streamBotFromSSE(payload, options = {}) {
     if (window.marked) {
       d.innerHTML = renderMarkdownSafely(renderedText);
       promoteInlineCodeMath(d);
-      queueCodeBlockEnhancement(d);
     } else {
       d.textContent = renderedText;
     }
