@@ -264,6 +264,10 @@ function mergeSystemPrompt(messages) {
   return [{ role: 'system', content: mergedSystemContent }, ...clientMessages];
 }
 
+function getMaxTokensForModel(model) {
+  return 20000;
+}
+
 
 
 async function openRouterRequest(payload, { stream = false } = {}) {
@@ -393,10 +397,12 @@ function buildOpenRouterPayload(body) {
   const selectedModel = model || 'google/gemma-4-31b-it:free';
   const finalMessages = mergeSystemPrompt(messages);
   const isDeepseek = selectedModel.includes('deepseek');
+  const maxTokens = getMaxTokensForModel(selectedModel);
 
   return {
     model: selectedModel,
     messages: finalMessages,
+    max_tokens: maxTokens,
     ...(isDeepseek ? { reasoning: { effort: 'low' } } : {}),
     plugins: body.plugins
   };
@@ -639,7 +645,8 @@ async function handleGithubChat(req, res) {
       },
       body: JSON.stringify({
         model: selectedModel,
-        messages: finalMessages
+        messages: finalMessages,
+        max_tokens: getMaxTokensForModel(selectedModel)
       })
     });
 
