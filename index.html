@@ -4797,6 +4797,7 @@ async function fetchChatApiWithFallback(options = {}, retryCount = 1) {
 const DEFAULT_TEXT_MODEL = GEMMA_MULTIMODAL_MODEL;
 const ALLOWED_TEXT_MODELS = new Set([
   GEMMA_MULTIMODAL_MODEL,
+  "poolside/laguna-m.1:free",
   "openai/gpt-oss-120b:free",
   "nvidia/nemotron-3-super-120b-a12b:free"
 ]);
@@ -11193,13 +11194,12 @@ function initTextModelDropdown() {
   // Ensure the select reflects the active model
   sel.value = FIXED_TEXT_MODEL;
 
-  sel.addEventListener('change', async (e) => {
+  sel.addEventListener('change', (e) => {
     const nextModel = normalizeTextModelId(e.target.value);
+    if (nextModel === FIXED_TEXT_MODEL) return;  // No-op if same model
     
     FIXED_TEXT_MODEL = nextModel;
-    sel.value = nextModel;
     localStorage.setItem('Spectrix_text_model', nextModel);
-    // Optional: notify user briefly
     console.log('Text model set to', nextModel);
   });
 }
