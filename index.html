@@ -1876,12 +1876,7 @@ body.dark .voice-btn.recording {
   text-overflow: ellipsis;
 }
 
-#chatModelLockSelect {
-  max-width: 154px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+
 
 /* ===== MOBILE OPTIMIZED ===== */
 @media(max-width:768px){
@@ -3114,7 +3109,6 @@ body.dark .voice-btn.recording {
         <button class="sidebar-settings-btn" id="settingsBtn" onclick="toggleSettingsMenu(event)" aria-expanded="false" aria-haspopup="menu" aria-label="Open settings">⚙️ Settings</button>
         <div class="settings-menu" id="settingsMenu" role="menu" aria-label="Settings menu">
           <button class="settings-item" id="settingsAuthBtn" type="button" onclick="openProfileActions();closeSettingsMenu();" role="menuitem" title="Sign in with Google">🔐 Sign in with Google</button>
-          <button class="settings-item" id="settingsModelLockBtn" type="button" onclick="toggleChatModelLock();closeSettingsMenu();" role="menuitem" title="Lock this chat to its current model">🔓 Chat model lock: OFF</button>
           <button class="settings-item" type="button" onclick="exportChat();closeSettingsMenu();" role="menuitem">💾 Export current chat</button>
           <button class="settings-item" type="button" onclick="exportChatPdf();closeSettingsMenu();" role="menuitem">📄 Export chat as PDF</button>
           <button class="settings-item" type="button" onclick="exportChatDocx();closeSettingsMenu();" role="menuitem">📝 Export chat as DOCX</button>
@@ -3637,7 +3631,6 @@ const CONVERSATION_TEMPLATE_PRESETS = {
     ].join('\n')
   }
 };
-const CHAT_MODEL_LOCK_KEY_PREFIX = 'Spectrix_chat_model_lock_';
 const COMMAND_PALETTE_DEFINITION_KEY = 'Spectrix_command_palette_defs_v1';
 const MATH_FORMAT_SYSTEM_PROMPT = `
 When writing mathematics, use valid MathJax / KaTeX LaTeX syntax.
@@ -4991,78 +4984,7 @@ function getConversationTemplateSystemPrompt(templateId) {
   return String(preset?.systemPrompt || '').trim();
 }
 
-function getChatModelLockKey(sessionId = currentId) {
-  return `${CHAT_MODEL_LOCK_KEY_PREFIX}${String(sessionId || '')}`;
-}
 
-function isChatModelLockEnabled(session = getCurrentSession()) {
-  const key = getChatModelLockKey(session?.id);
-  const val = localStorage.getItem(key);
-  return val !== null && val !== 'false';
-}
-
-function getLockedChatModel(session = getCurrentSession()) {
-  const key = getChatModelLockKey(session?.id);
-  const val = String(localStorage.getItem(key) || '').trim();
-  return (val === 'true' || val === 'false') ? '' : val;
-}
-
-function setLockedChatModel(sessionId, modelId, enabled) {
-  const key = getChatModelLockKey(sessionId);
-  if (!enabled) {
-    localStorage.removeItem(key);
-    return;
-  }
-  localStorage.setItem(key, String(modelId || FIXED_TEXT_MODEL).trim());
-}
-
-function getChatModelForSession(session = getCurrentSession()) {
-  const lockedModel = getLockedChatModel(session);
-  return lockedModel || FIXED_TEXT_MODEL;
-}
-
-function updateChatModelLockUi(session = getCurrentSession()) {
-  const btn = document.getElementById('settingsModelLockBtn');
-  if (!btn) return;
-  const enabled = isChatModelLockEnabled(session);
-  const modelId = enabled ? getLockedChatModel(session) : '';
-  btn.textContent = enabled ? `🔒 Chat model lock: ON (${modelId || 'unknown'})` : '🔓 Chat model lock: OFF';
-  btn.title = enabled
-    ? `This chat is locked to ${modelId || 'the current model'}`
-    : 'Lock this chat to its current model';
-
-  const select = document.getElementById('textModelSelect');
-  if (select) {
-    if (enabled && modelId) {
-      // If locked, we display the locked model in the dropdown temporarily
-      select.value = modelId;
-    } else {
-      // Revert to global fallback
-      select.value = FIXED_TEXT_MODEL;
-    }
-  }
-}
-
-async function toggleChatModelLock() {
-  const session = getCurrentSession();
-  if (!session) return;
-
-  const enabled = !isChatModelLockEnabled(session);
-  if (enabled) {
-    const select = document.getElementById('textModelSelect');
-    const currentModel = select && select.value ? select.value : FIXED_TEXT_MODEL;
-    setLockedChatModel(session.id, currentModel, true);
-    session.lockedModel = currentModel;
-  } else {
-    setLockedChatModel(session.id, '', false);
-    delete session.lockedModel;
-  }
-
-  await saveChat(session);
-  updateChatModelLockUi(session);
-  renderHistory();
-  showStatus(enabled ? 'Chat model lock enabled.' : 'Chat model lock disabled.');
-}
 
 function normalizeCommandPaletteCommand(command) {
   return String(command || '').trim().toLowerCase();
@@ -5097,13 +5019,6 @@ function getCommandPaletteDefinitions() {
       desc: 'Switch the active chat to the research preset.',
       keywords: ['template', 'research'],
       run: () => applyConversationTemplatePreset('research')
-    },
-    {
-      id: 'toggle-model-lock',
-      title: 'Toggle Chat Model Lock',
-      desc: 'Lock this conversation to the current text model.',
-      keywords: ['model', 'lock'],
-      run: () => toggleChatModelLock()
     },
     {
       id: 'export-chat-md',
@@ -5656,7 +5571,6 @@ async function initApp() {
   initCompatibilityEnhancements();
   updateThemeColorMeta();
   initMemorySystem();
-  updateChatModelLockUi();
 }
 
 
@@ -5721,7 +5635,6 @@ async function createNewChat(options = {}) {
   };
   sessions[currentId] = newSession;
   updateConversationTemplateSelectUi(newSession.templatePreset);
-  updateChatModelLockUi(newSession);
   if (persist) {
     await saveChat(newSession);
     if (!incognitoEnabled) localStorage.setItem(CURRENT_KEY, currentId);
@@ -6289,7 +6202,7 @@ async function retryMessageAt(targetBotIndex = null) {
   }
 
   const payload = {
-    model: resolveTextModelForRequest(getChatModelForSession(session), webSearchEnabled),
+    model: resolveTextModelForRequest(FIXED_TEXT_MODEL, webSearchEnabled),
     messages: [{ role: "system", content: systemPrompt }, ...contextMessages]
   };
 
@@ -6562,7 +6475,6 @@ async function loadChatHandler(id) {
   if (!incognitoEnabled) localStorage.setItem(CURRENT_KEY, currentId);
   startCloudAutoSync();
   updateConversationTemplateSelectUi(getConversationTemplatePreset(sessions[id]));
-  updateChatModelLockUi(sessions[id]);
   updateHeaderTitle();
   await loadChatMessages();
   renderHistory();
@@ -9443,7 +9355,7 @@ async function send(options = {}) {
     }
     else {
       activeMediaGenerationToken = 0;
-      const model = getChatModelForSession(session);
+      const model = FIXED_TEXT_MODEL;
       const gemmaSelectedForAttachments = isGemmaMultimodalSelected(model);
 
       if (attachmentQueue.length) {
@@ -11284,17 +11196,6 @@ function initTextModelDropdown() {
   sel.addEventListener('change', async (e) => {
     const nextModel = normalizeTextModelId(e.target.value);
     
-    // If the chat is locked, update the lock for this chat instead
-    const session = getCurrentSession();
-    if (session && isChatModelLockEnabled(session)) {
-      setLockedChatModel(session.id, nextModel, true);
-      session.lockedModel = nextModel;
-      await saveChat(session);
-      updateChatModelLockUi(session);
-      console.log('Locked text model set to', nextModel);
-      return;
-    }
-
     FIXED_TEXT_MODEL = nextModel;
     sel.value = nextModel;
     localStorage.setItem('Spectrix_text_model', nextModel);
