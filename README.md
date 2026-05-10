@@ -85,7 +85,7 @@ Core strengths:
 ### 🤖 AI Engine
 - **Real-time SSE streaming** via `/chat/stream` — no waiting for full output
 - **Legacy simulated streamer kept commented** in `index.html` as a fallback reference
-- **Multi-model routing** via OpenRouter — switch models from the header, including Gemma 4 31B IT, Laguna M.1, GPT-OSS 120B, and Nemotron 3 Super
+- **Multi-model routing** via OpenRouter — switch models from the header, including Gemma 4 31B IT, inclusionAI: Ring-2.6-1T, GPT-OSS 120B, and Nemotron 3 Super
 - **Advanced API key rotation** — strict round-robin across OpenRouter keys per request, with retry failover/cooldown, plus model-sticky routing for title and memory-extraction model calls
 - **Rate-limit UX** — friendly in-app message, not a dead crash
 - **Web search mode** — powered by Firecrawl via OpenRouter (`Ctrl+Shift+S` to toggle)
@@ -221,7 +221,7 @@ User sends message
 | Mode | Model | Best For |
 |------|-------|----------|
 | 🌟 Main | `google/gemma-4-31b-it:free` | Instruction-tuned coding and productivity workflows |
-| ⚡ Quick | `Poolside Laguna M.1` | Fast reasoning, programming, and sharp day-to-day chats |
+| ⚡ Quick | `inclusionAI Ring-2.6-1T` | Fast reasoning, programming, and sharp day-to-day chats |
 | 🧠 Quick Alt | `openai/gpt-oss-120b:free` | Fast chats, tools, and agent loops |
 | 🧠 Reasoning | `nvidia/nemotron-3-super-120b-a12b:free` | Deep reasoning and long-context tasks |
 
