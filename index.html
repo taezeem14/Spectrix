@@ -9177,13 +9177,16 @@ Factuality guardrails:
         d.className = "msg bot";
         chat.appendChild(d);
       }
-      d.innerHTML = '<span class="stream-placeholder">Thinking<span class="stream-dots" aria-hidden="true"></span></span>';
+      // When continuing from truncation, keep existing content — don't show "Thinking"
+      if (!options.continueFrom) {
+        d.innerHTML = '<span class="stream-placeholder">Thinking<span class="stream-dots" aria-hidden="true"></span></span>';
+      }
       scrollChatToLatest({ smooth: false, force: true });
 
       const session = getCurrentSession();
       if (!session) throw new Error("No active chat session");
 
-      let renderedText = "";
+      let renderedText = options.continueFrom || "";
       let buffer = "";
       let streamDone = false;
       let abortedByUser = false;
@@ -9504,13 +9507,14 @@ Factuality guardrails:
         setPauseButtonVisible(true);
         activeStreamAbortController = new AbortController();
 
-        const continuedText = await streamBotFromSSE(continuationPayload, {
+        // Use continueFrom so streamBotFromSSE appends to existing content
+        const fullText = await streamBotFromSSE(continuationPayload, {
           signal: activeStreamAbortController.signal,
-          targetNode
+          targetNode,
+          continueFrom: previousText
         });
 
-        // Merge the continued text into the existing message
-        const fullText = previousText + continuedText;
+        // Save the merged full text
         const botMsgIndex = session.messages.findLastIndex(m => m.role === 'bot');
         if (botMsgIndex !== -1) {
           session.messages[botMsgIndex].content = fullText;
