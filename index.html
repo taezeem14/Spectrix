@@ -1594,6 +1594,23 @@
       flex-shrink: 0;
     }
 
+    .header-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--border);
+      cursor: pointer;
+      transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+      flex-shrink: 0;
+    }
+
+    .header-avatar:hover {
+      border-color: var(--user);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+      transform: translateY(-1px);
+    }
+
     .select-wrap {
       position: relative;
       display: inline-flex;
@@ -3509,9 +3526,12 @@
               <option value="nvidia/nemotron-3-super-120b-a12b:free">Nemotron 3 Super (Deep Reasoning)</option>
             </select>
           </div>
-          <div class="active-skill-indicator" id="activeSkillIndicator" style="display:none; align-items:center; gap:6px; font-size:13px; font-weight:600; padding:6px 12px; border-radius:var(--radius-md); border:1px solid var(--border); background:var(--chat); color:var(--text); white-space:nowrap; cursor:default; user-select:none;">
-            <span style="color:#fbbf24; font-size:14px;">★</span> <span id="activeSkillName">Skill</span>
+          <div class="select-wrap active-skill-indicator" id="activeSkillIndicator" style="display:none;">
+            <div class="custom-select-trigger" style="cursor:default; pointer-events:none;">
+              <span class="custom-select-label"><span style="color:#fbbf24;">★</span> <span id="activeSkillName">Skill</span></span>
+            </div>
           </div>
+          <img class="auth-pill-avatar header-avatar" id="headerAvatar" src="" alt="" style="display:none;" onclick="openProfileActions()">
         </div>
       </header>
 
@@ -3531,6 +3551,15 @@
             <button class="quick-action-item" type="button"
               onclick="runTldrShortcut('keypoints');closeQuickActionsMenu();" role="menuitem">⚡ TL;DR
               (Keypoints)</button>
+            <button class="quick-action-item" type="button"
+              onclick="applyConversationTemplatePreset('coding');closeQuickActionsMenu();" role="menuitem">🧩 Template:
+              Coding</button>
+            <button class="quick-action-item" type="button"
+              onclick="applyConversationTemplatePreset('debug');closeQuickActionsMenu();" role="menuitem">🧩 Template:
+              Debug</button>
+            <button class="quick-action-item" type="button"
+              onclick="applyConversationTemplatePreset('research');closeQuickActionsMenu();" role="menuitem">🧩
+              Template: Research</button>
             <button class="quick-action-item" type="button" onclick="copyLatestTldrSummary();closeQuickActionsMenu();"
               role="menuitem">📋 Copy last TL;DR</button>
             <button class="quick-action-item" type="button"
@@ -12394,8 +12423,25 @@ ${existingFacts.slice(0, 20).join('\n')}`;
       }
     }
 
+    // Update header profile avatar
+    const headerAvatar = document.getElementById('headerAvatar');
+    if (headerAvatar) {
+      if (user) {
+        const stored = getStoredProfile();
+        const avatarSrc = stored.avatarUrl || user.photoURL || '';
+        if (avatarSrc) {
+          headerAvatar.src = avatarSrc;
+          headerAvatar.style.display = 'block';
+        } else {
+          headerAvatar.style.display = 'none';
+        }
+      } else {
+        headerAvatar.style.display = 'none';
+      }
+    }
+
     // Migrate old UI state: remove legacy header auth pill if present.
-    const legacyAuthPill = document.querySelector('.auth-pill');
+    const legacyAuthPill = document.querySelector('.auth-pill:not(.header-avatar)');
     if (legacyAuthPill) legacyAuthPill.remove();
   }
 

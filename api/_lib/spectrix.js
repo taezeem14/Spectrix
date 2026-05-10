@@ -264,14 +264,11 @@ function mergeSystemPrompt(messages) {
   return [{ role: 'system', content: mergedSystemContent }, ...clientMessages];
 }
 
-function getMaxTokensForModel(modelName) {
-  const selectedModel = String(modelName || '');
-  const isDeepseek = selectedModel.includes('deepseek');
-  const isThinkingModel = selectedModel.includes('thinking') || selectedModel.includes('r1') || selectedModel.includes('qwq');
-  if (isThinkingModel) return 2200;
-  if (isDeepseek) return 3072;
-  return 4096;
+function getMaxTokensForModel(model) {
+  return 20000;
 }
+
+
 
 async function openRouterRequest(payload, { stream = false } = {}) {
   const keyPool = getOpenRouterKeyPool();
@@ -372,7 +369,7 @@ async function buildRateLimitPayload(response) {
       const raw = String(await response.clone().text() || '').trim();
       if (raw) providerMessage = raw.slice(0, 260);
     }
-  } catch { }
+  } catch {}
 
   const message = providerMessage || 'Rate limited by AI provider. Please wait a moment and try again.';
   const payload = {
@@ -399,8 +396,8 @@ function buildOpenRouterPayload(body) {
 
   const selectedModel = model || 'google/gemma-4-31b-it:free';
   const finalMessages = mergeSystemPrompt(messages);
-  const maxTokens = getMaxTokensForModel(selectedModel);
   const isDeepseek = selectedModel.includes('deepseek');
+  const maxTokens = getMaxTokensForModel(selectedModel);
 
   return {
     model: selectedModel,
@@ -534,7 +531,7 @@ async function handleChatStream(req, res) {
       clientClosed = true;
       if (heartbeat) clearInterval(heartbeat);
       if (reader) {
-        reader.cancel().catch(() => { });
+        reader.cancel().catch(() => {});
       }
     });
 
@@ -649,7 +646,7 @@ async function handleGithubChat(req, res) {
       body: JSON.stringify({
         model: selectedModel,
         messages: finalMessages,
-        max_tokens: 3072
+        max_tokens: getMaxTokensForModel(selectedModel)
       })
     });
 
