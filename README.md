@@ -8,7 +8,7 @@
 [![Offline](https://img.shields.io/badge/Offline-Ready-10B981?style=for-the-badge&logo=googlechrome&logoColor=white)](https://spectrix-ai.vercel.app)
 [![Framework](https://img.shields.io/badge/Framework-None%20%28Pure%20JS%29-F59E0B?style=for-the-badge&logo=javascript&logoColor=white)](https://spectrix-ai.vercel.app)
 [![Math](https://img.shields.io/badge/Math-KaTeX%20%2B%20MathJax-2563EB?style=for-the-badge&logo=latex&logoColor=white)](https://spectrix-ai.vercel.app)
-[![Backend](https://img.shields.io/badge/Backend-Vercel%20Functions-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://spectrix-ai.vercel.app)
+[![Backend](https://img.shields.io/badge/Backend-Cloudflare%20Workers%20%2B%20Vercel-F38020?style=for-the-badge&logo=cloudflare&logoColor=white)](https://spectrix-ai.vercel.app)
 [![Models](https://img.shields.io/badge/Models-OpenRouter%20Multi--Model-7C3AED?style=for-the-badge&logo=openai&logoColor=white)](https://spectrix-ai.vercel.app)
 [![Storage](https://img.shields.io/badge/Storage-IndexedDB%20%2B%20Firebase-0EA5E9?style=for-the-badge&logo=databricks&logoColor=white)](https://spectrix-ai.vercel.app)
 [![Memory](https://img.shields.io/badge/AI%20Memory-Persistent-7C3AED?style=for-the-badge&logo=brain&logoColor=white)](https://spectrix-ai.vercel.app)
@@ -70,11 +70,11 @@ Core strengths:
 | Stat | Value |
 |------|-------|
 | 🗓️ Build Duration | 3+ months |
-| 🔁 Commits | 670+ |
-| 🚀 Deployments | 400+ |
+| 🔁 Commits | 750+ |
+| 🚀 Deployments | 500+ |
 | 📦 Framework | None (Vanilla JS) |
-| ⚙️ Backend | Vercel Functions |
-| 📱 Architecture | Single-file PWA (`index.html`) |
+| ⚙️ Backend | Cloudflare Workers + Vercel |
+| 📱 Architecture | Hybrid Edge Proxy (`worker.js`) + Single-file PWA (`index.html`) |
 
 > Iteration cycle: `build → test → deploy → refine → repeat`
 
@@ -83,8 +83,8 @@ Core strengths:
 ## ⚡ Core Features
 
 ### 🤖 AI Engine
-- **Real-time SSE streaming** via `/chat/stream` — no waiting for full output
-- **Legacy simulated streamer kept commented** in `index.html` as a fallback reference
+- **Unlimited SSE streaming** via Cloudflare Worker proxy — bypasses Vercel's 30s timeout for massive generations
+- **Smart Failover** — automatically falls back to Vercel Node.js routes if Cloudflare is unreachable
 - **Multi-model routing** via OpenRouter — switch models from the header, including Gemma 4 31B IT, inclusionAI: Ring-2.6-1T, GPT-OSS 120B, and Nemotron 3 Super
 - **Advanced API key rotation** — strict round-robin across OpenRouter keys per request, with retry failover/cooldown, plus model-sticky routing for title and memory-extraction model calls
 - **Rate-limit UX** — friendly in-app message, not a dead crash
@@ -100,7 +100,7 @@ Core strengths:
 - **Retry + Edit** — re-run any response or tweak your message mid-conversation
 - **Targeted Retry** — clicking Retry on a bot message regenerates that exact reply in place (later messages stay intact)
 - **No hard prompt cap** — very long prompts are accepted (subject to model/provider token limits)
-- **Stream continuation** — automatically detects truncated or interrupted responses (silent provider drops + explicit token limits) and shows a one-click ⚡ Continue button to seamlessly resume generation
+- **Stream continuation v2** — uses content-aware heuristics (detects unclosed code blocks, mid-sentence cuts, or silent drops) and shows a one-click ⚡ Continue button to seamlessly resume exactly where it left off without wiping existing content
 
 ### 🧠 AI Memory
 - **Persistent memory** across conversations — the AI knows who you are
@@ -243,26 +243,22 @@ User sends message
 User Browser
     │
     ├── PWA (Single HTML file — HTML/CSS/Vanilla JS)
-    │     ├── IndexedDB ['chats']    → Chat history (primary source of truth)
-    │     ├── IndexedDB ['memories'] → AI Memory (persistent user context)
+    │     ├── IndexedDB ['chats']    → Chat history
+    │     ├── IndexedDB ['memories'] → AI Memory
     │     ├── IndexedDB ['media']    → Generated image/video blobs
-    │     ├── Service Worker         → Offline caching + auto-update
-    │     ├── Web Speech API         → Voice input + TTS output
-    │     ├── KaTeX + MathJax        → Dual-engine math rendering
+    │     ├── Service Worker         → Offline caching
+    │     ├── Web Speech API         → Voice input/output
     │     ├── Firebase Auth          → Google Sign-In
-            │     ├── Firebase Firestore     → Cloud chat + memory backup + real-time sync
-            │     ├── Firebase Storage       → Cloud image/video blob storage
-            │     ├── Image/Video model endpoints → Puter.js
+    │           ├── Firebase Firestore     → Cloud backup + real-time sync
+    │           ├── Firebase Storage       → Cloud media storage
     │
-    └── Vercel Functions (`/api/*` + rewrites)
-          ├── `/chat`           → OpenRouter JSON completion
-          ├── `/chat/stream`    → OpenRouter real SSE relay
-          ├── `/github`         → GitHub Models completion
-          ├── `/hf/img`         → Hugging Face image generation
-          ├── `/hf/vid`         → Hugging Face video generation
-          ├── `/leaderboard/top`    → leaderboard read
-          └── `/leaderboard/submit` → leaderboard update
-
+    ├── Cloudflare Worker (Primary Engine — `worker.js`)
+    │     ├── `/chat/stream`    → Unlimited timeout SSE relay
+    │     ├── `/leaderboard/*`  → Global rankings (CF KV)
+    │     └── `/hf/*`           → Media generation (Hugging Face)
+    │
+    └── Vercel Functions (Fallback + Static)
+          └── `/api/chat`       → Fallback completion engine
 ```
 
 ---
@@ -368,7 +364,7 @@ If KV is not set, leaderboard falls back to in-memory storage in the running fun
 | Markdown | Marked.js (with custom math extension) |
 | Code | Highlight.js |
 | Attachment Parsing | PDF.js + Mammoth + Tesseract.js (OCR), with PDF OCR fallback and Gemma DOCX-only parsing bypass |
-| Backend | Vercel Functions (Node serverless + SSE) |
+| Backend | Cloudflare Workers (Primary) + Vercel Functions (Fallback) |
 | AI Routing | OpenRouter |
 | Web Search | Firecrawl (via OpenRouter plugins) |
 | Image Gen | Imagen 4, GPT Image 2, GPT Image 1.5, Gemini Image |
@@ -418,14 +414,14 @@ Active roadmap is tracked in `docs/ROADMAP.md`.
 
 Current priorities:
 
-- [x] Conversation templates (coding/debug/research presets)
+- [x] AI Skills (system prompt presets)
 - [x] Memory quality pass v2 (less noise, better grouping, stronger cleanup)
 - [ ] `/tldr` enhancements (preset windows and richer topic grouping)
 - [x] Attachment parsing reliability hardening
 - [x] Streaming resilience metrics in debug logs
 - [x] Better export quality (stable PDF layout + richer DOCX formatting)
 - [x] Fast global command palette (`Ctrl+K`)
-- [x] Optional chat-level model lock
+- [x] Active Skill header indicator (read-only native look)
 
 Completed milestones:
 

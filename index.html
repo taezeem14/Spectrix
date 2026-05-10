@@ -4154,8 +4154,16 @@ Factuality guardrails:
       return CHAT_ROUTE_FALLBACK_STATUSES.has(status);
     }
 
-    const CHAT_API_URL_CANDIDATES = buildChatApiCandidates(['/chat', '/api/chat']);
-    const CHAT_STREAM_API_URL_CANDIDATES = buildChatApiCandidates(['/chat/stream', '/api/chat/stream']);
+    const CF_WORKER_ORIGIN = 'https://spectrix-worker.tariqmtaezeem.workers.dev';
+    // Prioritize Cloudflare Worker for all chat requests to bypass Vercel limits
+    const CHAT_API_URL_CANDIDATES = [
+      normalizeOrigin(CF_WORKER_ORIGIN) + '/chat',
+      ...buildChatApiCandidates(['/chat', '/api/chat'])
+    ];
+    const CHAT_STREAM_API_URL_CANDIDATES = [
+      normalizeOrigin(CF_WORKER_ORIGIN) + '/chat/stream',
+      ...buildChatApiCandidates(['/chat/stream', '/api/chat/stream'])
+    ];
     const GEMMA_MULTIMODAL_MODEL = "google/gemma-4-31b-it:free";
     let activeChatApiUrl = CHAT_API_URL_CANDIDATES[0];
     let activeChatStreamApiUrl = CHAT_STREAM_API_URL_CANDIDATES[0];
@@ -9010,49 +9018,6 @@ Factuality guardrails:
     }
 
     // ===== STREAMING =====
-    /*
-    Legacy simulated streaming kept for reference.
-    Replaced by real SSE streaming through /chat/stream.
-    
-    async function streamBotInChunks(fullText, baseChunkSize = 50) {
-      const d = document.createElement("div");
-      d.className = "msg bot";
-      chat.appendChild(d);
-    
-      let renderedText = "";
-      const session = getCurrentSession();
-      if (!session) return;
-    
-      speakText(fullText);
-    
-      const totalLength = fullText.length;
-      let chunkSize = baseChunkSize;
-      if (totalLength > 5000) chunkSize = 100;
-      if (totalLength > 10000) chunkSize = 200;
-    
-      for (let i = 0; i < fullText.length; i += chunkSize) {
-        const chunk = fullText.slice(i, i + chunkSize);
-        renderedText += chunk;
-    
-        if (window.marked) {
-          d.innerHTML = renderMarkdownSafely(renderedText);
-          promoteInlineCodeMath(d);
-        } else {
-          d.textContent = renderedText;
-        }
-        renderMath(d);
-        chat.scrollTop = chat.scrollHeight;
-        await new Promise(r => setTimeout(r, totalLength > 5000 ? 5 : 15));
-      }
-    
-      setTimeout(() => decorateCodeBlocks(d), 80);
-      session.messages.push({ role: "bot", content: renderedText });
-      session.timestamp = Date.now();
-      await saveChat(session);
-      renderHistory();
-      updateHeaderTitle();
-    }
-    */
 
     async function streamBotFromSSE(payload, options = {}) {
       const signal = options.signal;
