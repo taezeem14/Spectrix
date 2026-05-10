@@ -3601,6 +3601,19 @@
     </div>
   </div>
 
+  <!-- SKILLS PANEL -->
+  <div class="memory-overlay" id="skillsOverlay" onclick="toggleSkillsPanel()"></div>
+  <div class="memory-panel" id="skillsPanel">
+    <div class="memory-panel-header">
+      <h3>🛠️ Skills <span class="memory-count" id="skillsPanelCount"></span></h3>
+      <div class="memory-panel-actions">
+        <button onclick="addSkill()">+ Add</button>
+        <button onclick="toggleSkillsPanel()">✕</button>
+      </div>
+    </div>
+    <div class="memory-list" id="skillsList"></div>
+  </div>
+
   <div class="app-modal-overlay" id="appModalOverlay"></div>
   <div class="app-modal" id="appModal" role="dialog" aria-modal="true" aria-labelledby="appModalTitle">
     <div class="app-modal-header" id="appModalTitle">Notice</div>
@@ -5459,6 +5472,13 @@ Factuality guardrails:
           desc: 'Manage saved memories and cleanup suggestions.',
           keywords: ['memory'],
           run: () => toggleMemoryPanel()
+        },
+        {
+          id: 'toggle-skills-panel',
+          title: 'Open Skills',
+          desc: 'Manage and switch AI skills.',
+          keywords: ['skills', 'ability'],
+          run: () => toggleSkillsPanel()
         }
       ];
     }
@@ -9833,6 +9853,12 @@ Create a concise title that captures the main topic of this conversation.
           if (templateSystemPrompt) {
             systemPrompt += `\n\nConversation template: ${CONVERSATION_TEMPLATE_PRESETS[activeTemplatePreset]?.label || 'Default'}\n${templateSystemPrompt}`;
           }
+
+          const activeSkill = getActiveSkill();
+          if (activeSkill) {
+            systemPrompt += `\n\nActive Skill (${activeSkill.name}):\n${activeSkill.content}`;
+          }
+
           const memoryContext = await buildMemoryContext();
           if (memoryContext) {
             systemPrompt += '\n' + memoryContext;
@@ -12882,6 +12908,286 @@ ${existingFacts.slice(0, 20).join('\n')}`;
       if (showToast) showStatus('Backup failed. Try again.');
     }
   }
+
+  // ===== SKILLS SYSTEM =====
+  const DEFAULT_CODING_SKILL = {
+    id: 'frontend-design',
+    name: 'frontend-design',
+    content: `---
+name: frontend-design
+description: Create distinctive, production-grade frontend interfaces with high design quality. Use this skill when the user asks to build web components, pages, artifacts, posters, or applications (examples include websites, landing pages, dashboards, React components, HTML/CSS layouts, or when styling/beautifying any web UI). Generates creative, polished code and UI design that avoids generic AI aesthetics.
+license: Complete terms in LICENSE.txt
+---
+ 
+This skill guides creation of distinctive, production-grade frontend interfaces that avoid generic "AI slop" aesthetics. Implement real working code with exceptional attention to aesthetic details and creative choices.
+ 
+The user provides frontend requirements: a component, page, application, or interface to build. They may include context about the purpose, audience, or technical constraints.
+ 
+## Design Thinking
+ 
+Before coding, understand the context and commit to a BOLD aesthetic direction:
+- **Purpose**: What problem does this interface solve? Who uses it?
+- **Tone**: Pick an extreme: brutally minimal, maximalist chaos, retro-futuristic, organic/natural, luxury/refined, playful/toy-like, editorial/magazine, brutalist/raw, art deco/geometric, soft/pastel, industrial/utilitarian, etc. There are so many flavors to choose from. Use these for inspiration but design one that is true to the aesthetic direction.
+- **Constraints**: Technical requirements (framework, performance, accessibility).
+- **Differentiation**: What makes this UNFORGETTABLE? What's the one thing someone will remember?
+**CRITICAL**: Choose a clear conceptual direction and execute it with precision. Bold maximalism and refined minimalism both work - the key is intentionality, not intensity.
+ 
+Then implement working code (HTML/CSS/JS, React, Vue, etc.) that is:
+- Production-grade and functional
+- Visually striking and memorable
+- Cohesive with a clear aesthetic point-of-view
+- Meticulously refined in every detail
+## Frontend Aesthetics Guidelines
+ 
+Focus on:
+- **Typography**: Choose fonts that are beautiful, unique, and interesting. Avoid generic fonts like Arial and Inter; opt instead for distinctive choices that elevate the frontend's aesthetics; unexpected, characterful font choices. Pair a distinctive display font with a refined body font.
+- **Color & Theme**: Commit to a cohesive aesthetic. Use CSS variables for consistency. Dominant colors with sharp accents outperform timid, evenly-distributed palettes.
+- **Motion**: Use animations for effects and micro-interactions. Prioritize CSS-only solutions for HTML. Use Motion library for React when available. Focus on high-impact moments: one well-orchestrated page load with staggered reveals (animation-delay) creates more delight than scattered micro-interactions. Use scroll-triggering and hover states that surprise.
+- **Spatial Composition**: Unexpected layouts. Asymmetry. Overlap. Diagonal flow. Grid-breaking elements. Generous negative space OR controlled density.
+- **Backgrounds & Visual Details**: Create atmosphere and depth rather than defaulting to solid colors. Add contextual effects and textures that match the overall aesthetic. Apply creative forms like gradient meshes, noise textures, geometric patterns, layered transparencies, dramatic shadows, decorative borders, custom cursors, and grain overlays.
+NEVER use generic AI-generated aesthetics like overused font families (Inter, Roboto, Arial, system fonts), cliched color schemes (particularly purple gradients on white backgrounds), predictable layouts and component patterns, and cookie-cutter design that lacks context-specific character.
+ 
+Interpret creatively and make unexpected choices that feel genuinely designed for the context. No design should be the same. Vary between light and dark themes, different fonts, different aesthetics. NEVER converge on common choices (Space Grotesk, for example) across generations.
+ 
+**IMPORTANT**: Match implementation complexity to the aesthetic vision. Maximalist designs need elaborate code with extensive animations and effects. Minimalist or refined designs need restraint, precision, and careful attention to spacing, typography, and subtle details. Elegance comes from executing the vision well.
+ 
+Remember:  Spectrix is capable of extraordinary creative work. Don't hold back, show what can truly be created when thinking outside the box and committing fully to a distinctive vision.`
+  };
+
+  let spectrixSkills = [];
+  let spectrixActiveSkillId = null;
+
+  function initSkillsSystem() {
+    const stored = localStorage.getItem('spectrix_skills');
+    if (stored) {
+      try {
+        spectrixSkills = JSON.parse(stored);
+      } catch (e) {
+        spectrixSkills = [DEFAULT_CODING_SKILL];
+      }
+    } else {
+      spectrixSkills = [DEFAULT_CODING_SKILL];
+      localStorage.setItem('spectrix_skills', JSON.stringify(spectrixSkills));
+    }
+    spectrixActiveSkillId = localStorage.getItem('spectrix_active_skill') || null;
+  }
+
+  function getActiveSkill() {
+    if (!spectrixActiveSkillId) return null;
+    return spectrixSkills.find(s => s.id === spectrixActiveSkillId) || null;
+  }
+
+  function saveSkills() {
+    localStorage.setItem('spectrix_skills', JSON.stringify(spectrixSkills));
+  }
+
+  function toggleSkillsPanel() {
+    const panel = document.getElementById('skillsPanel');
+    const overlay = document.getElementById('skillsOverlay');
+    if (!panel || !overlay) return;
+    if (panel.classList.contains('visible')) {
+      panel.classList.remove('visible');
+      overlay.classList.remove('visible');
+    } else {
+      renderSkillsList();
+      panel.classList.add('visible');
+      overlay.classList.add('visible');
+    }
+  }
+
+  function renderSkillsList() {
+    const list = document.getElementById('skillsList');
+    const countEl = document.getElementById('skillsPanelCount');
+    if (!list) return;
+
+    if (countEl) countEl.textContent = `(${spectrixSkills.length})`;
+
+    list.innerHTML = '';
+    if (spectrixSkills.length === 0) {
+      list.innerHTML = `<div class="memory-empty"><div class="empty-icon">🛠️</div><div class="empty-text">No skills added</div></div>`;
+      return;
+    }
+
+    spectrixSkills.forEach(skill => {
+      const item = document.createElement('div');
+      item.className = 'memory-item';
+      
+      // Active styling
+      if (skill.id === spectrixActiveSkillId) {
+        item.style.borderColor = 'var(--user)';
+        item.style.background = 'var(--accent-glow)';
+      }
+
+      const icon = document.createElement('span');
+      icon.className = 'memory-icon';
+      icon.textContent = skill.id === spectrixActiveSkillId ? '★' : '🛠️';
+      if (skill.id === spectrixActiveSkillId) {
+        icon.style.color = '#fbbf24';
+      }
+
+      const text = document.createElement('span');
+      text.className = 'memory-text';
+      text.textContent = skill.name;
+      text.style.cursor = 'pointer';
+      text.style.fontWeight = skill.id === spectrixActiveSkillId ? '700' : '500';
+      text.onclick = () => {
+        if (spectrixActiveSkillId === skill.id) {
+          spectrixActiveSkillId = null;
+        } else {
+          spectrixActiveSkillId = skill.id;
+        }
+        localStorage.setItem('spectrix_active_skill', spectrixActiveSkillId || '');
+        renderSkillsList();
+      };
+
+      const editBtn = document.createElement('button');
+      editBtn.className = 'memory-delete';
+      editBtn.textContent = '✎';
+      editBtn.style.marginRight = '8px';
+      editBtn.onclick = async () => await editSkill(skill.id);
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'memory-delete';
+      delBtn.textContent = '✕';
+      delBtn.onclick = async () => await deleteSkill(skill.id);
+
+      item.appendChild(icon);
+      item.appendChild(text);
+      item.appendChild(editBtn);
+      item.appendChild(delBtn);
+      list.appendChild(item);
+    });
+  }
+
+  function showSkillEditModal(title, initialName, initialContent) {
+    return new Promise((resolve) => {
+      const overlay = document.getElementById('appModalOverlay');
+      const modal = document.getElementById('appModal');
+      const titleEl = document.getElementById('appModalTitle');
+      const bodyEl = document.getElementById('appModalBody');
+      const auxEl = document.getElementById('appModalAux');
+      const cancelBtn = document.getElementById('appModalCancel');
+      const okBtn = document.getElementById('appModalOk');
+
+      if (!overlay || !modal || !titleEl || !bodyEl || !auxEl || !cancelBtn || !okBtn) {
+        resolve(null);
+        return;
+      }
+
+      titleEl.textContent = title;
+      bodyEl.innerHTML = '';
+      auxEl.classList.remove('visible');
+
+      cancelBtn.style.display = 'inline-flex';
+      cancelBtn.textContent = 'Cancel';
+      okBtn.textContent = 'Save';
+
+      const nameLabel = document.createElement('div');
+      nameLabel.textContent = 'Skill Name:';
+      nameLabel.style.marginBottom = '6px';
+      nameLabel.style.fontWeight = '600';
+      bodyEl.appendChild(nameLabel);
+
+      const nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.className = 'app-modal-input';
+      nameInput.value = initialName || '';
+      nameInput.style.marginBottom = '16px';
+      nameInput.style.width = '100%';
+      nameInput.style.padding = '8px';
+      nameInput.style.borderRadius = 'var(--radius-sm)';
+      nameInput.style.border = '1px solid var(--border)';
+      nameInput.style.background = 'var(--chat)';
+      nameInput.style.color = 'var(--text)';
+      bodyEl.appendChild(nameInput);
+
+      const contentLabel = document.createElement('div');
+      contentLabel.textContent = 'Instructions:';
+      contentLabel.style.marginBottom = '6px';
+      contentLabel.style.fontWeight = '600';
+      bodyEl.appendChild(contentLabel);
+
+      const contentInput = document.createElement('textarea');
+      contentInput.className = 'app-modal-input';
+      contentInput.value = initialContent || '';
+      contentInput.style.minHeight = '150px';
+      contentInput.style.resize = 'vertical';
+      contentInput.style.fontFamily = 'monospace';
+      contentInput.style.fontSize = '12px';
+      contentInput.style.width = '100%';
+      contentInput.style.padding = '8px';
+      contentInput.style.borderRadius = 'var(--radius-sm)';
+      contentInput.style.border = '1px solid var(--border)';
+      contentInput.style.background = 'var(--chat)';
+      contentInput.style.color = 'var(--text)';
+      bodyEl.appendChild(contentInput);
+
+      const cleanup = () => {
+        overlay.classList.remove('visible');
+        modal.classList.remove('visible');
+        okBtn.removeEventListener('click', onOk);
+        cancelBtn.removeEventListener('click', onCancel);
+      };
+
+      const onOk = () => {
+        const name = nameInput.value.trim();
+        const content = contentInput.value.trim();
+        cleanup();
+        resolve(name ? { name, content } : null);
+      };
+
+      const onCancel = () => {
+        cleanup();
+        resolve(null);
+      };
+
+      okBtn.addEventListener('click', onOk);
+      cancelBtn.addEventListener('click', onCancel);
+
+      overlay.classList.add('visible');
+      modal.classList.add('visible');
+      nameInput.focus();
+    });
+  }
+
+  async function addSkill() {
+    const result = await showSkillEditModal('Add New Skill', '', '');
+    if (!result) return;
+    const id = 'skill_' + Date.now();
+    spectrixSkills.push({ id, name: result.name, content: result.content });
+    saveSkills();
+    renderSkillsList();
+  }
+
+  async function editSkill(id) {
+    const skill = spectrixSkills.find(s => s.id === id);
+    if (!skill) return;
+    const result = await showSkillEditModal('Edit Skill', skill.name, skill.content);
+    if (!result) return;
+    skill.name = result.name;
+    skill.content = result.content;
+    saveSkills();
+    renderSkillsList();
+  }
+
+  async function deleteSkill(id) {
+    const confirmDel = await openAppModal({
+      title: 'Delete Skill',
+      message: 'Are you sure you want to delete this skill?',
+      mode: 'confirm'
+    });
+    if (!confirmDel) return;
+
+    spectrixSkills = spectrixSkills.filter(s => s.id !== id);
+    if (spectrixActiveSkillId === id) {
+      spectrixActiveSkillId = null;
+      localStorage.removeItem('spectrix_active_skill');
+    }
+    saveSkills();
+    renderSkillsList();
+  }
+
+  initSkillsSystem();
 </script>
 
 </html>
