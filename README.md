@@ -28,7 +28,7 @@
 ## ⚡ TL;DR
 
 - Spectrix is a fast, installable, offline-ready AI chat app built in pure vanilla JS (single `index.html`, no framework bloat).
-- You get multi-model chat, streaming, voice I/O, math rendering, persistent AI memory, web search mode, and `/img` + `/vid` generation.
+- You get multi-model chat, streaming, voice I/O, math rendering, persistent AI memory, custom AI Skills, web search mode, and `/img` + `/vid` generation.
 - Data is local-first (IndexedDB) with optional Google sign-in for cloud sync (Firestore + Storage) across devices.
 - It is tuned for speed, control, and power-user workflows, not just basic chatbot replies.
 
@@ -118,6 +118,13 @@ Core strengths:
 - **Deduplication** — near-identical facts are never saved twice
 - **Local-first IndexedDB** — fast on-device memory persistence
 - **Firestore memory sync** — auto-mirrors memories across signed-in devices
+
+### 🛠️ AI Skills
+- **Custom System Prompts** — define your own system instructions as "Skills" to steer the AI's behavior
+- **Command Palette Access** — quickly open the Skills manager via the command palette (`Ctrl+K` -> Open Skills)
+- **Default Frontend Design Skill** — ships with a highly-tuned `frontend-design` skill for generating distinctive, production-grade web interfaces
+- **Persistent Storage** — your created skills and active skill preference are saved locally to your browser
+- **Active Injection** — your active skill is prepended as a system prompt on every new request, guiding the model dynamically
 
 ### 🎤 Voice & Interaction
 - **Voice input** via Web Speech API — tap 🎤, speak, done

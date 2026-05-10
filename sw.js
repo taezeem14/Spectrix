@@ -7,7 +7,7 @@ const IMAGE_CACHE = `${CACHE_PREFIX}-images-${CACHE_VERSION}`;
 
 const APP_SHELL = [
   '/',
-  '/index.html',
+  '/chat.html',
   '/site.webmanifest',
   '/favicon.ico',
   '/favicon-16x16.png',
@@ -117,7 +117,7 @@ async function networkFirstNavigation(event) {
     const cachedPage = await caches.match(request);
     if (cachedPage) return cachedPage;
 
-    const cachedShell = await caches.match('/index.html');
+    const cachedShell = await caches.match('/chat.html');
     if (cachedShell) return cachedShell;
 
     return new Response(OFFLINE_HTML, {

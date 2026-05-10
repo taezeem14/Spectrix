@@ -3,7 +3,7 @@
   "name": "Spectrix AI",
   "short_name": "Spectrix AI",
   "description": "Voice-enabled AI chat web app with installable PWA support and local chat history.",
-  "start_url": "/index.html?source=pwa",
+  "start_url": "/chat.html?source=pwa",
   "scope": "/",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
@@ -43,7 +43,7 @@
       "name": "New Chat",
       "short_name": "New Chat",
       "description": "Start a fresh Spectrix conversation",
-      "url": "/index.html?action=new-chat",
+      "url": "/chat.html?action=new-chat",
       "icons": [
         {
           "src": "/android-chrome-192x192.png",
@@ -56,7 +56,7 @@
       "name": "Generate Image",
       "short_name": "Image",
       "description": "Open Spectrix with an image prompt starter",
-      "url": "/index.html?prompt=%2Fimg%20cinematic%20robot%20portrait",
+      "url": "/chat.html?prompt=%2Fimg%20cinematic%20robot%20portrait",
       "icons": [
         {
           "src": "/android-chrome-192x192.png",
@@ -69,7 +69,7 @@
       "name": "Voice Input",
       "short_name": "Voice",
       "description": "Open Spectrix ready for voice interaction",
-      "url": "/index.html?action=voice",
+      "url": "/chat.html?action=voice",
       "icons": [
         {
           "src": "/android-chrome-192x192.png",
@@ -81,7 +81,7 @@
   ],
 
   "share_target": {
-    "action": "/index.html",
+    "action": "/chat.html",
     "method": "GET",
     "enctype": "application/x-www-form-urlencoded",
     "params": {

@@ -3509,13 +3509,8 @@
               <option value="nvidia/nemotron-3-super-120b-a12b:free">Nemotron 3 Super (Deep Reasoning)</option>
             </select>
           </div>
-          <div class="select-wrap">
-            <select id="conversationTemplateSelect" title="Choose conversation template">
-              <option value="default">Template: Default</option>
-              <option value="coding">Template: Coding</option>
-              <option value="debug">Template: Debug</option>
-              <option value="research">Template: Research</option>
-            </select>
+          <div class="active-skill-indicator" id="activeSkillIndicator" style="display:none; align-items:center; gap:6px; font-size:13px; font-weight:600; padding:6px 12px; border-radius:var(--radius-md); border:1px solid var(--border); background:var(--chat); color:var(--text); white-space:nowrap; cursor:default; user-select:none;">
+            <span style="color:#fbbf24; font-size:14px;">★</span> <span id="activeSkillName">Skill</span>
           </div>
         </div>
       </header>
@@ -5410,27 +5405,7 @@ Factuality guardrails:
           keywords: ['new', 'chat', 'fresh'],
           run: () => newChat()
         },
-        {
-          id: 'toggle-template-coding',
-          title: 'Template: Coding',
-          desc: 'Switch the active chat to the coding preset.',
-          keywords: ['template', 'coding'],
-          run: () => applyConversationTemplatePreset('coding')
-        },
-        {
-          id: 'toggle-template-debug',
-          title: 'Template: Debug',
-          desc: 'Switch the active chat to the debug preset.',
-          keywords: ['template', 'debug'],
-          run: () => applyConversationTemplatePreset('debug')
-        },
-        {
-          id: 'toggle-template-research',
-          title: 'Template: Research',
-          desc: 'Switch the active chat to the research preset.',
-          keywords: ['template', 'research'],
-          run: () => applyConversationTemplatePreset('research')
-        },
+
         {
           id: 'export-chat-md',
           title: 'Export Current Chat',
@@ -5494,27 +5469,7 @@ Factuality guardrails:
     }
 
     function updateConversationTemplateSelectUi(templateId = null) {
-      const select = document.getElementById('conversationTemplateSelect');
-      if (!select) return;
-      const normalized = normalizeConversationTemplateId(templateId || getConversationTemplatePreset());
-      if (select.value !== normalized) {
-        select.value = normalized;
-      }
-
-      const wrap = select.closest('.custom-select-wrap');
-      if (wrap) {
-        const label = wrap.querySelector('.custom-select-label');
-        const trigger = wrap.querySelector('.custom-select-trigger');
-        const activeOption = select.options[select.selectedIndex] || select.options[0];
-        const text = activeOption ? activeOption.textContent.trim() : '';
-        if (label) label.textContent = text;
-        if (trigger) trigger.title = text;
-        wrap.querySelectorAll('.custom-select-option').forEach((btn) => {
-          const isActive = btn.dataset.value === select.value;
-          btn.classList.toggle('active', isActive);
-          btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
-        });
-      }
+      // Deprecated: Replaced by active skill UI
     }
 
     function closeCommandPalette() {
@@ -11649,14 +11604,7 @@ ${existingFacts.slice(0, 20).join('\n')}`;
     }
 
     function initConversationTemplateDropdown() {
-      const sel = document.getElementById('conversationTemplateSelect');
-      if (!sel) return;
-
-      updateConversationTemplateSelectUi();
-
-      sel.addEventListener('change', async (e) => {
-        await applyConversationTemplatePreset(e.target.value, { silent: true });
-      });
+      // Deprecated: Replaced by active skill UI
     }
 
     let customSelectDropdownEventsBound = false;
@@ -11796,7 +11744,6 @@ ${existingFacts.slice(0, 20).join('\n')}`;
     function initCustomSelectDropdowns() {
       enhanceCustomSelectDropdown('imageModel');
       enhanceCustomSelectDropdown('textModelSelect');
-      enhanceCustomSelectDropdown('conversationTemplateSelect');
 
       if (!customSelectDropdownEventsBound) {
         document.addEventListener('click', (e) => {
@@ -12970,6 +12917,21 @@ Remember:  Spectrix is capable of extraordinary creative work. Don't hold back, 
       localStorage.setItem('spectrix_skills', JSON.stringify(spectrixSkills));
     }
     spectrixActiveSkillId = localStorage.getItem('spectrix_active_skill') || null;
+    updateActiveSkillIndicatorUi();
+  }
+
+  function updateActiveSkillIndicatorUi() {
+    const indicator = document.getElementById('activeSkillIndicator');
+    const nameSpan = document.getElementById('activeSkillName');
+    if (!indicator || !nameSpan) return;
+
+    const activeSkill = getActiveSkill();
+    if (activeSkill) {
+      nameSpan.textContent = activeSkill.name;
+      indicator.style.display = 'flex';
+    } else {
+      indicator.style.display = 'none';
+    }
   }
 
   function getActiveSkill() {
@@ -13038,6 +13000,7 @@ Remember:  Spectrix is capable of extraordinary creative work. Don't hold back, 
         }
         localStorage.setItem('spectrix_active_skill', spectrixActiveSkillId || '');
         renderSkillsList();
+        updateActiveSkillIndicatorUi();
       };
 
       const editBtn = document.createElement('button');
@@ -13185,6 +13148,7 @@ Remember:  Spectrix is capable of extraordinary creative work. Don't hold back, 
     }
     saveSkills();
     renderSkillsList();
+    updateActiveSkillIndicatorUi();
   }
 
   initSkillsSystem();
