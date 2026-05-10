@@ -646,6 +646,22 @@
       line-height: 1;
     }
 
+    .msg-btn.continue-action-btn::before {
+      content: "⚡";
+      font-size: 11px;
+      line-height: 1;
+    }
+
+    .msg-btn.continue-action-btn {
+      border-color: rgba(245, 158, 11, 0.45);
+      color: #fef3c7;
+    }
+
+    .msg-btn.continue-action-btn:hover {
+      background: rgba(245, 158, 11, 0.15);
+      border-color: #f59e0b;
+    }
+
     .msg-btn.retry-btn::before {
       content: "↻";
       font-size: 12px;
@@ -7059,7 +7075,7 @@ Factuality guardrails:
 
         // ✨ Continue Button (Manual recovery)
         const continueBtn = document.createElement("button");
-        continueBtn.className = "msg-btn edit-btn";
+        continueBtn.className = "msg-btn continue-action-btn";
         continueBtn.textContent = "Continue";
         continueBtn.title = "Resume generation from this point";
         continueBtn.onclick = () => {
