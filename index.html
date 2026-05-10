@@ -1209,6 +1209,29 @@
       }
     }
 
+    .stream-continue-btn {
+      display: block;
+      margin: 16px 0 4px;
+      padding: 10px 20px;
+      background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(251, 191, 36, 0.05));
+      color: #fbbf24;
+      border: 1px solid rgba(251, 191, 36, 0.3);
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      letter-spacing: 0.01em;
+    }
+
+    .stream-continue-btn:hover {
+      background: linear-gradient(135deg, rgba(251, 191, 36, 0.25), rgba(251, 191, 36, 0.1));
+      border-color: #fbbf24;
+      box-shadow: 0 0 12px rgba(251, 191, 36, 0.2);
+      transform: translateY(-1px);
+    }
+
     @keyframes fadeIn {
       to {
         opacity: 1;
@@ -9164,6 +9187,7 @@ Factuality guardrails:
       let buffer = "";
       let streamDone = false;
       let abortedByUser = false;
+      let streamFinishReason = null;
       let frameScheduled = false;
       let streamTextNode = null;
       let pendingDeltaText = "";
@@ -9337,7 +9361,9 @@ Factuality guardrails:
                 if (!streamPaused) scheduleRender();
               }
 
-              if (eventData?.type === "done" || eventData?.choices?.[0]?.finish_reason) {
+              const finishReason = eventData?.choices?.[0]?.finish_reason;
+              if (eventData?.type === "done" || finishReason) {
+                if (finishReason) streamFinishReason = finishReason;
                 streamDone = true;
                 break;
               }
@@ -9415,15 +9441,88 @@ Factuality guardrails:
 
       await finalizeRenderedMessage();
 
+      // Detect truncation:
+      // 1. finish_reason === 'length' = model explicitly hit output token cap
+      // 2. No finish_reason AND no [DONE] = stream silently dropped (provider/network kill)
+      const wasTruncated = streamFinishReason === 'length';
+      const wasSilentlyDropped = !streamFinishReason && !abortedByUser && renderedText.length > 200;
+      if ((wasTruncated || wasSilentlyDropped) && renderedText.trim()) {
+        const continueBtn = document.createElement('button');
+        continueBtn.className = 'stream-continue-btn';
+        continueBtn.innerHTML = '⚡ Continue generating';
+        continueBtn.title = wasTruncated
+          ? 'Response was truncated by the model — click to continue from where it left off'
+          : 'Stream was interrupted — click to continue from where it left off';
+        continueBtn.onclick = async () => {
+          continueBtn.remove();
+          await continueGeneratingFromTruncation(renderedText, d, payload);
+        };
+        d.appendChild(continueBtn);
+        const reason = wasTruncated ? 'model output limit' : 'stream interrupted';
+        showStatus(`⚠️ Response cut off (${reason}). Click "Continue" to resume.`, 5000);
+      }
+
       // Play TTS once final text is complete.
       speakText(renderedText);
 
       cleanupStreamState();
       logStreamResilienceMetric('stream_success', finalizeStreamMetrics('stream_success', {
-        charsReceived: renderedText.length
+        charsReceived: renderedText.length,
+        finishReason: streamFinishReason || 'unknown'
       }));
 
       return renderedText;
+    }
+
+    async function continueGeneratingFromTruncation(previousText, targetNode, originalPayload) {
+      const session = getCurrentSession();
+      if (!session) return;
+
+      // Build a continuation payload: include the truncated response as an assistant message,
+      // then ask the model to continue from where it left off
+      const continuationMessages = [
+        ...(originalPayload.messages || []),
+        { role: 'assistant', content: previousText },
+        { role: 'user', content: 'Continue exactly from where you left off. Do not repeat anything already written. Do not add any preamble like "Sure" or "Continuing". Just seamlessly continue the content.' }
+      ];
+
+      const continuationPayload = {
+        ...originalPayload,
+        messages: continuationMessages
+      };
+
+      try {
+        isGenerating = true;
+        setStopButtonVisible(true);
+        setPauseButtonVisible(true);
+        activeStreamAbortController = new AbortController();
+
+        const continuedText = await streamBotFromSSE(continuationPayload, {
+          signal: activeStreamAbortController.signal,
+          targetNode
+        });
+
+        // Merge the continued text into the existing message
+        const fullText = previousText + continuedText;
+        const botMsgIndex = session.messages.findLastIndex(m => m.role === 'bot');
+        if (botMsgIndex !== -1) {
+          session.messages[botMsgIndex].content = fullText;
+        }
+        session.timestamp = Date.now();
+        await saveChat(session);
+        await loadChatMessages();
+      } catch (err) {
+        if (err?.isUserAbort) {
+          showStatus('Continuation stopped.');
+        } else {
+          showStatus('Continuation failed: ' + (err?.message || 'Unknown error'));
+        }
+      } finally {
+        isGenerating = false;
+        setStopButtonVisible(false);
+        setPauseButtonVisible(false);
+        activeStreamAbortController = null;
+      }
     }
 
     // ===== FULL AUTO TITLE =====
@@ -12935,7 +13034,10 @@ Interpret creatively and make unexpected choices that feel genuinely designed fo
  
 **IMPORTANT**: Match implementation complexity to the aesthetic vision. Maximalist designs need elaborate code with extensive animations and effects. Minimalist or refined designs need restraint, precision, and careful attention to spacing, typography, and subtle details. Elegance comes from executing the vision well.
  
-Remember:  Spectrix is capable of extraordinary creative work. Don't hold back, show what can truly be created when thinking outside the box and committing fully to a distinctive vision.`
+Remember:  Spectrix is capable of extraordinary creative work. Don't hold back, show what can truly be created when thinking outside the box and committing fully to a distinctive vision.
+
+---
+*This skill was crafted by Claude (Anthropic).*`
   };
 
   let spectrixSkills = [];

@@ -100,6 +100,7 @@ Core strengths:
 - **Retry + Edit** — re-run any response or tweak your message mid-conversation
 - **Targeted Retry** — clicking Retry on a bot message regenerates that exact reply in place (later messages stay intact)
 - **No hard prompt cap** — very long prompts are accepted (subject to model/provider token limits)
+- **Stream continuation** — automatically detects truncated or interrupted responses (silent provider drops + explicit token limits) and shows a one-click ⚡ Continue button to seamlessly resume generation
 
 ### 🧠 AI Memory
 - **Persistent memory** across conversations — the AI knows who you are
