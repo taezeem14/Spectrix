@@ -1211,25 +1211,26 @@
 
     .stream-continue-btn {
       display: block;
-      margin: 16px 0 4px;
+      margin: 16px auto 8px auto;
       padding: 10px 20px;
-      background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(251, 191, 36, 0.05));
-      color: #fbbf24;
-      border: 1px solid rgba(251, 191, 36, 0.3);
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: white;
+      border: none;
       border-radius: var(--radius-md);
       font-size: 13px;
-      font-weight: 700;
+      font-weight: 800;
       font-family: inherit;
       cursor: pointer;
       transition: all 0.25s ease;
-      letter-spacing: 0.01em;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      box-shadow: 0 4px 15px rgba(217, 119, 6, 0.4);
+      animation: slideUp 0.3s ease-out;
     }
-
     .stream-continue-btn:hover {
-      background: linear-gradient(135deg, rgba(251, 191, 36, 0.25), rgba(251, 191, 36, 0.1));
-      border-color: #fbbf24;
-      box-shadow: 0 0 12px rgba(251, 191, 36, 0.2);
-      transform: translateY(-1px);
+      filter: brightness(1.1);
+      box-shadow: 0 6px 20px rgba(217, 119, 6, 0.5);
+      transform: translateY(-2px);
     }
 
     @keyframes fadeIn {
@@ -7056,6 +7057,15 @@ Factuality guardrails:
         actions = document.createElement("div");
         actions.className = "msg-actions";
 
+        // ✨ Continue Button (Manual recovery)
+        const continueBtn = document.createElement("button");
+        continueBtn.className = "msg-btn edit-btn";
+        continueBtn.textContent = "Continue";
+        continueBtn.title = "Resume generation from this point";
+        continueBtn.onclick = () => {
+          continueGeneratingFromTruncation(content, d, {});
+        };
+
         const retryBtn = document.createElement("button");
         retryBtn.className = "msg-btn retry-btn";
         retryBtn.textContent = "Retry";
@@ -9417,43 +9427,48 @@ Factuality guardrails:
       await finalizeRenderedMessage();
 
       // Detect truncation using content-aware heuristics.
-      // Some providers send finish_reason:"stop" even on truncated responses,
-      // so we can't rely on finish_reason alone. Check the actual content.
       const detectContentTruncation = (text) => {
-        if (!text || text.length < 200) return false;
-        // Count code fences — odd count = unclosed code block
-        const fenceCount = (text.match(/^```/gm) || []).length;
-        if (fenceCount % 2 !== 0) return true;
-        // Unclosed HTML tags at end (e.g., ends with < or <div or <!-- )
-        if (/&lt;[^>]*$/i.test(text) || /<[^>]*$/.test(text)) return true;
-        if (/<!--[^>]*$/.test(text)) return true;
-        // Ends mid-CSS/JS block (unclosed braces)
-        const openBraces = (text.match(/{/g) || []).length;
-        const closeBraces = (text.match(/}/g) || []).length;
-        if (openBraces > closeBraces + 2) return true;
-        // Ends mid-sentence with no punctuation or newline
-        const trimmed = text.trimEnd();
-        const lastChar = trimmed[trimmed.length - 1];
+        if (!text || text.length < 100) return false;
+        const trimmed = text.trim();
+        
+        // 1. Code block check: Count ALL triple backticks.
+        const matches = text.match(/```/g);
+        if (matches && matches.length % 2 !== 0) return true;
+        
+        // 2. Structural check: unclosed braces (often CSS/JS)
+        const openB = (text.match(/\{/g) || []).length;
+        const closeB = (text.match(/\}/g) || []).length;
+        if (openB > closeB) return true;
+        
+        // 3. HTML/Markdown tags
+        const tagRegex = new RegExp('<[^>]*$|&lt;[^>]*$|<!--[^>]*$', 'i');
+        if (tagRegex.test(text)) return true;
+        
+        // 4. Sentence check: ends mid-word
+        const lastChar = trimmed.slice(-1);
         const lastLine = trimmed.split('\n').pop().trim();
-        if (lastLine.length > 10 && !/[.!?)\]}`'"\n]/.test(lastChar)) return true;
+        if (lastLine.length > 20) {
+          const punctuationRegex = new RegExp('[.!?) \\] \\} \' " \\n]', 'g');
+          if (!punctuationRegex.test(lastChar)) return true;
+        }
+        
         return false;
       };
 
       const wasTruncated = streamFinishReason === 'length';
-      const wasSilentlyDropped = !streamFinishReason && !abortedByUser && renderedText.length > 200;
+      const wasSilentlyDropped = !streamFinishReason && !abortedByUser && renderedText.length > 100;
       const looksIncomplete = !abortedByUser && detectContentTruncation(renderedText);
 
       if ((wasTruncated || wasSilentlyDropped || looksIncomplete) && renderedText.trim()) {
         const continueBtn = document.createElement('button');
         continueBtn.className = 'stream-continue-btn';
         continueBtn.innerHTML = '⚡ Continue generating';
-        continueBtn.title = 'Response appears cut off — click to continue from where it left off';
         continueBtn.onclick = async () => {
           continueBtn.remove();
           await continueGeneratingFromTruncation(renderedText, d, payload);
         };
         d.appendChild(continueBtn);
-        showStatus('⚠️ Response appears cut off. Click "Continue" to resume.', 5000);
+        showStatus('⚡ Response appears incomplete. Click "Continue" to resume.', 5000);
       }
 
       // Play TTS once final text is complete.
@@ -9468,21 +9483,23 @@ Factuality guardrails:
       return renderedText;
     }
 
-    async function continueGeneratingFromTruncation(previousText, targetNode, originalPayload) {
+    async function continueGeneratingFromTruncation(previousText, targetNode, originalPayload = {}) {
       const session = getCurrentSession();
       if (!session) return;
 
-      // Build a continuation payload: include the truncated response as an assistant message,
-      // then ask the model to continue from where it left off
+      const currentModel = document.getElementById("textModelSelect")?.value || FIXED_TEXT_MODEL;
+
       const continuationMessages = [
-        ...(originalPayload.messages || []),
+        ...(originalPayload.messages || session.messages || []),
         { role: 'assistant', content: previousText },
         { role: 'user', content: 'Continue exactly from where you left off. Do not repeat anything already written. Do not add any preamble like "Sure" or "Continuing". Just seamlessly continue the content.' }
       ];
 
       const continuationPayload = {
+        model: originalPayload.model || currentModel,
         ...originalPayload,
-        messages: continuationMessages
+        messages: continuationMessages,
+        continueFrom: previousText // Hint for the renderer to append
       };
 
       try {
