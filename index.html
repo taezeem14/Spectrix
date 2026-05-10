@@ -9297,6 +9297,13 @@ Factuality guardrails:
             abortedByUser = true;
             break;
           }
+          // If we already have partial content, don't throw — break gracefully
+          // so the truncation detection + continue button can fire
+          if (renderedText.trim().length > 100) {
+            console.warn('Stream read error with partial content — treating as interrupted:', error?.message);
+            streamFinishReason = null; // ensure silent-drop detection triggers
+            break;
+          }
           const errText = String(error?.message || '').toLowerCase();
           if (errText.includes('stream stalled')) {
             error.isStreamStalled = true;

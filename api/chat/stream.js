@@ -1,7 +1,3 @@
-export const config = {
-  runtime: 'edge',
-};
-
 const ALLOWED_ORIGINS = [
   'https://spectrix.netlify.app',
   'https://spectrix-ai.vercel.app',
@@ -61,44 +57,34 @@ CORE RULES:
 - Default language: English (switch if user asks).
 - Only output the final answer, no internal reasoning.`;
 
-export default async function handler(req) {
-  const origin = req.headers.get('origin') || '*';
+module.exports = async function handler(req, res) {
+  const origin = req.headers['origin'] || '*';
   const corsOrigin = getCorsOrigin(origin);
 
+  // CORS headers for all responses
+  res.setHeader('Access-Control-Allow-Origin', corsOrigin);
+  res.setHeader('Vary', 'Origin');
+
   if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 204,
-      headers: {
-        'Access-Control-Allow-Origin': corsOrigin,
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        'Vary': 'Origin'
-      },
-    });
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    return res.status(204).end();
   }
 
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': corsOrigin,
-        'Vary': 'Origin'
-      },
-    });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const body = await req.json();
-    const { messages, model, plugins } = body;
+    const { messages, model, plugins } = req.body || {};
 
     if (!Array.isArray(messages) || messages.length === 0) {
-      return new Response(JSON.stringify({ error: 'No messages provided' }), { status: 400 });
+      return res.status(400).json({ error: 'No messages provided' });
     }
 
     const selectedModel = model || 'google/gemma-4-31b-it:free';
     const isDeepseek = String(selectedModel).toLowerCase().includes('deepseek');
-    
+
     // Merge System Prompt
     const clientSystemMessages = messages.filter((m) => m.role === 'system');
     const clientMessages = messages.filter((m) => m.role !== 'system');
@@ -126,11 +112,13 @@ export default async function handler(req) {
       'WORKER_OPENROUTER_KEY_4',
       'WORKER_OPENROUTER_KEY_5'
     ];
-    
-    // Process.env in edge
-    const availableKeys = keyEnvNames.map(name => process.env[name]).filter(val => val && typeof val === 'string' && val.trim().length > 0);
+
+    const availableKeys = keyEnvNames
+      .map(name => process.env[name])
+      .filter(val => val && typeof val === 'string' && val.trim().length > 0);
+
     if (availableKeys.length === 0) {
-      return new Response(JSON.stringify({ error: 'OpenRouter API keys not configured' }), { status: 500 });
+      return res.status(500).json({ error: 'OpenRouter API keys not configured' });
     }
     const randomKey = availableKeys[Math.floor(Math.random() * availableKeys.length)];
 
@@ -147,36 +135,42 @@ export default async function handler(req) {
 
     if (!upstream.ok) {
       const errText = await upstream.text();
-      return new Response(errText, {
-        status: upstream.status,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': corsOrigin,
-          'Vary': 'Origin'
-        }
-      });
+      res.setHeader('Content-Type', 'application/json');
+      return res.status(upstream.status).end(errText);
     }
 
-    return new Response(upstream.body, {
-      status: 200,
-      headers: {
-        'Access-Control-Allow-Origin': corsOrigin,
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache, no-transform',
-        'Connection': 'keep-alive',
-        'X-Accel-Buffering': 'no',
-        'Vary': 'Origin'
+    // Set SSE headers and flush them immediately
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
+
+    // Actively pipe the upstream stream to the client
+    const reader = upstream.body.getReader();
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const ok = res.write(value);
+        // Handle backpressure
+        if (!ok) {
+          await new Promise((resolve) => res.once('drain', resolve));
+        }
       }
-    });
+    } catch (pipeErr) {
+      // Connection dropped by client or upstream — just close gracefully
+      console.warn('Stream pipe error:', pipeErr?.message || pipeErr);
+    } finally {
+      res.end();
+    }
 
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message || 'Internal Server Error' }), {
-      status: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': corsOrigin,
-        'Vary': 'Origin'
-      }
-    });
+    // If headers haven't been sent yet, send a JSON error
+    if (!res.headersSent) {
+      return res.status(500).json({ error: err.message || 'Internal Server Error' });
+    }
+    // Otherwise just end the response
+    res.end();
   }
-}
+};
