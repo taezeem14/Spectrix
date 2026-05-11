@@ -70,7 +70,7 @@ Core strengths:
 | Stat | Value |
 |------|-------|
 | 🗓️ Build Duration | 3+ months |
-| 🔁 Commits | 750+ |
+| 🔁 Commits | 700+ |
 | 🚀 Deployments | 500+ |
 | 📦 Framework | None (Vanilla JS) |
 | ⚙️ Backend | Cloudflare Workers + Vercel |
