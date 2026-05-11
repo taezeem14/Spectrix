@@ -8634,7 +8634,6 @@ Factuality guardrails:
     const HTML_PREVIEW_LANGS = new Set(['html', 'htm', 'xhtml', 'xml', 'markup']);
     const HTML_PREVIEW_MAX_CHARS = 120000;
     const CODE_HIGHLIGHT_MAX_CHARS = 32000;
-    const CODE_LINE_GUTTER_MAX_LINES = 1200;
 
     function looksLikeHtmlSnippet(codeText) {
       if (!codeText) return false;
@@ -8683,11 +8682,6 @@ Factuality guardrails:
 
       const normalized = String(block.textContent || '').replace(/\r\n/g, '\n').replace(/\n+$/, '');
       const lineCount = normalized ? normalized.split('\n').length : 1;
-
-      if (lineCount > CODE_LINE_GUTTER_MAX_LINES) {
-        pre.dataset.linesAvailable = 'false';
-        return false;
-      }
 
       pre.dataset.linesAvailable = 'true';
 
@@ -8783,16 +8777,9 @@ Factuality guardrails:
         const linesBtn = document.createElement("button");
         linesBtn.className = "lines-btn";
         linesBtn.textContent = "Lines";
-        linesBtn.title = hasLineNumberGutter ? "Toggle line numbers" : "Line numbers disabled for very large code blocks";
+        linesBtn.title = "Toggle line numbers";
         linesBtn.setAttribute('aria-pressed', 'false');
-        if (!hasLineNumberGutter) {
-          linesBtn.disabled = true;
-        }
         linesBtn.onclick = () => {
-          if (pre.dataset.linesAvailable !== 'true') {
-            showStatus('Line numbers are disabled for very large code blocks.');
-            return;
-          }
           const enabled = pre.classList.toggle("line-numbers");
           linesBtn.classList.toggle('active', enabled);
           linesBtn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
