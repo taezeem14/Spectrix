@@ -1226,27 +1226,27 @@
     }
 
     .stream-continue-btn {
-      display: block;
-      margin: 16px auto 8px auto;
-      padding: 10px 20px;
-      background: linear-gradient(135deg, #f59e0b, #d97706);
-      color: white;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin: 12px 0 4px;
+      padding: 8px 16px;
+      background: var(--user);
+      color: #ffffff;
       border: none;
-      border-radius: var(--radius-md);
+      border-radius: var(--radius-sm);
       font-size: 13px;
-      font-weight: 800;
+      font-weight: 600;
       font-family: inherit;
       cursor: pointer;
-      transition: all 0.25s ease;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      box-shadow: 0 4px 15px rgba(217, 119, 6, 0.4);
+      transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
       animation: slideUp 0.3s ease-out;
     }
     .stream-continue-btn:hover {
       filter: brightness(1.1);
-      box-shadow: 0 6px 20px rgba(217, 119, 6, 0.5);
-      transform: translateY(-2px);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-md);
     }
 
     @keyframes fadeIn {
@@ -9334,6 +9334,7 @@ Factuality guardrails:
 
               if (dataRaw === "[DONE]") {
                 streamDone = true;
+                if (!streamFinishReason) streamFinishReason = 'stop';
                 break;
               }
 
@@ -9364,7 +9365,7 @@ Factuality guardrails:
 
               const finishReason = eventData?.choices?.[0]?.finish_reason;
               if (eventData?.type === "done" || finishReason) {
-                if (finishReason) streamFinishReason = finishReason;
+                streamFinishReason = finishReason || 'stop';
                 streamDone = true;
                 break;
               }
@@ -9396,11 +9397,13 @@ Factuality guardrails:
       if (!renderedText.trim() && buffer.trim()) {
         try {
           const parsed = JSON.parse(buffer.trim());
-          const recovered = String(parsed?.choices?.[0]?.message?.content || '').trim();
+          const recoveredFinish = parsed?.choices?.[0]?.finish_reason;
           if (recovered) {
             renderedText = recovered;
             pendingDeltaText = '';
             streamMetrics.usedJsonBodyRecovery = true;
+            streamDone = true;
+            streamFinishReason = recoveredFinish || 'stop';
           }
         } catch {
           // Keep normal empty-response behavior.
@@ -9463,22 +9466,42 @@ Factuality guardrails:
         // 4. Sentence check: ends mid-word
         const lastChar = trimmed.slice(-1);
         const lastLine = trimmed.split('\n').pop().trim();
-        if (lastLine.length > 20) {
-          const punctuationRegex = new RegExp('[.!?) \\] \\} \' " \\n]', 'g');
-          if (!punctuationRegex.test(lastChar)) return true;
+        if (lastLine.length > 30) {
+          const punctuationRegex = /[.!?;:!)\}\]\s\d"'`*]$/;
+          if (!punctuationRegex.test(lastChar)) {
+            const words = lastLine.split(/\s+/);
+            const lastWord = words[words.length - 1].toLowerCase();
+            const continuations = ['and', 'the', 'with', 'for', 'but', 'or', 'a', 'an', 'in', 'on', 'at', 'is', 'are'];
+            if (continuations.includes(lastWord)) return true;
+            return false;
+          }
         }
         
         return false;
       };
 
       const wasTruncated = streamFinishReason === 'length';
-      const wasSilentlyDropped = !streamFinishReason && !abortedByUser && renderedText.length > 100;
+      // Only treat as silently dropped if the stream never signaled completion AND no finish reason was provided.
+      const wasSilentlyDropped = !streamDone && !streamFinishReason && !abortedByUser && renderedText.length > 100;
       const looksIncomplete = !abortedByUser && detectContentTruncation(renderedText);
 
-      if ((wasTruncated || wasSilentlyDropped || looksIncomplete) && renderedText.trim()) {
+      // We show "Continue" if:
+      // 1. Model explicitly stopped because of length.
+      // 2. Stream connection closed prematurely (silent drop).
+      // 3. Heuristics detect truncation, EXCEPT if the model explicitly said it 'stop'ped 
+      //    (unless it's a critical structural failure like an unclosed code block).
+      let showContinue = wasTruncated || wasSilentlyDropped;
+      if (!showContinue && looksIncomplete) {
+        const isCriticalHeuristic = (renderedText.match(/```/g) || []).length % 2 !== 0;
+        if (streamFinishReason !== 'stop' || isCriticalHeuristic) {
+          showContinue = true;
+        }
+      }
+
+      if (showContinue && renderedText.trim()) {
         const continueBtn = document.createElement('button');
         continueBtn.className = 'stream-continue-btn';
-        continueBtn.innerHTML = '⚡ Continue generating';
+        continueBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg> Continue generating';
         continueBtn.onclick = async () => {
           continueBtn.remove();
           await continueGeneratingFromTruncation(renderedText, d, payload);
