@@ -1124,6 +1124,7 @@
       transition: all 0.15s;
       white-space: nowrap;
       flex-shrink: 0;
+      box-shadow: 0 4px 10px rgba(46, 127, 240, 0.25);
     }
 
     button.send:hover {
@@ -1919,7 +1920,7 @@
       min-height: 64px;
       height: 64px;
       width: 64px;
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
       border: 1px solid var(--border);
       background: var(--chat);
       color: var(--text);
@@ -2337,14 +2338,21 @@
       .controls {
         gap: 6px;
         display: flex;
-        flex-wrap: wrap;
-        overflow: visible;
-        padding-bottom: 0;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding-bottom: 4px;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .controls::-webkit-scrollbar {
+        height: 0;
+        display: none;
       }
 
       .controls>.select-wrap {
-        flex: 1 1 calc(50% - 6px);
-        min-width: 0;
+        flex: 0 0 auto;
+        min-width: 140px;
+        max-width: 180px;
       }
 
       .controls>* {
@@ -2353,9 +2361,9 @@
 
       .controls>.select-wrap.custom-select-wrap,
       .controls>.select-wrap.custom-select-wrap .custom-select-trigger {
-        width: 100%;
-        max-width: 100%;
-        min-width: 0;
+        width: auto;
+        max-width: 180px;
+        min-width: 120px;
       }
 
       .controls button.toggle {
@@ -2510,7 +2518,7 @@
         min-height: 44px;
         padding: 10px 16px;
         line-height: 22px;
-        border-radius: 22px;
+        border-radius: var(--radius-sm);
         font-size: 15px;
       }
 
@@ -2520,7 +2528,7 @@
         height: 44px;
         padding: 0 18px;
         font-size: 15px;
-        border-radius: 22px;
+        border-radius: var(--radius-sm);
         box-shadow: 0 4px 10px rgba(46, 127, 240, 0.25);
       }
 
@@ -2536,7 +2544,7 @@
         padding: 0 18px;
         font-size: 15px;
         font-weight: 600;
-        border-radius: 22px;
+        border-radius: var(--radius-sm);
       }
 
       .char-counter {
@@ -2571,7 +2579,7 @@
         min-height: 44px;
         height: 44px;
         width: 44px;
-        border-radius: 50%;
+        border-radius: 10px;
         font-size: 24px;
       }
 
@@ -2635,11 +2643,11 @@
       }
 
       .custom-select-trigger {
-        max-width: 100%;
+        max-width: 160px;
       }
 
       .controls>.select-wrap {
-        flex-basis: 100%;
+        flex-basis: auto;
       }
 
       .msg {
@@ -2657,7 +2665,7 @@
         padding: 8px 14px;
         font-size: 14px;
         line-height: 22px;
-        border-radius: 20px;
+        border-radius: var(--radius-sm);
       }
 
       button.send {
@@ -2666,7 +2674,7 @@
         height: 40px;
         padding: 0 16px;
         font-size: 14px;
-        border-radius: 20px;
+        border-radius: var(--radius-sm);
         box-shadow: 0 4px 10px rgba(46, 127, 240, 0.25);
       }
 
@@ -2681,7 +2689,7 @@
         height: 40px;
         padding: 0 16px;
         font-size: 14px;
-        border-radius: 20px;
+        border-radius: var(--radius-sm);
       }
 
       .quick-actions-btn {
@@ -2689,7 +2697,7 @@
         height: 40px;
         width: 40px;
         font-size: 22px;
-        border-radius: 50%;
+        border-radius: 10px;
       }
 
       .quick-actions-menu {
