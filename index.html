@@ -1657,12 +1657,16 @@
       align-items: center;
     }
 
+    .select-wrap.custom-select-wrap::after {
+      display: none !important;
+    }
+
     .native-select-hidden {
       display: none !important;
     }
 
     .custom-select-wrap::after {
-      display: none;
+      display: none !important;
     }
 
     .custom-select-trigger {
@@ -6051,7 +6055,7 @@ Factuality guardrails:
       initEventListeners();
       initTextModelDropdown();
       initConversationTemplateDropdown();
-      initCustomSelectDropdowns();
+      initTextModelDropdown();
       initCompatibilityEnhancements();
       updateThemeColorMeta();
       initMemorySystem();
