@@ -2507,35 +2507,43 @@
       }
 
       #input {
-        min-height: 38px;
-        padding: 7px 14px;
+        min-height: 44px;
+        padding: 10px 16px;
         line-height: 22px;
+        border-radius: 22px;
+        font-size: 15px;
       }
 
       button.send {
-        min-width: 56px;
-        min-height: 38px;
-        height: 38px;
-        padding: 0 12px;
-        font-size: 13px;
+        min-width: auto;
+        min-height: 44px;
+        height: 44px;
+        padding: 0 18px;
+        font-size: 15px;
+        border-radius: 22px;
+        box-shadow: 0 4px 10px rgba(46, 127, 240, 0.25);
       }
 
       .send-cluster {
-        gap: 6px;
+        gap: 8px;
       }
 
       .send-cluster .stop-btn,
       .send-cluster button.send {
-        min-width: 56px;
-        min-height: 38px;
-        height: 38px;
-        padding: 0 12px;
-        font-size: 12px;
+        min-width: auto;
+        min-height: 44px;
+        height: 44px;
+        padding: 0 18px;
+        font-size: 15px;
+        font-weight: 600;
+        border-radius: 22px;
       }
 
       .char-counter {
         font-size: 9px;
         padding: 2px 4px;
+        bottom: 12px;
+        right: 14px;
       }
 
       .sidebar-header {
@@ -2560,11 +2568,11 @@
       }
 
       .quick-actions-btn {
-        min-height: 38px;
-        height: 38px;
-        width: 38px;
-        border-radius: 10px;
-        font-size: 21px;
+        min-height: 44px;
+        height: 44px;
+        width: 44px;
+        border-radius: 50%;
+        font-size: 24px;
       }
 
       .quick-actions-menu {
@@ -2645,39 +2653,43 @@
       }
 
       #input {
-        min-height: 36px;
-        padding: 6px 12px;
+        min-height: 40px;
+        padding: 8px 14px;
         font-size: 14px;
         line-height: 22px;
+        border-radius: 20px;
       }
 
       button.send {
-        min-width: 52px;
-        min-height: 36px;
-        height: 36px;
-        padding: 0 10px;
-        font-size: 13px;
+        min-width: auto;
+        min-height: 40px;
+        height: 40px;
+        padding: 0 16px;
+        font-size: 14px;
+        border-radius: 20px;
+        box-shadow: 0 4px 10px rgba(46, 127, 240, 0.25);
       }
 
       .send-cluster {
-        gap: 5px;
+        gap: 6px;
       }
 
       .send-cluster .stop-btn,
       .send-cluster button.send {
-        min-width: 52px;
-        min-height: 36px;
-        height: 36px;
-        padding: 0 10px;
-        font-size: 11px;
+        min-width: auto;
+        min-height: 40px;
+        height: 40px;
+        padding: 0 16px;
+        font-size: 14px;
+        border-radius: 20px;
       }
 
       .quick-actions-btn {
-        min-height: 36px;
-        height: 36px;
-        width: 36px;
-        font-size: 20px;
-        border-radius: 10px;
+        min-height: 40px;
+        height: 40px;
+        width: 40px;
+        font-size: 22px;
+        border-radius: 50%;
       }
 
       .quick-actions-menu {
@@ -8695,7 +8707,6 @@ Factuality guardrails:
       }
 
       pre.appendChild(gutter);
-      return true;
     }
 
     function syncLineNumberGutter(pre) {
@@ -8745,7 +8756,7 @@ Factuality guardrails:
           : (block.getAttribute('data-language') || 'code');
         pre.dataset.lang = formatCodeLanguageLabel(resolvedLang);
 
-        const hasLineNumberGutter = buildLineNumberGutter(block, pre);
+        buildLineNumberGutter(block, pre);
         pre.scrollTop = 0;
         syncLineNumberGutter(pre);
 
