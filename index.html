@@ -2399,10 +2399,24 @@
       }
 
       .custom-select-panel {
-        width: min(max(100%, 220px), calc(100vw - 20px));
-        max-width: calc(100vw - 20px);
-        max-height: 220px;
-        padding: 5px;
+        position: fixed !important;
+        top: 50% !important;
+        left: 50% !important;
+        transform: translate(-50%, -40%) scale(0.95);
+        width: 90vw !important;
+        max-width: 340px !important;
+        max-height: 60vh !important;
+        padding: 6px !important;
+        z-index: 9999 !important;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.4) !important;
+      }
+
+      .custom-select-wrap.open .custom-select-panel {
+        transform: translate(-50%, -50%) scale(1) !important;
+      }
+
+      body.dark .custom-select-panel {
+        box-shadow: 0 10px 40px rgba(0,0,0,0.8) !important;
       }
 
       .custom-select-option {
@@ -3632,6 +3646,12 @@
             <button class="quick-action-item" id="searchToggleBtn" type="button"
               onclick="toggleWebSearch();closeQuickActionsMenu();" aria-label="Toggle web search"
               title="Web Search: OFF" role="menuitem">🌐 Web search: OFF</button>
+            <button class="quick-action-item" type="button"
+              onclick="openCommandPalette();closeQuickActionsMenu();" aria-label="Open Command Palette"
+              role="menuitem">⌨️ Command Palette</button>
+            <button class="quick-action-item" type="button"
+              onclick="toggleSkillsPanel();closeQuickActionsMenu();" aria-label="Open Skills"
+              role="menuitem">🛠️ Skills Manager</button>
           </div>
         </div>
         <div class="input-container">
