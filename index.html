@@ -1819,6 +1819,10 @@
       color: var(--user);
     }
 
+    .active-skill-indicator::after {
+      display: none !important;
+    }
+
     /* ===== VOICE CONTROLS ===== */
     .voice-btn {
       position: relative;
@@ -2399,24 +2403,24 @@
       }
 
       .custom-select-panel {
-        position: fixed !important;
-        top: 50% !important;
-        left: 50% !important;
-        transform: translate(-50%, -40%) scale(0.95);
-        width: 90vw !important;
-        max-width: 340px !important;
-        max-height: 60vh !important;
-        padding: 6px !important;
-        z-index: 9999 !important;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.4) !important;
+        position: absolute !important;
+        top: calc(100% + 4px) !important;
+        left: 0 !important;
+        transform: translateY(-6px) scale(0.98) !important;
+        width: max(100%, 260px) !important;
+        max-width: 85vw !important;
+        max-height: 240px !important;
+        padding: 5px !important;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.3) !important;
+        z-index: 1000 !important;
       }
 
       .custom-select-wrap.open .custom-select-panel {
-        transform: translate(-50%, -50%) scale(1) !important;
+        transform: translateY(0) scale(1) !important;
       }
 
       body.dark .custom-select-panel {
-        box-shadow: 0 10px 40px rgba(0,0,0,0.8) !important;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.8) !important;
       }
 
       .custom-select-option {
@@ -10154,7 +10158,30 @@ Create a concise title that captures the main topic of this conversation.
 
     function updateThemeColorMeta() {
       if (!themeColorMeta) return;
-      themeColorMeta.setAttribute('content', document.body.classList.contains('dark') ? '#020617' : '#f4f4f5');
+      const isDark = document.body.classList.contains('dark');
+      const hexColor = isDark ? '#020617' : '#f4f4f5';
+      const bgColor = isDark ? '#020617' : '#ffffff';
+      themeColorMeta.setAttribute('content', hexColor);
+
+      const manifestLink = document.querySelector('link[rel="manifest"]');
+      if (manifestLink) {
+        const manifestConfig = {
+          name: "Spectrix AI",
+          short_name: "Spectrix AI",
+          description: "Voice-enabled AI chat web app with installable PWA support and local chat history.",
+          start_url: "/chat.html?source=pwa",
+          display: "standalone",
+          display_override: ["window-controls-overlay", "standalone", "minimal-ui"],
+          theme_color: hexColor,
+          background_color: bgColor,
+          icons: [
+            { src: "/android-chrome-192x192.png", sizes: "192x192", type: "image/png", purpose: "any maskable" },
+            { src: "/android-chrome-512x512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" }
+          ]
+        };
+        const blob = new Blob([JSON.stringify(manifestConfig)], { type: 'application/manifest+json' });
+        manifestLink.href = URL.createObjectURL(blob);
+      }
     }
 
     function showStatus(message, timeout = 2600) {
