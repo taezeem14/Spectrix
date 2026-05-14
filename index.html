@@ -1225,6 +1225,41 @@
       }
     }
 
+    .msg.bot.thinking {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .msg.bot.thinking::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 200%;
+      height: 100%;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(59, 130, 246, 0.05),
+        transparent
+      );
+      animation: gemmaShimmer 1.8s infinite;
+    }
+
+    .msg.bot.thinking.gemma-theme::before {
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(168, 85, 247, 0.1),
+        transparent
+      );
+    }
+
+    @keyframes gemmaShimmer {
+      from { transform: translateX(-100%); }
+      to { transform: translateX(50%); }
+    }
+
     .stream-continue-btn {
       display: inline-flex;
       align-items: center;
@@ -9260,8 +9295,11 @@ Factuality guardrails:
       }
 
       const d = options.targetNode || document.createElement("div");
+      const isGemmaStream = String(payload?.model || '').toLowerCase().includes('gemma');
+      
       if (!options.targetNode) {
-        d.className = "msg bot";
+        d.className = "msg bot thinking";
+        if (isGemmaStream) d.classList.add("gemma-theme");
         chat.appendChild(d);
       }
       // When continuing from truncation, keep existing content — don't show "Thinking"
@@ -9294,7 +9332,7 @@ Factuality guardrails:
         document.removeEventListener('visibilitychange', onVisibilityChange);
         streamResumeRenderCallback = null;
       };
-      const isGemmaStream = String(payload?.model || '').toLowerCase().includes('gemma');
+      // isGemmaStream is now handled earlier for the thinking state
       // Detect via message content — reliable regardless of payload flag state
       const hasAttachmentContext =
         Array.isArray(payload?.messages) && payload.messages.some((msg) =>
@@ -9325,6 +9363,13 @@ Factuality guardrails:
         } else {
           d.textContent = renderedText;
         }
+        
+        // Remove thinking state once content arrives
+        if (renderedText.trim().length > 0) {
+          d.classList.remove("thinking");
+          d.classList.remove("gemma-theme");
+        }
+
         renderMath(d);
 
         pendingDeltaText = "";
@@ -9493,7 +9538,7 @@ Factuality guardrails:
       if (!renderedText.trim() && buffer.trim()) {
         try {
           const parsed = JSON.parse(buffer.trim());
-          const recoveredFinish = parsed?.choices?.[0]?.finish_reason;
+          const recovered = parsed?.choices?.[0]?.message?.content;
           if (recovered) {
             renderedText = recovered;
             pendingDeltaText = '';
