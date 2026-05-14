@@ -459,3 +459,4 @@ If Spectrix helped you — drop a ⭐ on the repo. It means a lot. 🙏
 Fixed dropdown list and continue generating button
 Matched the button height in css max width 768 to 48px to match desktop
 Fix model selector mobile. the panel needs to align well.
+Fixed mobile model selector by restoring native click overlay methodology without JS hacks

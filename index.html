@@ -2228,7 +2228,18 @@
 
 
     /* ===== MOBILE OPTIMIZED ===== */
-    @media(max-width:768px) { .custom-select-trigger { pointer-events: none; } .native-select-hidden { opacity: 0.01 !important; pointer-events: auto !important; position: absolute !important; inset: 0; width: 100%; height: 100%; }
+    @media(max-width:768px) {
+      .native-select-hidden {
+        opacity: 0 !important;
+        display: block !important;
+        position: absolute !important;
+        top: 0; left: 0; right: 0; bottom: 0;
+        width: 100%; height: 100%;
+        z-index: 10;
+        cursor: pointer;
+        pointer-events: auto !important;
+      }
+      
       body {
         padding: 0;
         margin: 0;
@@ -11959,13 +11970,6 @@ ${existingFacts.slice(0, 20).join('\n')}`;
       };
 
       trigger.addEventListener('click', (e) => {
-        // Fallback to native on small mobile to avoid fixed pos bugs inside overflow containers
-        if (window.innerWidth <= 768) {
-           select.classList.remove('native-select-hidden');
-           select.focus();
-           // we still update label on change, native select handles opening picker
-           return;
-        }
         e.stopPropagation();
         const shouldOpen = !wrap.classList.contains('open');
         closeAllCustomSelectDropdowns();
@@ -11985,6 +11989,11 @@ ${existingFacts.slice(0, 20).join('\n')}`;
       });
 
       select.addEventListener('change', () => {
+        updateLabel();
+        syncActiveOption();
+      });
+
+      select.addEventListener('blur', () => {
         updateLabel();
         syncActiveOption();
       });
