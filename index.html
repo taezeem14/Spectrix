@@ -735,8 +735,8 @@
 
     #input {
       width: 100%;
-      min-height: 42px;
-      max-height: 120px;
+      min-height: 64px;
+      max-height: 180px;
       resize: none;
       padding: 8px 14px;
       font-size: 15px;
@@ -1106,9 +1106,9 @@
     }
 
     button.send {
-      min-width: 72px;
-      min-height: 42px;
-      height: 42px;
+      min-width: 80px;
+      min-height: 64px;
+      height: 64px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1141,9 +1141,9 @@
     }
 
     .stop-btn {
-      min-width: 72px;
-      min-height: 42px;
-      height: 42px;
+      min-width: 80px;
+      min-height: 64px;
+      height: 64px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1674,9 +1674,9 @@
       width: fit-content;
       min-width: 120px;
       max-width: none;
-      display: inline-flex;
+      display: inline-grid;
+      grid-template-columns: 1fr auto;
       align-items: center;
-      justify-content: space-between;
       gap: 10px;
       padding: 8px 10px 8px 12px;
       border: 1px solid var(--border);
@@ -1694,6 +1694,26 @@
         inset 0 1px 0 rgba(255, 255, 255, 0.08),
         0 4px 14px rgba(2, 6, 23, 0.18);
       transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+    }
+
+    .custom-select-label,
+    .custom-select-ghost {
+      grid-area: 1 / 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-align: left;
+    }
+
+    .custom-select-ghost {
+      visibility: hidden;
+      height: 0;
+      pointer-events: none;
+    }
+
+    .custom-select-caret {
+      grid-area: 1 / 2;
     }
 
     .custom-select-trigger:hover {
@@ -1928,9 +1948,9 @@
 
     .quick-actions-btn {
       flex-shrink: 0;
-      min-height: 42px;
-      height: 42px;
-      width: 42px;
+      min-height: 64px;
+      height: 64px;
+      width: 64px;
       border-radius: var(--radius-sm);
       border: 1px solid var(--border);
       background: var(--chat);
@@ -2526,21 +2546,21 @@
       }
 
       #input {
-        min-height: 48px;
-        padding: 10px 16px;
-        line-height: 24px;
+        min-height: 64px;
+        padding: 14px 18px;
+        line-height: 32px;
         border-radius: var(--radius-sm);
-        font-size: 15px;
+        font-size: 16px;
       }
 
       button.send {
-        min-width: 48px;
-        min-height: 48px;
-        height: 48px;
-        padding: 0 16px;
-        font-size: 15px;
+        min-width: 64px;
+        min-height: 64px;
+        height: 64px;
+        padding: 0 20px;
+        font-size: 16px;
         border-radius: var(--radius-sm);
-        box-shadow: 0 4px 10px rgba(46, 127, 240, 0.25);
+        box-shadow: 0 6px 16px rgba(46, 127, 240, 0.3);
       }
 
       .send-cluster {
@@ -2549,12 +2569,12 @@
 
       .send-cluster .stop-btn,
       .send-cluster button.send {
-        min-width: 80px;
-        min-height: 48px;
-        height: 48px;
-        padding: 0 16px;
-        font-size: 15px;
-        font-weight: 600;
+        min-width: 64px;
+        min-height: 64px;
+        height: 64px;
+        padding: 0 20px;
+        font-size: 16px;
+        font-weight: 700;
         border-radius: var(--radius-sm);
       }
 
@@ -2587,11 +2607,11 @@
       }
 
       .quick-actions-btn {
-        min-height: 48px;
-        height: 48px;
-        width: 48px;
-        border-radius: 10px;
-        font-size: 24px;
+        min-height: 64px;
+        height: 64px;
+        width: 64px;
+        border-radius: var(--radius-sm);
+        font-size: 28px;
       }
 
       .quick-actions-menu {
@@ -2673,19 +2693,19 @@
       }
 
       #input {
-        min-height: 48px;
-        padding: 8px 14px;
-        font-size: 14px;
-        line-height: 22px;
+        min-height: 64px;
+        padding: 12px 16px;
+        font-size: 16px;
+        line-height: 28px;
         border-radius: var(--radius-sm);
       }
 
       button.send {
-        min-width: auto;
-        min-height: 48px;
-        height: 48px;
+        min-width: 64px;
+        min-height: 64px;
+        height: 64px;
         padding: 0 16px;
-        font-size: 14px;
+        font-size: 16px;
         border-radius: var(--radius-sm);
         box-shadow: 0 4px 10px rgba(46, 127, 240, 0.25);
       }
@@ -2696,20 +2716,21 @@
 
       .send-cluster .stop-btn,
       .send-cluster button.send {
-        min-width: auto;
-        min-height: 48px;
-        height: 48px;
+        min-width: 64px;
+        min-height: 64px;
+        height: 64px;
         padding: 0 16px;
-        font-size: 14px;
+        font-size: 16px;
+        font-weight: 700;
         border-radius: var(--radius-sm);
       }
 
       .quick-actions-btn {
-        min-height: 48px;
-        height: 48px;
-        width: 48px;
-        font-size: 24px;
-        border-radius: 10px;
+        min-height: 64px;
+        height: 64px;
+        width: 64px;
+        font-size: 28px;
+        border-radius: var(--radius-sm);
       }
 
       .quick-actions-menu {
@@ -11912,11 +11933,16 @@ ${existingFacts.slice(0, 20).join('\n')}`;
       const label = document.createElement('span');
       label.className = 'custom-select-label';
 
+      const ghost = document.createElement('span');
+      ghost.className = 'custom-select-ghost';
+      ghost.ariaHidden = 'true';
+
       const caret = document.createElement('span');
       caret.className = 'custom-select-caret';
       caret.textContent = '▾';
 
       trigger.appendChild(label);
+      trigger.appendChild(ghost);
       trigger.appendChild(caret);
 
       const panel = document.createElement('div');
@@ -11941,7 +11967,11 @@ ${existingFacts.slice(0, 20).join('\n')}`;
 
       const renderOptions = () => {
         panel.innerHTML = '';
+        let longestText = '';
         Array.from(select.options).forEach((opt) => {
+          const txt = opt.textContent.trim();
+          if (txt.length > longestText.length) longestText = txt;
+          
           const optBtn = document.createElement('button');
           optBtn.type = 'button';
           optBtn.className = 'custom-select-option';
@@ -11963,6 +11993,7 @@ ${existingFacts.slice(0, 20).join('\n')}`;
 
           panel.appendChild(optBtn);
         });
+        ghost.textContent = longestText;
         syncActiveOption();
       };
 
