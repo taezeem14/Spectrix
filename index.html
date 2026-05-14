@@ -1107,8 +1107,8 @@
 
     button.send {
       min-width: 72px;
-      min-height: 64px;
-      height: 64px;
+      min-height: 42px;
+      height: 42px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1142,8 +1142,8 @@
 
     .stop-btn {
       min-width: 72px;
-      min-height: 64px;
-      height: 64px;
+      min-height: 42px;
+      height: 42px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1671,7 +1671,9 @@
 
     .custom-select-trigger {
       min-height: 36px;
-      max-width: 158px;
+      width: fit-content;
+      min-width: 120px;
+      max-width: none;
       display: inline-flex;
       align-items: center;
       justify-content: space-between;
@@ -1737,7 +1739,7 @@
       top: 0;
       left: 0;
       width: max-content;
-      min-width: 250px;
+      min-width: 100%;
       max-width: 90vw;
       max-height: 300px;
       overflow-y: auto;
@@ -1926,9 +1928,9 @@
 
     .quick-actions-btn {
       flex-shrink: 0;
-      min-height: 64px;
-      height: 64px;
-      width: 64px;
+      min-height: 42px;
+      height: 42px;
+      width: 42px;
       border-radius: var(--radius-sm);
       border: 1px solid var(--border);
       background: var(--chat);
@@ -2532,10 +2534,10 @@
       }
 
       button.send {
-        min-width: auto;
+        min-width: 48px;
         min-height: 48px;
         height: 48px;
-        padding: 0 18px;
+        padding: 0 16px;
         font-size: 15px;
         border-radius: var(--radius-sm);
         box-shadow: 0 4px 10px rgba(46, 127, 240, 0.25);
@@ -2547,10 +2549,10 @@
 
       .send-cluster .stop-btn,
       .send-cluster button.send {
-        min-width: auto;
+        min-width: 80px;
         min-height: 48px;
         height: 48px;
-        padding: 0 18px;
+        padding: 0 16px;
         font-size: 15px;
         font-weight: 600;
         border-radius: var(--radius-sm);
@@ -2652,7 +2654,8 @@
       }
 
       .custom-select-trigger {
-        max-width: 160px;
+        max-width: none;
+        width: fit-content;
       }
 
       .controls>.select-wrap {
