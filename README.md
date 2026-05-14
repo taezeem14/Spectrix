@@ -456,3 +456,4 @@ If Spectrix helped you — drop a ⭐ on the repo. It means a lot. 🙏
 - Fixed active skill indicator triangle
 - Resolved mobile model selector double vision
 - Added dynamic PWA manifest to support adjustable favicon background in dark/light mode installs
+Fixed dropdown list and continue generating button
