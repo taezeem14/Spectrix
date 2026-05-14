@@ -1759,7 +1759,6 @@
       top: 0;
       left: 0;
       width: max-content;
-      min-width: 100%;
       max-width: 90vw;
       max-height: 300px;
       overflow-y: auto;
@@ -2533,7 +2532,7 @@
         padding: 8px 12px;
         gap: 8px;
         padding-bottom: calc(8px + var(--safe-bottom));
-        align-items: flex-end;
+        align-items: stretch;
         backdrop-filter: none;
         position: sticky;
         bottom: 0;
@@ -2547,20 +2546,26 @@
 
       #input {
         min-height: 64px;
+        height: auto;
         padding: 14px 18px;
         line-height: 32px;
         border-radius: var(--radius-sm);
         font-size: 16px;
+        border: 1px solid var(--border);
       }
 
       button.send {
         min-width: 64px;
         min-height: 64px;
-        height: 64px;
+        height: auto;
         padding: 0 20px;
         font-size: 16px;
         border-radius: var(--radius-sm);
         box-shadow: 0 6px 16px rgba(46, 127, 240, 0.3);
+        border: 1px solid transparent;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
 
       .send-cluster {
@@ -2571,11 +2576,15 @@
       .send-cluster button.send {
         min-width: 64px;
         min-height: 64px;
-        height: 64px;
+        height: auto;
         padding: 0 20px;
         font-size: 16px;
         font-weight: 700;
         border-radius: var(--radius-sm);
+        border: 1px solid transparent;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
 
       .char-counter {
@@ -2606,12 +2615,21 @@
         padding: 6px 8px;
       }
 
+      .quick-actions {
+        display: flex;
+        align-items: stretch;
+      }
+
       .quick-actions-btn {
         min-height: 64px;
-        height: 64px;
+        height: auto;
         width: 64px;
         border-radius: var(--radius-sm);
         font-size: 28px;
+        border: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
 
       .quick-actions-menu {
@@ -11892,7 +11910,7 @@ ${existingFacts.slice(0, 20).join('\n')}`;
 
       panel.style.transform = 'none'; // Clear animation constraints for measurements
 
-      panel.style.minWidth = `${rect.width}px`;
+      // panel.style.minWidth = `${rect.width}px`; // Removed to allow width-specific panel content
 
       const panelRect = panel.getBoundingClientRect();
 
