@@ -9302,9 +9302,13 @@ Factuality guardrails:
         if (isGemmaStream) d.classList.add("gemma-theme");
         chat.appendChild(d);
       }
-      // When continuing from truncation, keep existing content — don't show "Thinking"
-      if (!options.continueFrom) {
+      // Ensure the "Thinking" placeholder is present if we are starting fresh
+      if (!options.continueFrom && (!options.targetNode || !d.querySelector('.stream-placeholder'))) {
         d.innerHTML = '<span class="stream-placeholder">Thinking<span class="stream-dots" aria-hidden="true"></span></span>';
+        if (options.targetNode) {
+          d.classList.add("thinking");
+          if (isGemmaStream) d.classList.add("gemma-theme");
+        }
       }
       scrollChatToLatest({ smooth: false, force: true });
 
@@ -9909,9 +9913,11 @@ Create a concise title that captures the main topic of this conversation.
         if (window.speechSynthesis.state === 'paused') window.speechSynthesis.resume();
       }
 
+      const isGemmaStream = String(model || '').toLowerCase().includes('gemma');
       const loading = document.createElement("div");
-      loading.className = "msg bot";
-      loading.innerHTML = "<div class='spinner'></div>";
+      loading.className = "msg bot thinking";
+      if (isGemmaStream) loading.classList.add("gemma-theme");
+      loading.innerHTML = '<span class="stream-placeholder">Thinking<span class="stream-dots" aria-hidden="true"></span></span>';
       chat.appendChild(loading);
       activeGenerationLoadingNode = loading;
       scrollChatToLatest({ smooth: false, force: true });
@@ -10163,14 +10169,15 @@ Create a concise title that captures the main topic of this conversation.
             ];
           }
 
-          loading.remove();
-          if (activeGenerationLoadingNode === loading) activeGenerationLoadingNode = null;
           let answer;
           try {
             activeStreamAbortController = new AbortController();
             streamPaused = false;
             setPauseButtonVisible(true);
-            answer = await streamBotFromSSE(payload, { signal: activeStreamAbortController.signal });
+            answer = await streamBotFromSSE(payload, { 
+              signal: activeStreamAbortController.signal,
+              targetNode: loading // Pass the existing thinking bubble to the stream
+            });
             // Save the bot reply (streamBotFromSSE no longer saves internally)
             if (answer) {
               session.messages.push({ role: "bot", content: answer });
@@ -12035,6 +12042,7 @@ ${existingFacts.slice(0, 20).join('\n')}`;
         // Truncate name for compact trigger
         const compactText = text.split('(')[0].split('•')[0].split('|')[0].trim();
         label.textContent = compactText;
+        ghost.textContent = compactText; // Match ghost to label for true adjustable width
         trigger.title = text;
       };
 
@@ -12048,13 +12056,7 @@ ${existingFacts.slice(0, 20).join('\n')}`;
 
       const renderOptions = () => {
         panel.innerHTML = '';
-        let longestText = '';
         Array.from(select.options).forEach((opt) => {
-          const fullText = opt.textContent.trim();
-          // Use the trimmed version for measuring trigger width
-          const compactText = fullText.split('(')[0].split('•')[0].split('|')[0].trim();
-          if (compactText.length > longestText.length) longestText = compactText;
-
           const optBtn = document.createElement('button');
           optBtn.type = 'button';
           optBtn.className = 'custom-select-option';
@@ -12076,7 +12078,6 @@ ${existingFacts.slice(0, 20).join('\n')}`;
 
           panel.appendChild(optBtn);
         });
-        ghost.textContent = longestText;
         syncActiveOption();
       };
 
