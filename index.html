@@ -1673,11 +1673,11 @@
       min-height: 36px;
       height: 36px;
       width: fit-content;
-      min-width: 100px;
-      max-width: none;
-      display: inline-flex;
+      min-width: 140px;
+      max-width: 320px;
+      display: inline-grid;
+      grid-template-columns: 1fr auto;
       align-items: center;
-      justify-content: space-between;
       gap: 8px;
       padding: 0 12px;
       border: 1px solid var(--border);
@@ -1697,7 +1697,9 @@
       transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
     }
 
-    .custom-select-label {
+    .custom-select-label,
+    .custom-select-ghost {
+      grid-area: 1 / 1;
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -1705,7 +1707,14 @@
       text-align: left;
     }
 
+    .custom-select-ghost {
+      visibility: hidden;
+      height: 0;
+      pointer-events: none;
+    }
+
     .custom-select-caret {
+      grid-area: 1 / 2;
       flex-shrink: 0;
       font-size: 10px;
       opacity: 0.7;
@@ -1754,7 +1763,8 @@
       top: 0;
       left: 0;
       width: max-content;
-      max-width: 90vw;
+      min-width: 100%;
+      max-width: 320px;
       max-height: 300px;
       overflow-y: auto;
       padding: 6px;
@@ -11909,7 +11919,7 @@ ${existingFacts.slice(0, 20).join('\n')}`;
 
       panel.style.transform = 'none'; // Clear animation constraints for measurements
 
-      // panel.style.minWidth = `${rect.width}px`; // Removed to allow width-specific panel content
+      panel.style.minWidth = `${rect.width}px`;
 
       const panelRect = panel.getBoundingClientRect();
 
@@ -11950,11 +11960,16 @@ ${existingFacts.slice(0, 20).join('\n')}`;
       const label = document.createElement('span');
       label.className = 'custom-select-label';
 
+      const ghost = document.createElement('span');
+      ghost.className = 'custom-select-ghost';
+      ghost.ariaHidden = 'true';
+
       const caret = document.createElement('span');
       caret.className = 'custom-select-caret';
       caret.textContent = '▾';
 
       trigger.appendChild(label);
+      trigger.appendChild(ghost);
       trigger.appendChild(caret);
 
       const panel = document.createElement('div');
@@ -11965,7 +11980,7 @@ ${existingFacts.slice(0, 20).join('\n')}`;
       const updateLabel = () => {
         const activeOption = select.options[select.selectedIndex] || select.options[0];
         const text = activeOption ? activeOption.textContent.trim() : '';
-        // Compact view: only show the main model name in the trigger
+        // Truncate name for compact trigger
         const compactText = text.split('(')[0].split('•')[0].split('|')[0].trim();
         label.textContent = compactText;
         trigger.title = text;
@@ -11981,7 +11996,13 @@ ${existingFacts.slice(0, 20).join('\n')}`;
 
       const renderOptions = () => {
         panel.innerHTML = '';
+        let longestText = '';
         Array.from(select.options).forEach((opt) => {
+          const fullText = opt.textContent.trim();
+          // Use the trimmed version for measuring trigger width
+          const compactText = fullText.split('(')[0].split('•')[0].split('|')[0].trim();
+          if (compactText.length > longestText.length) longestText = compactText;
+
           const optBtn = document.createElement('button');
           optBtn.type = 'button';
           optBtn.className = 'custom-select-option';
@@ -12003,6 +12024,7 @@ ${existingFacts.slice(0, 20).join('\n')}`;
 
           panel.appendChild(optBtn);
         });
+        ghost.textContent = longestText;
         syncActiveOption();
       };
 
