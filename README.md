@@ -457,3 +457,5 @@ If Spectrix helped you — drop a ⭐ on the repo. It means a lot. 🙏
 - Resolved mobile model selector double vision
 - Added dynamic PWA manifest to support adjustable favicon background in dark/light mode installs
 Fixed dropdown list and continue generating button
+Matched the button height in css max width 768 to 48px to match desktop
+Fix model selector mobile. the panel needs to align well.
