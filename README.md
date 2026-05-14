@@ -461,3 +461,4 @@ Matched the button height in css max width 768 to 48px to match desktop
 Fix model selector mobile. the panel needs to align well.
 Fixed mobile model selector by restoring native click overlay methodology without JS hacks
 Fixed custom JS dropdown for mobile explicitly and fixed width blow-out on desktop
+Fixed sticky hover 'double vision' overlap and added word wrap to dropdown buttons

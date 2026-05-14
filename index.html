@@ -1736,6 +1736,7 @@
       position: fixed;
       top: 0;
       left: 0;
+      width: max-content;
       min-width: 250px;
       max-width: 90vw;
       max-height: 300px;
@@ -1769,6 +1770,8 @@
       padding: 9px 10px;
       cursor: pointer;
       transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+      white-space: normal;
+      word-break: break-word;
     }
 
     .custom-select-option:hover {
@@ -2405,8 +2408,8 @@
       }
 
       .custom-select-panel {
-        width: 90vw !important;
-        max-width: 320px !important;
+        min-width: 150px !important;
+        max-width: 90vw !important;
         max-height: 50vh !important;
         box-shadow: 0 8px 30px rgba(0,0,0,0.3) !important;
       }
@@ -11843,7 +11846,12 @@ ${existingFacts.slice(0, 20).join('\n')}`;
         const trigger = wrap.querySelector('.custom-select-trigger');
         if (trigger) trigger.setAttribute('aria-expanded', 'false');
       });
-      document.querySelectorAll('.custom-select-panel.open').forEach(p => p.classList.remove('open'));
+      document.querySelectorAll('.custom-select-panel.open').forEach(p => {
+        p.classList.remove('open');
+        p.style.opacity = ''; // Clear inline opacity if any got stuck
+      });
+      // also sweep any that lost .open but still have inline opacity
+      document.querySelectorAll('.custom-select-panel').forEach(p => p.style.opacity = '');
     }
 
     function alignCustomSelectPanel(wrap, panel) {
@@ -11860,17 +11868,13 @@ ${existingFacts.slice(0, 20).join('\n')}`;
 
       panel.style.transform = 'none'; // Clear animation constraints for measurements
 
-      // We need it visible to get bounding box 
-      const wasHidden = panel.style.opacity === '0' || !panel.style.opacity;
-      if (wasHidden) panel.style.opacity = '0.01';
-
       panel.style.minWidth = `${rect.width}px`;
 
       const panelRect = panel.getBoundingClientRect();
 
       if (panelRect.right > window.innerWidth - viewportPad) {
         panel.style.left = 'auto';
-        panel.style.right = `${window.innerWidth - rect.right}px`;
+        panel.style.right = `${Math.max(viewportPad, window.innerWidth - rect.right)}px`;
       }
       
       const pass2 = panel.getBoundingClientRect();
@@ -11883,8 +11887,6 @@ ${existingFacts.slice(0, 20).join('\n')}`;
         panel.style.top = 'auto';
         panel.style.bottom = `${window.innerHeight - rect.top + 6}px`;
       }
-
-      if (wasHidden) panel.style.opacity = '1';
     }
 
     function enhanceCustomSelectDropdown(selectId) {
