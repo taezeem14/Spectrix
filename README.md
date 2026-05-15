@@ -416,7 +416,6 @@ Current priorities:
 
 - [x] AI Skills (system prompt presets)
 - [x] Memory quality pass v2 (less noise, better grouping, stronger cleanup)
-- [ ] `/tldr` enhancements (preset windows and richer topic grouping)
 - [x] Attachment parsing reliability hardening
 - [x] Streaming resilience metrics in debug logs
 - [x] Better export quality (stable PDF layout + richer DOCX formatting)
@@ -453,12 +452,4 @@ Completed milestones:
 If Spectrix helped you — drop a ⭐ on the repo. It means a lot. 🙏
 
 > *Not just another AI wrapper. A system built for speed, control, memory, and real-world use.* ⚡
-- Fixed active skill indicator triangle
-- Resolved mobile model selector double vision
-- Added dynamic PWA manifest to support adjustable favicon background in dark/light mode installs
-Fixed dropdown list and continue generating button
-Matched the button height in css max width 768 to 48px to match desktop
-Fix model selector mobile. the panel needs to align well.
-Fixed mobile model selector by restoring native click overlay methodology without JS hacks
-Fixed custom JS dropdown for mobile explicitly and fixed width blow-out on desktop
-Fixed sticky hover 'double vision' overlap and added word wrap to dropdown buttons
+
