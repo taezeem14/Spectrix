@@ -3625,9 +3625,8 @@
             <button class="settings-item" type="button" onclick="exportChatDocx();closeSettingsMenu();"
               role="menuitem">📝 Export chat as DOCX</button>
             <button class="settings-item memory-toggle" type="button" onclick="toggleMemoryPanel();closeSettingsMenu();"
-              role="menuitem" title="Manage AI memory and facts">🧠 Memory Management</button>
-            <button class="settings-item" type="button" onclick="clearAllChats();closeSettingsMenu();"
-              role="menuitem" style="color: #ef4444; border-top: 1px solid rgba(239, 68, 68, 0.15); margin-top: 4px; padding-top: 8px;">🗑️ Clear All Chats</button>
+              role="menuitem">🧠 AI Memory <span class="memory-badge" id="memoryBadge"
+                style="display:none;">0</span></button>
           </div>
         </div>
       </div>
@@ -3936,68 +3935,6 @@
         await deleteChatSearchDocumentLocal(id);
       } catch (error) {
         console.warn('Chat search index delete skipped:', error);
-      }
-    }
-
-    async function clearAllChats() {
-      const confirmed = await showAppConfirm("⚠️ Are you sure you want to delete ALL chats? This action is permanent and cannot be undone.", {
-        title: "Clear All Chats",
-        okText: "Delete All",
-        cancelText: "Cancel"
-      });
-      
-      if (!confirmed) return;
-
-      const overlay = showAppAlert("Wiping all chat data locally and in the cloud... System will reload shortly.", "System", { persistent: true });
-
-      try {
-        if (!db) await openDB();
-
-        // 1. Wipe Cloud if Authenticated (prevents sync from restoring chats)
-        if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser && firebase.firestore) {
-          try {
-            const user = firebase.auth().currentUser;
-            const dbF = firebase.firestore();
-            const chatsRef = dbF.collection('users').doc(user.uid).collection('chats');
-            const snap = await chatsRef.get();
-            const deletePromises = snap.docs.map(doc => doc.ref.delete());
-            await Promise.all(deletePromises);
-            console.log("Cloud chats wiped.");
-          } catch (e) {
-            console.warn("Cloud wipe failed or skipped:", e);
-          }
-        }
-
-        // 2. Clear IndexedDB stores completely
-        const storeNames = ['chats', 'media', 'chat_search'];
-        const tx = db.transaction(storeNames, 'readwrite');
-        storeNames.forEach(name => tx.objectStore(name).clear());
-
-        await new Promise((resolve, reject) => {
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => reject(tx.error);
-        });
-
-        // 3. Wipe LocalStorage keys related to chats
-        const keysToClear = [
-          'spectrix_chat_index',
-          'spectrix_deleted_tombstones',
-          'spectrix_chat_search_cache',
-          'spectrix_current_session_id',
-          'spectrix_cloud_sync_queue'
-        ];
-        keysToClear.forEach(key => localStorage.removeItem(key));
-
-        // 4. Hard reset and reload
-        showStatus("Wipe complete. Reloading...", 2000);
-        setTimeout(() => {
-          location.href = location.pathname; // Clean reload to home
-        }, 1000);
-
-      } catch (err) {
-        console.error("Clear All Chats error:", err);
-        showAppAlert("Failed to clear all chats: " + err.message, "Error");
-        if (overlay && typeof overlay.remove === 'function') overlay.remove();
       }
     }
 
@@ -13008,8 +12945,7 @@ ${existingFacts.slice(0, 20).join('\n')}`;
           await saveChatLocal(data);
           changed = true;
         } else if (localTs > cloudTs) {
-          const fullLocal = await ensureSessionMessagesLoaded(data.id);
-          await syncChatToCloud(fullLocal || local);
+          await syncChatToCloud(local);
         }
       }
 
@@ -13019,9 +12955,8 @@ ${existingFacts.slice(0, 20).join('\n')}`;
         if (!cloudIds.has(localId) && !deletedChatTombstones.has(String(localId))) {
           const local = sessions[localId];
           if (local) {
-            // Ensure we don't upload stripped local data to cloud
-            const fullLocal = await ensureSessionMessagesLoaded(local.id);
-            await syncChatToCloud(fullLocal || local);
+            // Never aggressively delete local chats on transient cloud mismatches.
+            await syncChatToCloud(local);
           }
         }
       }
