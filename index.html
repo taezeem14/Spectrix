@@ -3625,8 +3625,9 @@
             <button class="settings-item" type="button" onclick="exportChatDocx();closeSettingsMenu();"
               role="menuitem">📝 Export chat as DOCX</button>
             <button class="settings-item memory-toggle" type="button" onclick="toggleMemoryPanel();closeSettingsMenu();"
-              role="menuitem">🧠 AI Memory <span class="memory-badge" id="memoryBadge"
-                style="display:none;">0</span></button>
+              role="menuitem" title="Manage AI memory and facts">🧠 Memory Management</button>
+            <button class="settings-item" type="button" onclick="clearAllChats();closeSettingsMenu();"
+              role="menuitem" style="color: #ef4444; border-top: 1px solid rgba(239, 68, 68, 0.15); margin-top: 4px; padding-top: 8px;">🗑️ Clear All Chats</button>
           </div>
         </div>
       </div>
@@ -3935,6 +3936,48 @@
         await deleteChatSearchDocumentLocal(id);
       } catch (error) {
         console.warn('Chat search index delete skipped:', error);
+      }
+    }
+
+    async function clearAllChats() {
+      if (!confirm("⚠️ Are you sure you want to delete ALL chats? This action is permanent and cannot be undone.")) return;
+
+      const overlay = showAppAlert("Clearing all chats... Please wait.", "System", { persistent: true });
+
+      try {
+        if (!db) await openDB();
+
+        // 1. Clear IndexedDB stores
+        const tx = db.transaction(['chats', 'media', 'chat_search'], 'readwrite');
+        tx.objectStore('chats').clear();
+        tx.objectStore('media').clear();
+        tx.objectStore('chat_search').clear();
+
+        await new Promise((resolve, reject) => {
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error);
+        });
+
+        // 2. Reset LocalStorage and In-memory state
+        localStorage.removeItem('spectrix_chat_index');
+        localStorage.removeItem('spectrix_deleted_tombstones');
+        localStorage.removeItem('spectrix_chat_search_cache');
+        deletedChatTombstones.clear();
+        sessions = {};
+        currentId = null;
+
+        // 3. Reset UI state
+        render(""); // Clear main chat area
+        await createNewChat({ transient: false, persist: true });
+        await loadAllSessions();
+        renderHistory();
+
+        showStatus("All chats cleared successfully.", 4000);
+      } catch (err) {
+        console.error("Clear All Chats error:", err);
+        showAppAlert("Failed to clear all chats: " + err.message, "Error");
+      } finally {
+        if (overlay && typeof overlay.remove === 'function') overlay.remove();
       }
     }
 
