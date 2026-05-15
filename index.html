@@ -3680,11 +3680,11 @@
           </div>
           <div class="select-wrap">
             <select id="textModelSelect" title="Choose text model">
-              <option value="deepseek/deepseek-v4-flash:free">DeepSeek V4 Flash (Fast • Strong Reasoning)</option>
               <option value="google/gemma-4-31b-it:free">Gemma 4 31B IT (Main • Instruction Tuned)</option>
               <option value="inclusionai/ring-2.6-1t:free">Ring 2.6 (Reasoning • Programming)
               </option>
               <option value="openai/gpt-oss-120b:free">GPT-OSS 120B (Fast • Strong)</option>
+              <option value="deepseek/deepseek-v4-flash:free">DeepSeek V4 Flash (Fast • Strong Reasoning)</option>
             </select>
           </div>
           <div class="select-wrap active-skill-indicator" id="activeSkillIndicator" style="display:none;">
@@ -7118,6 +7118,41 @@ Factuality guardrails:
         });
     }
 
+    // Detect truncation using content-aware heuristics.
+    const detectContentTruncation = (text) => {
+      if (!text || text.length < 100) return false;
+      const trimmed = text.trim();
+
+      // 1. Code block check: Count ALL triple backticks.
+      const matches = text.match(/```/g);
+      if (matches && matches.length % 2 !== 0) return true;
+
+      // 2. Structural check: unclosed braces (often CSS/JS)
+      const openB = (text.match(/\{/g) || []).length;
+      const closeB = (text.match(/\}/g) || []).length;
+      if (openB > closeB) return true;
+
+      // 3. HTML/Markdown tags
+      const tagRegex = new RegExp('<[^>]*$|&lt;[^>]*$|<!--[^>]*$', 'i');
+      if (tagRegex.test(text)) return true;
+
+      // 4. Sentence check: ends mid-word
+      const lastChar = trimmed.slice(-1);
+      const lastLine = trimmed.split('\n').pop().trim();
+      if (lastLine.length > 30) {
+        const punctuationRegex = /[.!?;:!)\}\]\s\d"'`*]$/;
+        if (!punctuationRegex.test(lastChar)) {
+          const words = lastLine.split(/\s+/);
+          const lastWord = words[words.length - 1].toLowerCase();
+          const continuations = ['and', 'the', 'with', 'for', 'but', 'or', 'a', 'an', 'in', 'on', 'at', 'is', 'are'];
+          if (continuations.includes(lastWord)) return true;
+          return false;
+        }
+      }
+
+      return false;
+    };
+
     function createChatMessageNode(role, content, options = {}) {
       const { saveIt = false, messageIndex = null, attachments = null } = options;
       const d = document.createElement("div");
@@ -9544,7 +9579,7 @@ Factuality guardrails:
             pendingDeltaText = '';
             streamMetrics.usedJsonBodyRecovery = true;
             streamDone = true;
-            streamFinishReason = recoveredFinish || 'stop';
+            streamFinishReason = 'stop';
           }
         } catch {
           // Keep normal empty-response behavior.
@@ -9586,41 +9621,7 @@ Factuality guardrails:
 
       await finalizeRenderedMessage();
 
-      // Detect truncation using content-aware heuristics.
-      const detectContentTruncation = (text) => {
-        if (!text || text.length < 100) return false;
-        const trimmed = text.trim();
-        
-        // 1. Code block check: Count ALL triple backticks.
-        const matches = text.match(/```/g);
-        if (matches && matches.length % 2 !== 0) return true;
-        
-        // 2. Structural check: unclosed braces (often CSS/JS)
-        const openB = (text.match(/\{/g) || []).length;
-        const closeB = (text.match(/\}/g) || []).length;
-        if (openB > closeB) return true;
-        
-        // 3. HTML/Markdown tags
-        const tagRegex = new RegExp('<[^>]*$|&lt;[^>]*$|<!--[^>]*$', 'i');
-        if (tagRegex.test(text)) return true;
-        
-        // 4. Sentence check: ends mid-word
-        const lastChar = trimmed.slice(-1);
-        const lastLine = trimmed.split('\n').pop().trim();
-        if (lastLine.length > 30) {
-          const punctuationRegex = /[.!?;:!)\}\]\s\d"'`*]$/;
-          if (!punctuationRegex.test(lastChar)) {
-            const words = lastLine.split(/\s+/);
-            const lastWord = words[words.length - 1].toLowerCase();
-            const continuations = ['and', 'the', 'with', 'for', 'but', 'or', 'a', 'an', 'in', 'on', 'at', 'is', 'are'];
-            if (continuations.includes(lastWord)) return true;
-            return false;
-          }
-        }
-        
-        return false;
-      };
-
+      // Detect truncation using content-aware heuristics (defined globally)
       const wasTruncated = streamFinishReason === 'length';
       // Only treat as silently dropped if the stream never signaled completion AND no finish reason was provided.
       const wasSilentlyDropped = !streamDone && !streamFinishReason && !abortedByUser && renderedText.length > 100;
@@ -9670,7 +9671,13 @@ Factuality guardrails:
       const currentModel = document.getElementById("textModelSelect")?.value || FIXED_TEXT_MODEL;
 
       const continuationMessages = [
-        ...(originalPayload.messages || session.messages || []),
+        ...(originalPayload.messages || (session.messages || []).filter(m => typeof m.content === 'string').flatMap(m => {
+          const role = m.role === 'bot' ? 'assistant' : m.role;
+          const items = [];
+          if (m.attachmentContext) items.push({ role: 'user', content: m.attachmentContext });
+          items.push({ role, content: m.content });
+          return items;
+        })),
         { role: 'assistant', content: previousText },
         { role: 'user', content: 'Continue exactly from where you left off. Do not repeat anything already written. Do not add any preamble like "Sure" or "Continuing". Just seamlessly continue the content.' }
       ];
@@ -9815,108 +9822,96 @@ Create a concise title that captures the main topic of this conversation.
       await ensureMarkdownRuntimeLoaded({ timeoutMs: 1800, silent: true });
       startCloudAutoSync();
 
-      isGenerating = true;
-      setStopButtonVisible(true);
-      setPauseButtonVisible(false);
-      lastUserPrompt = prompt;
-
-      const firstUserPrompt = prompt;
-      let session = getCurrentSession();
-      if (!session) {
-        await createNewChat();
-        session = getCurrentSession();
-      }
-      if (!session) {
-        isGenerating = false;
-        setStopButtonVisible(false);
-        setPauseButtonVisible(false);
-        showStatus('Could not open a chat session.');
-        return;
-      }
-      session = await ensureSessionMessagesLoaded(session.id);
-      if (!session) {
-        isGenerating = false;
-        setStopButtonVisible(false);
-        setPauseButtonVisible(false);
-        showStatus('Could not load the selected chat.');
-        return;
-      }
-      const shouldAutoTitle =
-        !skipUserSave &&
-        !session.autoTitled &&
-        session.messages.filter(m => m.role === "user").length === 0 &&
-        !prompt.startsWith("/img") &&
-        !prompt.startsWith("/vid");
-
-      input.value = "";
-      input.style.height = "";
-      charCounter.textContent = "0 chars";
-      charCounter.style.color = "var(--muted)";
-      charCounter.style.display = 'none';
-
-      const attachmentQueue = hasPendingAttachments ? pendingAttachments.slice() : [];
-      let attachmentContext = '';
-      let attachmentSummary = attachmentQueue.length ? formatAttachmentSummary(attachmentQueue) : '';
-      let promptForRender = prompt;
-
-      const isImage = prompt.startsWith("/img ");
-      const isVideo = prompt.startsWith("/vid ");
-
-      if (isImage || isVideo) prompt = prompt.slice(5);
-
-      if (!skipUserRender) {
-        const userNode = render("user", promptForRender, true, null, attachmentQueue);
-        if (attachmentQueue.length) {
-          appendAttachmentPreviewsToMessageNode(userNode, attachmentQueue);
-        }
-        // Yield one frame so the user bubble paints immediately.
-        await new Promise((resolve) => requestAnimationFrame(resolve));
-      }
-
-      if (isTldrCommand) {
-        if (attachmentQueue.length) {
-          clearPendingAttachments({ silent: true });
-          showStatus('Attachments are ignored for /tldr.', 1800);
-        }
-
-        const tldrResult = buildChatTldr(session, { mode: tldrMode, windowSize: tldrWindowSize });
-        render('bot', tldrResult.summary);
-        saveTldrSummaryForSession(session.id, {
-          summary: tldrResult.summary,
-          mode: tldrResult.meta.mode,
-          analyzedMessages: tldrResult.meta.windowAnalyzed
-        });
-        applyTldrHighlightsForCurrentSession(tldrResult.highlightIndices);
-
-        if (tldrResult.highlightIndices.length > 0) {
-          showStatus(`TL;DR ready (${tldrResult.meta.mode}, ${tldrResult.meta.windowAnalyzed} msgs). Key messages highlighted.`, 3000);
-        } else {
-          showStatus(`TL;DR ready (${tldrResult.meta.mode}, ${tldrResult.meta.windowAnalyzed} msgs).`, 2400);
-        }
-
-        isGenerating = false;
-        setStopButtonVisible(false);
-        setPauseButtonVisible(false);
-        return;
-      }
-
-      if (ttsEnabled && 'speechSynthesis' in window) {
-        // Warm up TTS after UI paint so speech setup never delays first bubble render.
-        const u = new SpeechSynthesisUtterance('a');
-        u.volume = 0.01;
-        u.rate = 10;
-        window.speechSynthesis.speak(u);
-        if (window.speechSynthesis.state === 'paused') window.speechSynthesis.resume();
-      }
-
-      const loading = document.createElement("div");
-      loading.className = "msg bot";
-      loading.innerHTML = "<div class='spinner'></div>";
-      chat.appendChild(loading);
-      activeGenerationLoadingNode = loading;
-      scrollChatToLatest({ smooth: false, force: true });
-
       try {
+        isGenerating = true;
+        setStopButtonVisible(true);
+        setPauseButtonVisible(false);
+        lastUserPrompt = prompt;
+
+        const firstUserPrompt = prompt;
+        let session = getCurrentSession();
+        if (!session) {
+          await createNewChat();
+          session = getCurrentSession();
+        }
+        if (!session) {
+          showStatus('Could not open a chat session.');
+          return;
+        }
+        session = await ensureSessionMessagesLoaded(session.id);
+        if (!session) {
+          showStatus('Could not load the selected chat.');
+          return;
+        }
+        const shouldAutoTitle =
+          !skipUserSave &&
+          !session.autoTitled &&
+          session.messages.filter(m => m.role === "user").length === 0 &&
+          !prompt.startsWith("/img") &&
+          !prompt.startsWith("/vid");
+
+        input.value = "";
+        input.style.height = "";
+        charCounter.textContent = "0 chars";
+        charCounter.style.color = "var(--muted)";
+        charCounter.style.display = 'none';
+
+        const attachmentQueue = hasPendingAttachments ? pendingAttachments.slice() : [];
+        let attachmentContext = '';
+        let attachmentSummary = attachmentQueue.length ? formatAttachmentSummary(attachmentQueue) : '';
+        let promptForRender = prompt;
+
+        const isImage = prompt.startsWith("/img ");
+        const isVideo = prompt.startsWith("/vid ");
+
+        if (isImage || isVideo) prompt = prompt.slice(5);
+
+        if (!skipUserRender) {
+          const userNode = render("user", promptForRender, true, null, attachmentQueue);
+          // Yield one frame so the user bubble paints immediately.
+          await new Promise((resolve) => requestAnimationFrame(resolve));
+        }
+
+        if (isTldrCommand) {
+          if (attachmentQueue.length) {
+            clearPendingAttachments({ silent: true });
+            showStatus('Attachments are ignored for /tldr.', 1800);
+          }
+
+          const tldrResult = buildChatTldr(session, { mode: tldrMode, windowSize: tldrWindowSize });
+          render('bot', tldrResult.summary);
+          saveTldrSummaryForSession(session.id, {
+            summary: tldrResult.summary,
+            mode: tldrResult.meta.mode,
+            analyzedMessages: tldrResult.meta.windowAnalyzed
+          });
+          applyTldrHighlightsForCurrentSession(tldrResult.highlightIndices);
+
+          if (tldrResult.highlightIndices.length > 0) {
+            showStatus(`TL;DR ready (${tldrResult.meta.mode}, ${tldrResult.meta.windowAnalyzed} msgs). Key messages highlighted.`, 3000);
+          } else {
+            showStatus(`TL;DR ready (${tldrResult.meta.mode}, ${tldrResult.meta.windowAnalyzed} msgs).`, 2400);
+          }
+
+          return;
+        }
+
+        if (ttsEnabled && 'speechSynthesis' in window) {
+          // Warm up TTS after UI paint so speech setup never delays first bubble render.
+          const u = new SpeechSynthesisUtterance('a');
+          u.volume = 0.01;
+          u.rate = 10;
+          window.speechSynthesis.speak(u);
+          if (window.speechSynthesis.state === 'paused') window.speechSynthesis.resume();
+        }
+
+        const loading = document.createElement("div");
+        loading.className = "msg bot";
+        loading.innerHTML = "<div class='spinner'></div>";
+        chat.appendChild(loading);
+        activeGenerationLoadingNode = loading;
+        scrollChatToLatest({ smooth: false, force: true });
+
         if (attachmentQueue.length && (isImage || isVideo)) {
           showStatus('Attachments are currently supported for text chat only.', 2600);
         }
@@ -9939,9 +9934,6 @@ Create a concise title that captures the main topic of this conversation.
             loading.remove();
             if (activeGenerationLoadingNode === loading) activeGenerationLoadingNode = null;
             activeMediaGenerationToken = 0;
-            isGenerating = false;
-            setStopButtonVisible(false);
-            setPauseButtonVisible(false);
 
             img.classList.add("ai-img");
             const base64 = img.src;
@@ -9963,9 +9955,6 @@ Create a concise title that captures the main topic of this conversation.
             console.error("Send error:", err);
             activeMediaGenerationToken = 0;
             canceledMediaGenerationTokens.delete(mediaToken);
-            isGenerating = false;
-            setStopButtonVisible(false);
-            setPauseButtonVisible(false);
             loading.remove();
             if (activeGenerationLoadingNode === loading) activeGenerationLoadingNode = null;
             render("bot", "**Error generating response 💀** " + err.message);
@@ -9988,9 +9977,6 @@ Create a concise title that captures the main topic of this conversation.
             loading.remove();
             if (activeGenerationLoadingNode === loading) activeGenerationLoadingNode = null;
             activeMediaGenerationToken = 0;
-            isGenerating = false;
-            setStopButtonVisible(false);
-            setPauseButtonVisible(false);
 
             const blob = await fetch(video.src).then(r => r.blob());
             if (canceledMediaGenerationTokens.has(mediaToken)) {
@@ -10031,9 +10017,6 @@ Create a concise title that captures the main topic of this conversation.
             console.error("Send error:", err);
             activeMediaGenerationToken = 0;
             canceledMediaGenerationTokens.delete(mediaToken);
-            isGenerating = false;
-            setStopButtonVisible(false);
-            setPauseButtonVisible(false);
             loading.remove();
             if (activeGenerationLoadingNode === loading) activeGenerationLoadingNode = null;
             render("bot", "**Error generating response 💀** " + err.message);
@@ -10184,11 +10167,7 @@ Create a concise title that captures the main topic of this conversation.
               if (streamError?.streamMetrics) {
                 logStreamResilienceMetric('stream_user_abort', streamError.streamMetrics);
               }
-              isGenerating = false;
-              setStopButtonVisible(false);
-              setPauseButtonVisible(false);
-              activeStreamAbortController = null;
-              return;
+              throw streamError;
             }
             if (streamError?.isRateLimit) {
               throw streamError;
@@ -10211,9 +10190,6 @@ Create a concise title that captures the main topic of this conversation.
             }
           }
           activeStreamAbortController = null;
-          isGenerating = false;
-          setStopButtonVisible(false);
-          setPauseButtonVisible(false);
 
           if (shouldAutoTitle) {
             const titledSessionId = currentId;
@@ -10245,12 +10221,15 @@ Create a concise title that captures the main topic of this conversation.
           maybeSuggestTldrForSession(getCurrentSession());
         }
       } catch (err) {
+        if (err?.isUserAbort || err?.name === 'AbortError') {
+          return;
+        }
         console.error("Send error:", err);
-        isGenerating = false;
-        activeStreamAbortController = null;
-        setStopButtonVisible(false);
-        setPauseButtonVisible(false);
-        loading.remove();
+        removePendingStreamBubble();
+        if (activeGenerationLoadingNode) {
+          activeGenerationLoadingNode.remove();
+          activeGenerationLoadingNode = null;
+        }
 
         if (err.isRateLimit) {
           const secs = err.retryAfter || 30;
@@ -10259,6 +10238,11 @@ Create a concise title that captures the main topic of this conversation.
         } else {
           render("bot", "**Error generating response 💀** " + err.message);
         }
+      } finally {
+        isGenerating = false;
+        setStopButtonVisible(false);
+        setPauseButtonVisible(false);
+        activeStreamAbortController = null;
       }
     }
 
@@ -10742,6 +10726,12 @@ Create a concise title that captures the main topic of this conversation.
     }
 
     async function applyLaunchParams() {
+      // Ensure auth state is fully restored (or confirmed as guest) before processing launch params
+      // that might trigger network requests or session creation.
+      if (typeof firstAuthState !== 'undefined') {
+        await firstAuthState.catch(() => {});
+      }
+      
       const params = new URLSearchParams(window.location.search);
       const action = params.get('action');
       const promptParam = params.get('prompt');
@@ -11806,35 +11796,40 @@ ${existingFacts.slice(0, 20).join('\n')}`;
             if (fact) parsedFacts.push({ categoryPart, fact });
           }
         } catch {
-          // Fall back to line parsing below.
+          // Fallback handled by the logic below.
         }
 
-        const lines = normalizedOutput.split('\n').map(line => line.trim()).filter(Boolean);
-        for (const rawLine of lines) {
-          const line = rawLine
-            .replace(/^[-*•]\s*/, '')
-            .replace(/^\d+[.)]\s*/, '')
-            .replace(/`/g, '')
-            .trim();
-          if (!line) continue;
+        if (parsedFacts.length > 0) {
+          // If we successfully got structured facts, skip the legacy line-by-line parsing
+          // to avoid double-processing the same content.
+        } else {
+          const lines = normalizedOutput.split('\n').map(line => line.trim()).filter(Boolean);
+          for (const rawLine of lines) {
+            const line = rawLine
+              .replace(/^[-*•]\s*/, '')
+              .replace(/^\d+[.)]\s*/, '')
+              .replace(/`/g, '')
+              .trim();
+            if (!line) continue;
 
-          let categoryPart = '';
-          let factPart = '';
+            let categoryPart = '';
+            let factPart = '';
 
-          if (line.includes('|')) {
-            const parts = line.split('|');
-            categoryPart = String(parts.shift() || '').trim();
-            factPart = parts.join('|').trim();
-          } else {
-            const match = line.match(/^(personal|preference|technical|interest|context|general)\s*[:\-]\s*(.+)$/i);
-            if (match) {
-              categoryPart = match[1];
-              factPart = match[2];
+            if (line.includes('|')) {
+              const parts = line.split('|');
+              categoryPart = String(parts.shift() || '').trim();
+              factPart = parts.join('|').trim();
+            } else {
+              const match = line.match(/^(personal|preference|technical|interest|context|general)\s*[:\-]\s*(.+)$/i);
+              if (match) {
+                categoryPart = match[1];
+                factPart = match[2];
+              }
             }
-          }
 
-          if (!factPart) continue;
-          parsedFacts.push({ categoryPart, fact: factPart });
+            if (!factPart) continue;
+            parsedFacts.push({ categoryPart, fact: factPart });
+          }
         }
 
         if (!parsedFacts.length) return;
@@ -12510,6 +12505,8 @@ ${existingFacts.slice(0, 20).join('\n')}`;
 
   const provider = new firebase.auth.GoogleAuthProvider();
   let authPersistenceReady = Promise.resolve();
+  let onFirstAuthResolved;
+  const firstAuthState = new Promise(resolve => { onFirstAuthResolved = resolve; });
   let authTokenRefreshTimer = null;
 
   function stopAuthTokenRefreshTimer() {
@@ -12794,6 +12791,10 @@ ${existingFacts.slice(0, 20).join('\n')}`;
   }
 
   firebase.auth().onAuthStateChanged(async user => {
+    if (onFirstAuthResolved) {
+      onFirstAuthResolved(user);
+      onFirstAuthResolved = null;
+    }
     updateUserUI(user);
     if (prePopup) {
       prePopup.style.display = user ? 'none' : (localStorage.getItem(PREPOPUP_KEY) === 'true' ? 'none' : 'flex');
