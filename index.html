@@ -3675,10 +3675,10 @@
           </div>
           <div class="select-wrap">
             <select id="textModelSelect" title="Choose text model">
-              <option value="deepseek/deepseek-v4-flash:free">DeepSeek V4 Flash (Fast • Strong Reasoning)</option>
-              <option value="google/gemma-4-31b-it:free">Gemma 4 31B IT (Main • Instruction Tuned)</option>
-              <option value="openai/gpt-oss-120b:free">GPT-OSS 120B (Fast • Strong)</option>
-              <option value="nvidia/nemotron-3-super-120b-a12b:free">Nemotron 3 Super (Large • Precise)</option>
+              <option value="deepseek/deepseek-v4-flash:free">DeepSeek V4 Flash (Main • Strong Reasoning)</option>
+              <option value="google/gemma-4-31b-it:free">Gemma 4 31B IT (Second • Instruction Tuned)</option>
+              <option value="poolside/laguna-m.1:free">Laguna Coding (Coding • Fast)</option>
+              <option value="openai/gpt-oss-120b:free">GPT Fast (Fast • Strong)</option>
             </select>
           </div>
           <div class="select-wrap active-skill-indicator" id="activeSkillIndicator" style="display:none;">
@@ -9676,7 +9676,7 @@ Factuality guardrails:
           return items;
         })),
         { role: 'assistant', content: previousText },
-        { role: 'user', content: 'Continue exactly from where you left off. Do not repeat anything already written. Do not add any preamble like "Sure" or "Continuing". Just seamlessly continue the content.' }
+        { role: 'user', content: 'Continue exactly from where you left off. Seamlessly resume the content without any preamble or repetition.' }
       ];
 
       const continuationPayload = {
