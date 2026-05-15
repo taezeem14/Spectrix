@@ -544,29 +544,20 @@
     }
 
     .msg {
-      max-width: 80%;
-      padding: 16px 20px;
-      border-radius: 18px;
-      line-height: 1.65;
+      max-width: 720px;
+      padding: 14px 18px;
+      border-radius: var(--radius-md);
+      line-height: 1.7;
       opacity: 0;
-      animation: msgAppear 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+      animation: fadeIn .2s ease forwards;
       position: relative;
       word-wrap: break-word;
       overflow-wrap: anywhere;
       font-size: 15px;
       border: 1px solid transparent;
-      transition: transform 0.2s ease;
-    }
-
-    @keyframes msgAppear {
-      from { 
-        opacity: 0; 
-        transform: translateY(10px) scale(0.98); 
-      }
-      to { 
-        opacity: 1; 
-        transform: translateY(0) scale(1); 
-      }
+      backdrop-filter: none;
+      content-visibility: auto;
+      contain-intrinsic-size: 0 170px;
     }
 
     .msg:hover .msg-actions {
@@ -678,28 +669,26 @@
 
     .user {
       align-self: flex-end;
-      background: linear-gradient(135deg, #3b82f6, #2563eb);
-      color: #ffffff;
-      box-shadow: 0 4px 15px rgba(37, 99, 235, 0.2);
+      background: linear-gradient(180deg, var(--user), var(--user));
+      color: #fff;
+      box-shadow: var(--shadow-sm);
       border-bottom-right-radius: 4px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-color: transparent;
+      padding: 10px 14px;
+      line-height: 1.5;
     }
 
     .bot {
       align-self: flex-start;
-      background: rgba(30, 30, 42, 0.6);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      background: var(--bot);
       color: var(--text);
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: var(--shadow-md);
+      border: 1px solid var(--border);
       border-bottom-left-radius: 4px;
     }
 
     body.dark .bot {
-      background: rgba(22, 22, 30, 0.7);
-      border-color: rgba(255, 255, 255, 0.05);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      border-color: rgba(255, 255, 255, 0.06);
     }
 
     .bot a,
@@ -1238,13 +1227,6 @@
     .msg.bot.thinking {
       position: relative;
       overflow: hidden;
-      padding: 16px 22px;
-      background: linear-gradient(135deg, var(--bot), rgba(59, 130, 246, 0.06));
-      border: 1px solid rgba(59, 130, 246, 0.15);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 0 15px rgba(59, 130, 246, 0.04);
-      display: inline-flex;
-      align-items: center;
-      min-width: 140px;
     }
 
     .msg.bot.thinking::before {
