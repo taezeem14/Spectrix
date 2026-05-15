@@ -4435,6 +4435,22 @@ Factuality guardrails:
             );
           }
 
+          // Auto-load JavaScript if missing (needed for <script> blocks in HTML).
+          if (window.hljs?.getLanguage && !window.hljs.getLanguage('javascript')) {
+            await loadScriptFromCandidates(
+              ['https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/languages/javascript.min.js'],
+              () => Boolean(window.hljs?.getLanguage && window.hljs.getLanguage('javascript'))
+            );
+          }
+
+          // Auto-load CSS if missing (needed for <style> blocks in HTML).
+          if (window.hljs?.getLanguage && !window.hljs.getLanguage('css')) {
+            await loadScriptFromCandidates(
+              ['https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/languages/css.min.js'],
+              () => Boolean(window.hljs?.getLanguage && window.hljs.getLanguage('css'))
+            );
+          }
+
           return Boolean(window.marked);
         })();
 
