@@ -544,20 +544,29 @@
     }
 
     .msg {
-      max-width: 720px;
-      padding: 14px 18px;
-      border-radius: var(--radius-md);
-      line-height: 1.7;
+      max-width: 80%;
+      padding: 16px 20px;
+      border-radius: 18px;
+      line-height: 1.65;
       opacity: 0;
-      animation: fadeIn .2s ease forwards;
+      animation: msgAppear 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
       position: relative;
       word-wrap: break-word;
       overflow-wrap: anywhere;
       font-size: 15px;
       border: 1px solid transparent;
-      backdrop-filter: none;
-      content-visibility: auto;
-      contain-intrinsic-size: 0 170px;
+      transition: transform 0.2s ease;
+    }
+
+    @keyframes msgAppear {
+      from { 
+        opacity: 0; 
+        transform: translateY(10px) scale(0.98); 
+      }
+      to { 
+        opacity: 1; 
+        transform: translateY(0) scale(1); 
+      }
     }
 
     .msg:hover .msg-actions {
@@ -669,26 +678,28 @@
 
     .user {
       align-self: flex-end;
-      background: linear-gradient(180deg, var(--user), var(--user));
-      color: #fff;
-      box-shadow: var(--shadow-sm);
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      color: #ffffff;
+      box-shadow: 0 4px 15px rgba(37, 99, 235, 0.2);
       border-bottom-right-radius: 4px;
-      border-color: transparent;
-      padding: 10px 14px;
-      line-height: 1.5;
+      border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     .bot {
       align-self: flex-start;
-      background: var(--bot);
+      background: rgba(30, 30, 42, 0.6);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
       color: var(--text);
-      box-shadow: var(--shadow-md);
-      border: 1px solid var(--border);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.08);
       border-bottom-left-radius: 4px;
     }
 
     body.dark .bot {
-      border-color: rgba(255, 255, 255, 0.06);
+      background: rgba(22, 22, 30, 0.7);
+      border-color: rgba(255, 255, 255, 0.05);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
     }
 
     .bot a,
@@ -1266,29 +1277,7 @@
       to { transform: translateX(50%); }
     }
 
-    .stream-continue-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      margin: 12px 0 4px;
-      padding: 8px 16px;
-      background: var(--user);
-      color: #ffffff;
-      border: none;
-      border-radius: var(--radius-sm);
-      font-size: 13px;
-      font-weight: 600;
-      font-family: inherit;
-      cursor: pointer;
-      transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
-      animation: slideUp 0.3s ease-out;
-    }
-    .stream-continue-btn:hover {
-      filter: brightness(1.1);
-      transform: translateY(-1px);
-      box-shadow: var(--shadow-md);
-    }
+
 
     @keyframes fadeIn {
       to {
@@ -7302,20 +7291,7 @@ Factuality guardrails:
         d.appendChild(t);
       }
 
-      if (role === "bot" && typeof content === "string" && detectContentTruncation(content)) {
-        const session = getCurrentSession();
-        // Check if it's the very last message in the entire session
-        if (session && session.messages && resolvedIndex === session.messages.length - 1) {
-          const bigContinueBtn = document.createElement('button');
-          bigContinueBtn.className = 'stream-continue-btn';
-          bigContinueBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg> Continue generating';
-          bigContinueBtn.onclick = async () => {
-            bigContinueBtn.remove();
-            await continueGeneratingFromTruncation(content, d, {});
-          };
-          d.appendChild(bigContinueBtn);
-        }
-      }
+
 
       if (Number.isInteger(resolvedIndex)) {
         d.dataset.msgIndex = String(resolvedIndex);
@@ -9671,15 +9647,7 @@ Factuality guardrails:
       }
 
       if (showContinue && renderedText.trim()) {
-        const continueBtn = document.createElement('button');
-        continueBtn.className = 'stream-continue-btn';
-        continueBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg> Continue generating';
-        continueBtn.onclick = async () => {
-          continueBtn.remove();
-          await continueGeneratingFromTruncation(renderedText, d, payload);
-        };
-        d.appendChild(continueBtn);
-        showStatus('⚡ Response appears incomplete. Click "Continue" to resume.', 5000);
+        showStatus('⚡ Response appears incomplete. Use "Continue" below to resume.', 5000);
       }
 
       // Play TTS once final text is complete.
