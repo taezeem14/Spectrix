@@ -28,7 +28,7 @@
     href="https://fonts.googleapis.com/css2?family=Raleway:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&display=swap">
   <script src="https://js.puter.com/v2/"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/styles/github-dark.min.css">
   <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/highlight.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/languages/go.min.js"></script>
   <script>
@@ -4315,15 +4315,15 @@ Factuality guardrails:
       'https://unpkg.com/marked/marked.min.js'
     ];
     const HLJS_STYLE_CANDIDATES = [
-      'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css',
-      'https://cdn.jsdelivr.net/npm/highlight.js@11.11.1/styles/github-dark.min.css'
+      'https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/styles/github-dark.min.css',
+      'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css'
     ];
     const HLJS_SCRIPT_CANDIDATES = [
       'https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/highlight.min.js',
       'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js'
     ];
     const HLJS_GO_LANG_SCRIPT_CANDIDATES = [
-      'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/go.min.js'
+      'https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/languages/go.min.js'
     ];
     const PDFJS_SCRIPT_CANDIDATES = [
       'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
@@ -4422,7 +4422,7 @@ Factuality guardrails:
 
           if (window.hljs?.getLanguage && !window.hljs.getLanguage('go')) {
             await loadScriptFromCandidates(
-              ['https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/languages/go.min.js'],
+              HLJS_GO_LANG_SCRIPT_CANDIDATES,
               () => Boolean(window.hljs?.getLanguage && window.hljs.getLanguage('go'))
             );
           }
