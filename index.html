@@ -3942,41 +3942,40 @@
     async function clearAllChats() {
       if (!confirm("⚠️ Are you sure you want to delete ALL chats? This action is permanent and cannot be undone.")) return;
 
-      const overlay = showAppAlert("Clearing all chats... Please wait.", "System", { persistent: true });
+      const overlay = showAppAlert("Wiping all chat data... System will reload shortly.", "System", { persistent: true });
 
       try {
         if (!db) await openDB();
 
-        // 1. Clear IndexedDB stores
-        const tx = db.transaction(['chats', 'media', 'chat_search'], 'readwrite');
-        tx.objectStore('chats').clear();
-        tx.objectStore('media').clear();
-        tx.objectStore('chat_search').clear();
+        // 1. Clear IndexedDB stores completely
+        const storeNames = ['chats', 'media', 'chat_search'];
+        const tx = db.transaction(storeNames, 'readwrite');
+        storeNames.forEach(name => tx.objectStore(name).clear());
 
         await new Promise((resolve, reject) => {
           tx.oncomplete = () => resolve();
           tx.onerror = () => reject(tx.error);
         });
 
-        // 2. Reset LocalStorage and In-memory state
-        localStorage.removeItem('spectrix_chat_index');
-        localStorage.removeItem('spectrix_deleted_tombstones');
-        localStorage.removeItem('spectrix_chat_search_cache');
-        deletedChatTombstones.clear();
-        sessions = {};
-        currentId = null;
+        // 2. Wipe LocalStorage keys related to chats
+        const keysToClear = [
+          'spectrix_chat_index',
+          'spectrix_deleted_tombstones',
+          'spectrix_chat_search_cache',
+          'spectrix_current_session_id',
+          'spectrix_cloud_sync_queue'
+        ];
+        keysToClear.forEach(key => localStorage.removeItem(key));
 
-        // 3. Reset UI state
-        render(""); // Clear main chat area
-        await createNewChat({ transient: false, persist: true });
-        await loadAllSessions();
-        renderHistory();
+        // 3. Hard reset and reload
+        showStatus("Wipe complete. Reloading...", 2000);
+        setTimeout(() => {
+          location.href = location.pathname; // Clean reload to home
+        }, 1000);
 
-        showStatus("All chats cleared successfully.", 4000);
       } catch (err) {
         console.error("Clear All Chats error:", err);
         showAppAlert("Failed to clear all chats: " + err.message, "Error");
-      } finally {
         if (overlay && typeof overlay.remove === 'function') overlay.remove();
       }
     }
