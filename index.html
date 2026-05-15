@@ -29,8 +29,8 @@
   <script src="https://js.puter.com/v2/"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/go.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/highlight.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/languages/go.min.js"></script>
   <script>
     window.MathJax = {
       tex: {
@@ -864,7 +864,6 @@
     pre code.hljs,
     pre .hljs {
       background: transparent !important;
-      color: var(--code-text);
       padding: 0 !important;
       margin: 0 !important;
       line-height: 1.7 !important;
@@ -4320,8 +4319,8 @@ Factuality guardrails:
       'https://cdn.jsdelivr.net/npm/highlight.js@11.11.1/styles/github-dark.min.css'
     ];
     const HLJS_SCRIPT_CANDIDATES = [
-      'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js',
-      'https://cdn.jsdelivr.net/npm/highlight.js@11.11.1/highlight.min.js'
+      'https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/highlight.min.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js'
     ];
     const HLJS_GO_LANG_SCRIPT_CANDIDATES = [
       'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/go.min.js'
@@ -4423,8 +4422,16 @@ Factuality guardrails:
 
           if (window.hljs?.getLanguage && !window.hljs.getLanguage('go')) {
             await loadScriptFromCandidates(
-              HLJS_GO_LANG_SCRIPT_CANDIDATES,
+              ['https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/languages/go.min.js'],
               () => Boolean(window.hljs?.getLanguage && window.hljs.getLanguage('go'))
+            );
+          }
+
+          // Auto-load XML (HTML) if missing, as it's common in AI responses.
+          if (window.hljs?.getLanguage && !window.hljs.getLanguage('xml')) {
+            await loadScriptFromCandidates(
+              ['https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/languages/xml.min.js'],
+              () => Boolean(window.hljs?.getLanguage && window.hljs.getLanguage('xml'))
             );
           }
 
