@@ -9316,6 +9316,10 @@ Factuality guardrails:
       }
 
       const d = options.targetNode || document.createElement("div");
+      if (options.targetNode) {
+        const existingMeta = d.querySelector(".msg-meta");
+        if (existingMeta) existingMeta.remove();
+      }
       const isGemmaStream = String(payload?.model || '').toLowerCase().includes('gemma');
       const isThinkingModel = String(payload?.model || '').toLowerCase().includes('thinking') || String(payload?.model || '').toLowerCase().includes('r1') || String(payload?.model || '').toLowerCase().includes('qwq');
       
@@ -9641,6 +9645,49 @@ Factuality guardrails:
 
       // Play TTS once final text is complete.
       speakText(renderedText);
+
+      // Inject msg-actions directly into the DOM so they appear without a chat reload.
+      const actions = document.createElement("div");
+      actions.className = "msg-actions";
+      
+      const continueBtn = document.createElement("button");
+      continueBtn.className = "msg-btn continue-action-btn";
+      continueBtn.textContent = "Continue";
+      continueBtn.title = "Resume generation from this point";
+      continueBtn.onclick = () => {
+        continueGeneratingFromTruncation(renderedText, d, payload);
+      };
+      
+      const retryBtn = document.createElement("button");
+      retryBtn.className = "msg-btn retry-btn";
+      retryBtn.textContent = "Retry";
+      retryBtn.onclick = () => {
+        const idxStr = d.dataset.msgIndex;
+        if (idxStr) {
+          retryMessageAt(Number(idxStr));
+        } else {
+          // Fallback if msgIndex isn't assigned yet
+          const session = getCurrentSession();
+          if (session && session.messages) {
+             retryMessageAt(session.messages.length - 1);
+          }
+        }
+      };
+
+      if (showContinue || detectContentTruncation(renderedText)) {
+        actions.appendChild(continueBtn);
+      }
+      actions.appendChild(retryBtn);
+
+      const t = document.createElement("div");
+      t.className = "timestamp";
+      t.textContent = time();
+
+      const meta = document.createElement("div");
+      meta.className = "msg-meta";
+      meta.appendChild(t);
+      meta.appendChild(actions);
+      d.appendChild(meta);
 
       cleanupStreamState();
       logStreamResilienceMetric('stream_success', finalizeStreamMetrics('stream_success', {
