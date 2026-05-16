@@ -252,14 +252,28 @@ export default {
 
         const selectedModel = model || "google/gemma-4-31b-it:free";
         const finalMessages = buildFinalMessages(messages);
+        
+        let maxTokens = 4096;
+        const lowerModel = String(selectedModel || '').toLowerCase();
+        const isThinkingModel = lowerModel.includes('thinking') || lowerModel.includes('r1') || lowerModel.includes('qwq') || lowerModel.includes('nemotron');
+        
+        if (isThinkingModel) {
+          maxTokens = 4024;
+        } else if (lowerModel.includes('gemma') || lowerModel.includes('deepseek')) {
+          maxTokens = 20000;
+        }
 
         const payload = {
           model: selectedModel,
           messages: finalMessages,
-          max_tokens: 20000,
+          max_tokens: maxTokens,
           stream: true,
           plugins: body.plugins
         };
+        
+        if (isThinkingModel) {
+          payload.include_reasoning = true;
+        }
 
         const res = await fetchWithRetry(
           "https://openrouter.ai/api/v1/chat/completions",

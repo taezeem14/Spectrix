@@ -5397,7 +5397,6 @@ Factuality guardrails:
     const DEFAULT_TEXT_MODEL = GEMMA_MULTIMODAL_MODEL;
     const ALLOWED_TEXT_MODELS = new Set([
       GEMMA_MULTIMODAL_MODEL,
-      "inclusionai/ring-2.6-1t:free",
       "arcee-ai/trinity-large-thinking:free",
       "nvidia/nemotron-3-super-120b-a12b:free"
     ]);
@@ -9205,11 +9204,6 @@ Factuality guardrails:
         ...CHAT_STREAM_API_URL_CANDIDATES.filter((url) => url !== activeChatStreamApiUrl)
       ];
 
-      if (payload?.model === "nvidia/nemotron-3-super-120b-a12b:free") {
-        const vercelRoute = CHAT_STREAM_API_URL_CANDIDATES.find(u => u.includes('/api/chat/stream')) || '/api/chat/stream';
-        streamCandidates = [vercelRoute];
-      }
-
       const requestBody = JSON.stringify(payload);
       const toRouteLabel = (url) => {
         try {
@@ -9532,11 +9526,19 @@ Factuality guardrails:
                 if (!streamPaused) scheduleRender();
               }
 
+              if (eventData?.usage?.reasoningTokens || eventData?.usage?.reasoning_tokens) {
+                const rt = eventData.usage.reasoningTokens || eventData.usage.reasoning_tokens;
+                console.log("\nReasoning tokens:", rt);
+              }
+
               const finishReason = eventData?.choices?.[0]?.finish_reason;
               if (eventData?.type === "done" || finishReason) {
                 streamFinishReason = finishReason || 'stop';
-                streamDone = true;
-                break;
+                if (!eventData?.usage) {
+                  // We can mark done, but we shouldn't necessarily break immediately if we expect usage info?
+                  // OpenRouter sometimes sends finish_reason, and then the next chunk has usage.
+                  // We'll let the stream finish naturally via [DONE] or end of stream.
+                }
               }
             }
           }
