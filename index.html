@@ -6825,7 +6825,7 @@ Factuality guardrails:
           await saveSessions();
           await loadChatMessages();
           console.error('Retry failed:', fallbackErr);
-          showStatus('Retry failed for this message.');
+          showStatus(`Retry failed: ${fallbackErr?.message || 'Unknown error'}`, 5000);
         }
       } finally {
         isGenerating = false;
@@ -9289,13 +9289,17 @@ Factuality guardrails:
 
       if (res.status === 429) {
         let retryAfter = 30;
+        let providerMessage = '';
         try {
           const errBody = await res.clone().json();
           if (errBody.retryAfter) retryAfter = errBody.retryAfter;
+          providerMessage = String(errBody?.error?.message || errBody?.message || '').trim();
         } catch { }
-        const err = new Error(`Rate limited — please wait ~${retryAfter}s and try again.`);
+        const message = providerMessage ? `HTTP 429: ${providerMessage}` : `Rate limited — please wait ~${retryAfter}s and try again.`;
+        const err = new Error(message);
         err.isRateLimit = true;
         err.retryAfter = retryAfter;
+        err.providerMessage = providerMessage;
         err.streamMetrics = finalizeStreamMetrics('stream_rate_limited', { retryAfter });
         logStreamResilienceMetric('stream_rate_limited', err.streamMetrics);
         throw err;
