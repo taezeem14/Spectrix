@@ -9883,13 +9883,18 @@ Create a concise title that captures the main topic of this conversation.
           if (window.speechSynthesis.state === 'paused') window.speechSynthesis.resume();
         }
 
-        const isGemmaStream = String(model || '').toLowerCase().includes('gemma');
-        const isThinkingModel = String(model || '').toLowerCase().includes('thinking') || String(model || '').toLowerCase().includes('r1') || String(model || '').toLowerCase().includes('qwq');
-        
         const loading = document.createElement("div");
-        loading.className = "msg bot thinking";
-        if (isGemmaStream || isThinkingModel) loading.classList.add("gemma-theme");
-        loading.innerHTML = '<span class="stream-placeholder">Thinking<span class="stream-dots" aria-hidden="true"></span></span>';
+        if (isImage || isVideo) {
+          loading.className = "msg bot";
+          loading.innerHTML = "<div class='spinner'></div>";
+        } else {
+          const isGemmaStream = String(FIXED_TEXT_MODEL || '').toLowerCase().includes('gemma');
+          const isThinkingModel = String(FIXED_TEXT_MODEL || '').toLowerCase().includes('thinking') || String(FIXED_TEXT_MODEL || '').toLowerCase().includes('r1') || String(FIXED_TEXT_MODEL || '').toLowerCase().includes('qwq');
+          
+          loading.className = "msg bot thinking";
+          if (isGemmaStream || isThinkingModel) loading.classList.add("gemma-theme");
+          loading.innerHTML = '<span class="stream-placeholder">Thinking<span class="stream-dots" aria-hidden="true"></span></span>';
+        }
         
         chat.appendChild(loading);
         activeGenerationLoadingNode = loading;
