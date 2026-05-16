@@ -2,6 +2,8 @@ export const config = {
   runtime: 'edge',
 };
 
+import { OpenRouter } from "@openrouter/sdk";
+
 const ALLOWED_ORIGINS = [
   'https://spectrix.netlify.app',
   'https://spectrix-ai.vercel.app',
@@ -132,30 +134,41 @@ export default async function handler(req) {
     }
     const randomKey = availableKeys[Math.floor(Math.random() * availableKeys.length)];
 
-    const upstream = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${randomKey}`,
+    const openrouter = new OpenRouter({
+      apiKey: randomKey,
+      defaultHeaders: {
         'HTTP-Referer': 'https://spectrix-ai.vercel.app',
         'X-Title': 'Spectrix AI'
-      },
-      body: JSON.stringify(payload)
+      }
     });
 
-    if (!upstream.ok) {
-      const errText = await upstream.text();
-      return new Response(errText, {
-        status: upstream.status,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': corsOrigin,
-          'Vary': 'Origin'
-        }
-      });
-    }
+    const stream = await openrouter.chat.send({
+      model: selectedModel,
+      messages: finalMessages,
+      stream: true,
+      include_reasoning: true
+    });
 
-    return new Response(upstream.body, {
+    const encoder = new TextEncoder();
+    const readable = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of stream) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
+            
+            if (chunk.usage && chunk.usage.reasoningTokens) {
+              console.log("\nReasoning tokens:", chunk.usage.reasoningTokens);
+            }
+          }
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+          controller.close();
+        } catch (error) {
+          controller.error(error);
+        }
+      }
+    });
+
+    return new Response(readable, {
       status: 200,
       headers: {
         'Access-Control-Allow-Origin': corsOrigin,

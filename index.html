@@ -3660,6 +3660,7 @@
               <option value="google/gemma-4-31b-it:free">Gemma 4 31B IT (Main • Instruction Tuned)</option>
               <option value="poolside/laguna-m.1:free">Laguna M.1 (Coding • Fast)</option>
               <option value="arcee-ai/trinity-large-thinking:free">Arcee Trinity (Fast • Reasoning)</option>
+              <option value="nvidia/nemotron-3-super-120b-a12b:free">Nvidia Nemotron 3 (120B • Super)</option>
             </select>
           </div>
           <div class="select-wrap active-skill-indicator" id="activeSkillIndicator" style="display:none;">
@@ -5397,7 +5398,8 @@ Factuality guardrails:
     const ALLOWED_TEXT_MODELS = new Set([
       GEMMA_MULTIMODAL_MODEL,
       "inclusionai/ring-2.6-1t:free",
-      "arcee-ai/trinity-large-thinking:free"
+      "arcee-ai/trinity-large-thinking:free",
+      "nvidia/nemotron-3-super-120b-a12b:free"
     ]);
     const LEGACY_TEXT_MODEL_MIGRATIONS = new Map([
       ["openai/gpt-oss-20b:free", GEMMA_MULTIMODAL_MODEL]
@@ -9198,10 +9200,15 @@ Factuality guardrails:
 
     async function streamBotFromSSE(payload, options = {}) {
       const signal = options.signal;
-      const streamCandidates = [
+      let streamCandidates = [
         activeChatStreamApiUrl,
         ...CHAT_STREAM_API_URL_CANDIDATES.filter((url) => url !== activeChatStreamApiUrl)
       ];
+
+      if (payload?.model === "nvidia/nemotron-3-super-120b-a12b:free") {
+        const vercelRoute = CHAT_STREAM_API_URL_CANDIDATES.find(u => u.includes('/api/chat/stream')) || '/api/chat/stream';
+        streamCandidates = [vercelRoute];
+      }
 
       const requestBody = JSON.stringify(payload);
       const toRouteLabel = (url) => {

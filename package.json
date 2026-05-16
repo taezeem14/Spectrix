@@ -27,5 +27,8 @@
     "eslint-plugin-html": "^8.1.4",
     "http-server": "^14.1.1",
     "playwright": "^1.59.1"
+  },
+  "dependencies": {
+    "@openrouter/sdk": "^0.12.35"
   }
 }
