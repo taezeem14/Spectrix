@@ -179,14 +179,12 @@ export default {
         }
 
         const selectedModel = model || "google/gemma-4-31b-it:free";
-        const isDeepseek = selectedModel.includes("deepseek");
         const finalMessages = buildFinalMessages(messages);
 
         const payload = {
           model: selectedModel,
           messages: finalMessages,
           max_tokens: 20000,
-          ...(isDeepseek && { reasoning: { effort: "low" } }),
           plugins: body.plugins
         };
 
@@ -253,7 +251,6 @@ export default {
         }
 
         const selectedModel = model || "google/gemma-4-31b-it:free";
-        const isDeepseek = selectedModel.includes("deepseek");
         const finalMessages = buildFinalMessages(messages);
 
         const payload = {
@@ -261,7 +258,6 @@ export default {
           messages: finalMessages,
           max_tokens: 20000,
           stream: true,
-          ...(isDeepseek && { reasoning: { effort: "low" } }),
           plugins: body.plugins
         };
 

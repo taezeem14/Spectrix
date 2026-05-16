@@ -3657,10 +3657,9 @@
           </div>
           <div class="select-wrap">
             <select id="textModelSelect" title="Choose text model">
-              <option value="deepseek/deepseek-v4-flash:free">DeepSeek V4 Flash (Main • Strong Reasoning)</option>
-              <option value="google/gemma-4-31b-it:free">Gemma 4 31B IT (Second • Instruction Tuned)</option>
+              <option value="google/gemma-4-31b-it:free">Gemma 4 31B IT (Main • Instruction Tuned)</option>
               <option value="poolside/laguna-m.1:free">Laguna M.1 (Coding • Fast)</option>
-              <option value="openai/gpt-oss-120b:free">GPT OSS (Fast • Strong)</option>
+              <option value="arcee-ai/trinity-large-thinking:free">Arcee Trinity (Fast • Reasoning)</option>
             </select>
           </div>
           <div class="select-wrap active-skill-indicator" id="activeSkillIndicator" style="display:none;">
@@ -5398,8 +5397,7 @@ Factuality guardrails:
     const ALLOWED_TEXT_MODELS = new Set([
       GEMMA_MULTIMODAL_MODEL,
       "inclusionai/ring-2.6-1t:free",
-      "openai/gpt-oss-120b:free",
-      "deepseek/deepseek-v4-flash:free"
+      "arcee-ai/trinity-large-thinking:free"
     ]);
     const LEGACY_TEXT_MODEL_MIGRATIONS = new Map([
       ["openai/gpt-oss-20b:free", GEMMA_MULTIMODAL_MODEL]
@@ -9318,10 +9316,11 @@ Factuality guardrails:
 
       const d = options.targetNode || document.createElement("div");
       const isGemmaStream = String(payload?.model || '').toLowerCase().includes('gemma');
+      const isThinkingModel = String(payload?.model || '').toLowerCase().includes('thinking') || String(payload?.model || '').toLowerCase().includes('r1') || String(payload?.model || '').toLowerCase().includes('qwq');
       
       if (!options.targetNode) {
         d.className = "msg bot thinking";
-        if (isGemmaStream) d.classList.add("gemma-theme");
+        if (isGemmaStream || isThinkingModel) d.classList.add("gemma-theme");
         chat.appendChild(d);
       }
       // When continuing from truncation, keep existing content — don't show "Thinking"
@@ -9884,9 +9883,14 @@ Create a concise title that captures the main topic of this conversation.
           if (window.speechSynthesis.state === 'paused') window.speechSynthesis.resume();
         }
 
+        const isGemmaStream = String(model || '').toLowerCase().includes('gemma');
+        const isThinkingModel = String(model || '').toLowerCase().includes('thinking') || String(model || '').toLowerCase().includes('r1') || String(model || '').toLowerCase().includes('qwq');
+        
         const loading = document.createElement("div");
-        loading.className = "msg bot";
-        loading.innerHTML = "<div class='spinner'></div>";
+        loading.className = "msg bot thinking";
+        if (isGemmaStream || isThinkingModel) loading.classList.add("gemma-theme");
+        loading.innerHTML = '<span class="stream-placeholder">Thinking<span class="stream-dots" aria-hidden="true"></span></span>';
+        
         chat.appendChild(loading);
         activeGenerationLoadingNode = loading;
         scrollChatToLatest({ smooth: false, force: true });

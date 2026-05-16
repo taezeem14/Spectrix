@@ -97,7 +97,6 @@ export default async function handler(req) {
     }
 
     const selectedModel = model || 'google/gemma-4-31b-it:free';
-    const isDeepseek = String(selectedModel).toLowerCase().includes('deepseek');
     
     // Merge System Prompt
     const clientSystemMessages = messages.filter((m) => m.role === 'system');
@@ -114,7 +113,6 @@ export default async function handler(req) {
       messages: finalMessages,
       max_tokens: 20000,
       stream: true,
-      ...(isDeepseek ? { reasoning: { effort: 'low' } } : {}),
       plugins
     };
 

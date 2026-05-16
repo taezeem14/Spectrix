@@ -85,7 +85,7 @@ Core strengths:
 ### 🤖 AI Engine
 - **Unlimited SSE streaming** via Cloudflare Worker proxy — bypasses Vercel's 30s timeout for massive generations
 - **Smart Failover** — automatically falls back to Vercel Node.js routes if Cloudflare is unreachable
-- **Multi-model routing** via OpenRouter — switch models from the header, including Gemma 4 31B IT, inclusionAI: Ring-2.6-1T, GPT-OSS 120B, and DeepSeek V4 Flash
+- **Multi-model routing** via OpenRouter — switch models from the header, including Gemma 4 31B IT, inclusionAI: Ring-2.6-1T, Arcee Trinity, and Laguna M.1
 - **Advanced API key rotation** — strict round-robin across OpenRouter keys per request, with retry failover/cooldown, plus model-sticky routing for title and memory-extraction model calls
 - **Rate-limit UX** — friendly in-app message, not a dead crash
 - **Web search mode** — powered by Firecrawl via OpenRouter (`Ctrl+Shift+S` to toggle)
@@ -230,8 +230,7 @@ User sends message
 |------|-------|----------|
 | 🌟 Main | `google/gemma-4-31b-it:free` | Instruction-tuned coding and productivity workflows |
 | ⚡ Quick | `inclusionAI Ring-2.6-1T` | Fast reasoning, programming, and sharp day-to-day chats |
-| 🧠 Quick Alt | `openai/gpt-oss-120b:free` | Fast chats, tools, and agent loops |
-| 🧠 Reasoning | `deepseek/deepseek-v4-flash:free` | Fast inference and deep reasoning via MoE |
+| 🧠 Reasoning | `arcee-ai/trinity-large-thinking:free` | Fast inference and deep reasoning |
 
 > 💾 Model preference saved to `localStorage → Spectrix_text_model` and persists across sessions.
 
