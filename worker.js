@@ -202,14 +202,6 @@ export default {
           keys
         );
 
-        if (res.status === 429) {
-          const retryAfter = res.headers.get("retry-after");
-          return new Response(JSON.stringify({
-            error: { message: "Rate limited by AI provider. Please wait a moment and try again.", code: 429 },
-            retryAfter: retryAfter ? parseInt(retryAfter, 10) : 30
-          }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        }
-
         if (!res.ok) {
           const errText = await res.text();
           return new Response(errText, { status: res.status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -252,11 +244,11 @@ export default {
 
         const selectedModel = model || "google/gemma-4-31b-it:free";
         const finalMessages = buildFinalMessages(messages);
-        
+
         let maxTokens = 4096;
         const lowerModel = String(selectedModel || '').toLowerCase();
         const isThinkingModel = lowerModel.includes('thinking') || lowerModel.includes('r1') || lowerModel.includes('qwq') || lowerModel.includes('nemotron');
-        
+
         if (isThinkingModel) {
           maxTokens = 4024;
         } else if (lowerModel.includes('gemma') || lowerModel.includes('deepseek')) {
@@ -270,7 +262,7 @@ export default {
           stream: true,
           plugins: body.plugins
         };
-        
+
         if (isThinkingModel) {
           payload.include_reasoning = true;
         }
@@ -288,14 +280,6 @@ export default {
           },
           keys
         );
-
-        if (res.status === 429) {
-          const retryAfter = res.headers.get("retry-after");
-          return new Response(JSON.stringify({
-            error: { message: "Rate limited by AI provider. Please wait a moment and try again.", code: 429 },
-            retryAfter: retryAfter ? parseInt(retryAfter, 10) : 30
-          }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        }
 
         if (!res.ok) {
           const errText = await res.text();

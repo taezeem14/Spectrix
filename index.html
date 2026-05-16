@@ -6791,8 +6791,8 @@ Factuality guardrails:
 
       lastUserPrompt = retryPrompt;
       isGenerating = true;
-      setStopButtonVisible(false);
-      setPauseButtonVisible(false);
+      setStopButtonVisible(true);
+      setPauseButtonVisible(true);
 
       try {
         activeStreamAbortController = new AbortController();
