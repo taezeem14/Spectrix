@@ -3624,6 +3624,8 @@
               role="menuitem">📄 Export chat as PDF</button>
             <button class="settings-item" type="button" onclick="exportChatDocx();closeSettingsMenu();"
               role="menuitem">📝 Export chat as DOCX</button>
+            <button class="settings-item" type="button" onclick="clearAllChats();closeSettingsMenu();"
+              role="menuitem" style="color: #ef4444;">🗑️ Clear all chats</button>
             <button class="settings-item memory-toggle" type="button" onclick="toggleMemoryPanel();closeSettingsMenu();"
               role="menuitem">🧠 AI Memory <span class="memory-badge" id="memoryBadge"
                 style="display:none;">0</span></button>
@@ -7423,6 +7425,27 @@ Factuality guardrails:
       }
       activeMediaObjectUrls = [];
       mediaObjectUrlById.clear();
+    }
+
+    async function clearAllChats() {
+      const shouldDelete = await showAppConfirm("Clear ALL chats? This will wipe them from all your devices. Memories will be kept. 💀", {
+        title: 'Clear All Chats',
+        okText: 'Wipe Everything'
+      });
+      if (!shouldDelete) return;
+
+      showStatus('Wiping all chats...');
+      const chatIds = Object.keys(sessions);
+      for (const id of chatIds) {
+        deletedChatTombstones.add(String(id));
+        await deleteChatFromDB(id);
+        await deleteChatFromCloud(id);
+      }
+      persistDeletedChatTombstones();
+      
+      sessions = {};
+      await newChat();
+      showStatus('All chats have been wiped.');
     }
 
     async function deleteChatHandler(id) {
