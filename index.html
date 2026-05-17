@@ -6768,8 +6768,10 @@ Factuality guardrails:
         systemPrompt += '\n' + memoryContext;
       }
 
+      // Always use the currently-selected dropdown model, not a potentially stale global
+      const activeModel = document.getElementById("textModelSelect")?.value || FIXED_TEXT_MODEL;
       const payload = {
-        model: resolveTextModelForRequest(FIXED_TEXT_MODEL, webSearchEnabled),
+        model: resolveTextModelForRequest(activeModel, webSearchEnabled),
         messages: [{ role: "system", content: systemPrompt }, ...contextMessages]
       };
 
@@ -6790,6 +6792,7 @@ Factuality guardrails:
       await loadChatMessages();
 
       lastUserPrompt = retryPrompt;
+      console.log('[Spectrix] Retrying with model:', activeModel, '→', payload.model);
       isGenerating = true;
       setStopButtonVisible(true);
       setPauseButtonVisible(true);
@@ -13592,3 +13595,4 @@ Remember:  Spectrix is capable of extraordinary creative work. Don't hold back, 
 </script>
 
 </html>
+
