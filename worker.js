@@ -103,22 +103,118 @@ export default {
       return [{ role: "system", content: mergedSystemContent }, ...clientMessages];
     }
 
+    // Simple fast hashing function for key values
+    function hashKey(key) {
+      let hash = 0;
+      const str = String(key || '');
+      for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash |= 0;
+      }
+      return `cooldown_${hash}`;
+    }
+
+    // Retrieve and rotate API keys using KV store
+    async function getRotatingWorkerKeys(keys) {
+      const keyStates = await Promise.all(keys.map(async (key) => {
+        const hash = hashKey(key);
+        let cooldownUntil = 0;
+        try {
+          if (env.LEADERBOARD) {
+            const stored = await env.LEADERBOARD.get(hash);
+            if (stored) cooldownUntil = Number(stored);
+          }
+        } catch {}
+        return { key, hash, cooldownUntil };
+      }));
+
+      const now = Date.now();
+      const available = [];
+      const coolingDown = [];
+
+      for (const ks of keyStates) {
+        if (ks.cooldownUntil > now) {
+          coolingDown.push(ks);
+        } else {
+          available.push(ks);
+        }
+      }
+
+      // Shuffle available keys
+      const shuffledAvailable = available.sort(() => Math.random() - 0.5);
+      // Sort coolingDown keys by remaining cooldown time ascending
+      const sortedCoolingDown = coolingDown.sort((a, b) => a.cooldownUntil - b.cooldownUntil);
+
+      return [...shuffledAvailable, ...sortedCoolingDown];
+    }
+
     // Helper to fetch with retry on 429
-    async function fetchWithRetry(url, options, keys, maxRetries = 3) {
+    async function fetchWithRetry(url, options, orderedKeys, maxRetries = 3) {
       let lastRes = null;
       for (let attempt = 0; attempt < maxRetries; attempt++) {
-        const keyIndex = (Math.floor(Math.random() * keys.length) + attempt) % keys.length;
+        const keyState = orderedKeys[attempt % orderedKeys.length];
         const res = await fetch(url, {
           ...options,
           headers: {
             ...options.headers,
-            "Authorization": `Bearer ${keys[keyIndex]}`
+            "Authorization": `Bearer ${keyState.key}`
           }
         });
         lastRes = res;
-        if (res.status !== 429) break;
-        if (attempt < maxRetries - 1) {
-          await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
+
+        if (res.status === 429) {
+          const retryAfter = res.headers.get("retry-after");
+          const retryAfterSec = retryAfter ? parseInt(retryAfter, 10) : 30;
+          const cooldownMs = Math.max(retryAfterSec * 1000, 2000);
+          const cooldownUntil = Date.now() + cooldownMs;
+          keyState.cooldownUntil = cooldownUntil;
+
+          try {
+            if (env.LEADERBOARD) {
+              await env.LEADERBOARD.put(keyState.hash, String(cooldownUntil), {
+                expirationTtl: Math.max(Math.ceil(cooldownMs / 1000), 60)
+              });
+            }
+          } catch {}
+
+          if (attempt < maxRetries - 1) {
+            const nextKey = orderedKeys[(attempt + 1) % orderedKeys.length];
+            if (nextKey.cooldownUntil > Date.now()) {
+              await new Promise(r => setTimeout(r, Math.min(1000 * Math.pow(2, attempt), 10000)));
+            }
+            continue;
+          }
+        } else if (res.ok) {
+          if (keyState.cooldownUntil > 0) {
+            keyState.cooldownUntil = 0;
+            try {
+              if (env.LEADERBOARD) {
+                await env.LEADERBOARD.delete(keyState.hash);
+              }
+            } catch {}
+          }
+          break;
+        } else if (res.status === 401 || res.status === 403 || res.status >= 500) {
+          const cooldownUntil = Date.now() + 45000;
+          keyState.cooldownUntil = cooldownUntil;
+
+          try {
+            if (env.LEADERBOARD) {
+              await env.LEADERBOARD.put(keyState.hash, String(cooldownUntil), {
+                expirationTtl: 60
+              });
+            }
+          } catch {}
+
+          if (attempt < maxRetries - 1) {
+            const nextKey = orderedKeys[(attempt + 1) % orderedKeys.length];
+            if (nextKey.cooldownUntil > Date.now()) {
+              await new Promise(r => setTimeout(r, Math.min(1000 * Math.pow(2, attempt), 10000)));
+            }
+            continue;
+          }
+        } else {
+          break;
         }
       }
       return lastRes;
@@ -178,6 +274,8 @@ export default {
           return new Response(JSON.stringify({ error: "OpenRouter API keys not configured" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
 
+        const orderedKeys = await getRotatingWorkerKeys(keys);
+
         const selectedModel = model || "google/gemma-4-31b-it:free";
         const finalMessages = buildFinalMessages(messages);
 
@@ -199,7 +297,7 @@ export default {
             },
             body: JSON.stringify(payload)
           },
-          keys
+          orderedKeys
         );
 
         if (!res.ok) {
@@ -242,6 +340,8 @@ export default {
           return new Response(JSON.stringify({ error: "OpenRouter API keys not configured" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
 
+        const orderedKeys = await getRotatingWorkerKeys(keys);
+
         const selectedModel = model || "google/gemma-4-31b-it:free";
         const finalMessages = buildFinalMessages(messages);
 
@@ -278,7 +378,7 @@ export default {
             },
             body: JSON.stringify(payload)
           },
-          keys
+          orderedKeys
         );
 
         if (!res.ok) {

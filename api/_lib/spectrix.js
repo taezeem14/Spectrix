@@ -20,7 +20,7 @@ const OPENROUTER_KEY_FAILURE_COOLDOWN_MS = 45000;
 const MODEL_STICKY_KEY_HINTS = [
   'liquid/lfm-2.5-1.2b-instruct'
 ];
-let openRouterRotationCursor = 0;
+// let openRouterRotationCursor = 0; // removed in favor of random rotation
 const openRouterKeyStateByName = new Map();
 
 const SERVER_SYSTEM_PROMPT = {
@@ -177,66 +177,61 @@ function markOpenRouterKeyAttempt(keyName) {
   state.lastUsedAt = Date.now();
 }
 
-function markOpenRouterKeySuccess(keyName) {
+async function markOpenRouterKeySuccess(keyName) {
   const state = getOpenRouterKeyState(keyName);
   state.successes += 1;
   state.cooldownUntil = 0;
+  try {
+    await kvPipeline([['DEL', `SPECTRIX_COOLDOWN_${keyName}`]]);
+  } catch (err) {
+    console.error('Failed to clear cooldown in KV:', err);
+  }
 }
 
-function markOpenRouterKeyRateLimited(keyName, retryAfterSeconds = 0) {
+async function markOpenRouterKeyRateLimited(keyName, retryAfterSeconds = 0) {
   const state = getOpenRouterKeyState(keyName);
   const cooldownMs = Math.max(Number(retryAfterSeconds || 0) * 1000, 2000);
   state.rateLimited += 1;
-  state.cooldownUntil = Math.max(Number(state.cooldownUntil || 0), Date.now() + cooldownMs);
+  const cooldownUntil = Date.now() + cooldownMs;
+  state.cooldownUntil = Math.max(Number(state.cooldownUntil || 0), cooldownUntil);
+  try {
+    const expireSec = Math.ceil(cooldownMs / 1000);
+    await kvPipeline([
+      ['SET', `SPECTRIX_COOLDOWN_${keyName}`, String(cooldownUntil)],
+      ['EXPIRE', `SPECTRIX_COOLDOWN_${keyName}`, String(expireSec)]
+    ]);
+  } catch (err) {
+    console.error('Failed to persist rate-limit cooldown to KV:', err);
+  }
 }
 
-function markOpenRouterKeyFailure(keyName) {
+async function markOpenRouterKeyFailure(keyName) {
   const state = getOpenRouterKeyState(keyName);
   state.failures += 1;
-  state.cooldownUntil = Math.max(Number(state.cooldownUntil || 0), Date.now() + OPENROUTER_KEY_FAILURE_COOLDOWN_MS);
-}
-
-function shouldUseModelStickyKey(modelName) {
-  const normalizedModel = String(modelName || '').toLowerCase();
-  if (!normalizedModel) return false;
-  return MODEL_STICKY_KEY_HINTS.some((hint) => normalizedModel.includes(hint));
-}
-
-function hashStringToIndex(text, modulo) {
-  const mod = Math.max(1, Number(modulo || 1));
-  const value = String(text || '');
-  let hash = 0;
-  for (let i = 0; i < value.length; i += 1) {
-    hash = ((hash * 31) + value.charCodeAt(i)) >>> 0;
+  const cooldownUntil = Date.now() + OPENROUTER_KEY_FAILURE_COOLDOWN_MS;
+  state.cooldownUntil = Math.max(Number(state.cooldownUntil || 0), cooldownUntil);
+  try {
+    const expireSec = Math.ceil(OPENROUTER_KEY_FAILURE_COOLDOWN_MS / 1000);
+    await kvPipeline([
+      ['SET', `SPECTRIX_COOLDOWN_${keyName}`, String(cooldownUntil)],
+      ['EXPIRE', `SPECTRIX_COOLDOWN_${keyName}`, String(expireSec)]
+    ]);
+  } catch (err) {
+    console.error('Failed to persist failure cooldown to KV:', err);
   }
-  return hash % mod;
 }
 
-function getOpenRouterStartIndex(modelName, poolSize) {
-  const total = Math.max(1, Number(poolSize || 1));
-  if (shouldUseModelStickyKey(modelName)) {
-    // Keep utility-model traffic stable on the same key order for cleaner usage tracking.
-    return hashStringToIndex(String(modelName || ''), total);
-  }
-
-  const start = openRouterRotationCursor % total;
-  openRouterRotationCursor = (openRouterRotationCursor + 1) % total;
-  return start;
-}
-
-function getRotatingOpenRouterKeyOrder(keyPool, startIndex = 0) {
+function getRotatingOpenRouterKeyOrder(keyPool) {
   if (!Array.isArray(keyPool) || keyPool.length === 0) return [];
 
-  const total = keyPool.length;
-  const start = ((Number(startIndex || 0) % total) + total) % total;
+  // Shuffle the key pool randomly
+  const shuffledPool = [...keyPool].sort(() => Math.random() - 0.5);
 
   const now = Date.now();
   const available = [];
   const coolingDown = [];
 
-  for (let offset = 0; offset < total; offset += 1) {
-    const index = (start + offset) % total;
-    const key = keyPool[index];
+  for (const key of shuffledPool) {
     const state = getOpenRouterKeyState(key.name);
     if (Number(state.cooldownUntil || 0) > now) {
       coolingDown.push(key);
@@ -245,7 +240,13 @@ function getRotatingOpenRouterKeyOrder(keyPool, startIndex = 0) {
     }
   }
 
-  // If all are cooling down, we'll still try them in order.
+  // If all are cooling down, sort by remaining cooldown ascending
+  coolingDown.sort((a, b) => {
+    const stateA = getOpenRouterKeyState(a.name);
+    const stateB = getOpenRouterKeyState(b.name);
+    return (stateA.cooldownUntil || 0) - (stateB.cooldownUntil || 0);
+  });
+
   return [...available, ...coolingDown];
 }
 
@@ -277,8 +278,27 @@ async function openRouterRequest(payload, { stream = false } = {}) {
     throw new Error('OpenRouter API keys not configured');
   }
 
-  const startIndex = getOpenRouterStartIndex(payload?.model, keyPool.length);
-  const orderedKeys = getRotatingOpenRouterKeyOrder(keyPool, startIndex);
+  // Load cooldown states from KV if KV is configured
+  try {
+    const kvCommands = keyPool.map((key) => ['GET', `SPECTRIX_COOLDOWN_${key.name}`]);
+    const kvResults = await kvPipeline(kvCommands);
+    if (kvResults && Array.isArray(kvResults)) {
+      kvResults.forEach((res, index) => {
+        if (res && res.result) {
+          const cooldownUntil = Number(res.result);
+          if (cooldownUntil > Date.now()) {
+            const keyName = keyPool[index].name;
+            const state = getOpenRouterKeyState(keyName);
+            state.cooldownUntil = Math.max(state.cooldownUntil || 0, cooldownUntil);
+          }
+        }
+      });
+    }
+  } catch (err) {
+    console.error('Failed to sync key cooldowns from KV:', err);
+  }
+
+  const orderedKeys = getRotatingOpenRouterKeyOrder(keyPool);
   const maxRetries = Math.min(Math.max(orderedKeys.length, 3), 8);
   let lastResponse = null;
 
@@ -303,35 +323,50 @@ async function openRouterRequest(payload, { stream = false } = {}) {
       clearTimeout(timeoutHandle);
     } catch (error) {
       clearTimeout(timeoutHandle);
-      markOpenRouterKeyFailure(key.name);
+      await markOpenRouterKeyFailure(key.name);
       if (attempt < maxRetries - 1) {
-        await delay(Math.min(350 * Math.pow(2, attempt), 2500));
+        // If the next key is healthy (not cooling down), rotate immediately with zero delay
+        const nextKey = orderedKeys[(attempt + 1) % orderedKeys.length];
+        const nextKeyState = getOpenRouterKeyState(nextKey.name);
+        if (Number(nextKeyState.cooldownUntil || 0) > Date.now()) {
+          await delay(Math.min(350 * Math.pow(2, attempt), 2500));
+        }
         continue;
       }
       throw error;
     }
 
     if (lastResponse.ok) {
-      markOpenRouterKeySuccess(key.name);
+      await markOpenRouterKeySuccess(key.name);
       break;
     }
 
     if (lastResponse.status === 429) {
       const retryAfterSeconds = parseRetryAfter(lastResponse);
-      markOpenRouterKeyRateLimited(key.name, retryAfterSeconds);
+      await markOpenRouterKeyRateLimited(key.name, retryAfterSeconds);
       if (attempt < maxRetries - 1) {
-        const backoffMs = Math.min(1000 * Math.pow(2, attempt), 6000);
-        const waitMs = Math.min(Math.max(retryAfterSeconds * 1000, backoffMs), 10000);
-        await delay(waitMs);
+        // If the next key is healthy (not cooling down), rotate immediately with zero delay
+        const nextKey = orderedKeys[(attempt + 1) % orderedKeys.length];
+        const nextKeyState = getOpenRouterKeyState(nextKey.name);
+        if (Number(nextKeyState.cooldownUntil || 0) > Date.now()) {
+          const backoffMs = Math.min(1000 * Math.pow(2, attempt), 6000);
+          const waitMs = Math.min(Math.max(retryAfterSeconds * 1000, backoffMs), 10000);
+          await delay(waitMs);
+        }
         continue;
       }
       break;
     }
 
     if (lastResponse.status === 401 || lastResponse.status === 403 || lastResponse.status >= 500) {
-      markOpenRouterKeyFailure(key.name);
+      await markOpenRouterKeyFailure(key.name);
       if (attempt < maxRetries - 1) {
-        await delay(Math.min(350 * Math.pow(2, attempt), 2500));
+        // If the next key is healthy (not cooling down), rotate immediately with zero delay
+        const nextKey = orderedKeys[(attempt + 1) % orderedKeys.length];
+        const nextKeyState = getOpenRouterKeyState(nextKey.name);
+        if (Number(nextKeyState.cooldownUntil || 0) > Date.now()) {
+          await delay(Math.min(350 * Math.pow(2, attempt), 2500));
+        }
         continue;
       }
     }
