@@ -98,7 +98,7 @@ export default async function handler(req) {
       return new Response(JSON.stringify({ error: 'No messages provided' }), { status: 400 });
     }
 
-    const selectedModel = model || 'google/gemma-4-31b-it:free';
+    const selectedModel = model || 'moonshotai/kimi-k2.6:free';
     
     // Merge System Prompt
     const clientSystemMessages = messages.filter((m) => m.role === 'system');

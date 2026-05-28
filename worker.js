@@ -276,7 +276,7 @@ export default {
 
         const orderedKeys = await getRotatingWorkerKeys(keys);
 
-        const selectedModel = model || "google/gemma-4-31b-it:free";
+        const selectedModel = model || "moonshotai/kimi-k2.6:free";
         const finalMessages = buildFinalMessages(messages);
 
         const payload = {
@@ -342,15 +342,19 @@ export default {
 
         const orderedKeys = await getRotatingWorkerKeys(keys);
 
-        const selectedModel = model || "google/gemma-4-31b-it:free";
+        const selectedModel = model || "moonshotai/kimi-k2.6:free";
         const finalMessages = buildFinalMessages(messages);
 
         let maxTokens = 4096;
         const lowerModel = String(selectedModel || '').toLowerCase();
-        const isThinkingModel = lowerModel.includes('thinking') || lowerModel.includes('r1') || lowerModel.includes('qwq') || lowerModel.includes('nemotron');
+        const isThinkingModel = lowerModel.includes('thinking') || lowerModel.includes('r1') || lowerModel.includes('qwq') || lowerModel.includes('kimi');
 
         if (isThinkingModel) {
-          maxTokens = 4024;
+          if (lowerModel.includes('kimi')) {
+            maxTokens = 20000;
+          } else {
+            maxTokens = 4024;
+          }
         } else if (lowerModel.includes('gemma') || lowerModel.includes('deepseek')) {
           maxTokens = 20000;
         }

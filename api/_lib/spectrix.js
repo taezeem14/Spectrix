@@ -267,8 +267,13 @@ function mergeSystemPrompt(messages) {
 
 function getMaxTokensForModel(modelName) {
   const selectedModel = String(modelName || '');
-  const isThinkingModel = selectedModel.includes('thinking') || selectedModel.includes('r1') || selectedModel.includes('qwq');
-  if (isThinkingModel) return 4024;
+  const lowerModel = selectedModel.toLowerCase();
+  const isThinkingModel = lowerModel.includes('thinking') || lowerModel.includes('r1') || lowerModel.includes('qwq') || lowerModel.includes('kimi');
+  if (isThinkingModel) {
+    if (lowerModel.includes('kimi')) return 20000;
+    return 4024;
+  }
+  if (lowerModel.includes('gemma') || lowerModel.includes('deepseek')) return 20000;
   return 4096;
 }
 
@@ -430,7 +435,7 @@ function buildOpenRouterPayload(body) {
     throw new Error('No messages provided');
   }
 
-  const selectedModel = model || 'google/gemma-4-31b-it:free';
+  const selectedModel = model || 'moonshotai/kimi-k2.6:free';
   const finalMessages = mergeSystemPrompt(messages);
   const maxTokens = getMaxTokensForModel(selectedModel);
 
