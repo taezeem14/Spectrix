@@ -4141,6 +4141,7 @@
     const CLOUD_SYNC_QUEUE_KEY = 'Spectrix_cloud_sync_queue_v1';
     const MAX_ATTACHMENT_FILES = 8;
     const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
+    const MAX_ATTACHMENT_BYTES_MULTIMODAL = 100 * 1024 * 1024;
     const MAX_ATTACHMENT_TEXT_PER_FILE = 4000;
     const MAX_ATTACHMENT_TOTAL_TEXT = 16000;
     const MAX_ATTACHMENT_PDF_PAGES = 16;
@@ -5298,8 +5299,20 @@ Factuality guardrails:
           continue;
         }
 
-        if (file.size > MAX_ATTACHMENT_BYTES) {
+        const isNative = gemmaSelected && (isImageAttachment(file) || isPdfAttachment(file));
+        const sizeLimit = isNative ? MAX_ATTACHMENT_BYTES_MULTIMODAL : MAX_ATTACHMENT_BYTES;
+
+        if (file.size > sizeLimit) {
           bundle.skippedCount += 1;
+          continue;
+        }
+
+        if (isNative) {
+          readable.push({
+            name: attachment.name || file.name,
+            text: `[File attached: ${file.name}]`
+          });
+          bundle.readableCount += 1;
           continue;
         }
 
@@ -6303,6 +6316,45 @@ Factuality guardrails:
         reader.onerror = error => reject(error);
         reader.readAsDataURL(file);
       });
+    }
+
+    function formatUserMessageWithAttachments(content, attachments, isMultimodal) {
+      if (!isMultimodal || !Array.isArray(attachments) || attachments.length === 0) {
+        return { role: "user", content: content };
+      }
+
+      const contentParts = [{ type: "text", text: content }];
+      let hasNativeAttachments = false;
+
+      for (const file of attachments) {
+        const fileType = String(file.type || '').toLowerCase();
+        const fileName = String(file.name || '').toLowerCase();
+
+        if (fileType.startsWith('image/')) {
+          contentParts.push({
+            type: "image_url",
+            image_url: {
+              url: `data:${file.type || 'image/jpeg'};base64,${file.data}`
+            }
+          });
+          hasNativeAttachments = true;
+        } else if (fileType === 'application/pdf' || fileName.endsWith('.pdf')) {
+          contentParts.push({
+            type: "file",
+            file: {
+              filename: file.name,
+              file_data: `data:${file.type || 'application/pdf'};base64,${file.data}`
+            }
+          });
+          hasNativeAttachments = true;
+        }
+      }
+
+      if (hasNativeAttachments) {
+        return { role: "user", content: contentParts };
+      } else {
+        return { role: "user", content: content };
+      }
     }
 
     async function serializeAttachmentsForStorage(attachments) {
@@ -9752,7 +9804,11 @@ Factuality guardrails:
           const role = m.role === 'bot' ? 'assistant' : m.role;
           const items = [];
           if (m.attachmentContext) items.push({ role: 'user', content: m.attachmentContext });
-          items.push({ role, content: m.content });
+          if (role === 'user' && isGemmaMultimodalSelected(currentModel) && m.attachments) {
+            items.push(formatUserMessageWithAttachments(m.content, m.attachments, true));
+          } else {
+            items.push({ role, content: m.content });
+          }
           return items;
         })),
         { role: 'assistant', content: previousText },
@@ -10161,6 +10217,7 @@ Create a concise title that captures the main topic of this conversation.
 
           // Build messages array for the API
           const messages = [];
+          const isMultimodal = isGemmaMultimodalSelected(model);
 
           for (const m of session.messages) {
             if (typeof m.content !== "string") continue;
@@ -10173,10 +10230,21 @@ Create a concise title that captures the main topic of this conversation.
 
             const role = m.role === "bot" ? "assistant" : "user";
 
-            if (m.attachmentContext) {
-              messages.push({ role: 'user', content: m.attachmentContext });
+            if (role === "user") {
+              if (isMultimodal && m.attachments) {
+                if (m.attachmentContext) {
+                  messages.push({ role: 'user', content: m.attachmentContext });
+                }
+                messages.push(formatUserMessageWithAttachments(m.content, m.attachments, true));
+              } else {
+                if (m.attachmentContext) {
+                  messages.push({ role: 'user', content: m.attachmentContext });
+                }
+                messages.push({ role, content: m.content });
+              }
+            } else {
+              messages.push({ role, content: m.content });
             }
-            messages.push({ role, content: m.content });
           }
 
           // 🧠 Build system prompt with memory context
@@ -10201,15 +10269,25 @@ Create a concise title that captures the main topic of this conversation.
           }
           messages.unshift({ role: "system", content: systemPrompt });
 
-          if (attachmentContext) {
-            messages.push({
-              role: "user",
-              content: attachmentContext
-            });
-          }
-
           if (!skipUserSave) {
-            messages.push({ role: "user", content: prompt });
+            const lastMsgObj = session.messages[session.messages.length - 1];
+            if (isMultimodal && lastMsgObj && lastMsgObj.role === 'user' && lastMsgObj.attachments) {
+              if (attachmentContext) {
+                messages.push({
+                  role: "user",
+                  content: attachmentContext
+                });
+              }
+              messages.push(formatUserMessageWithAttachments(prompt, lastMsgObj.attachments, true));
+            } else {
+              if (attachmentContext) {
+                messages.push({
+                  role: "user",
+                  content: attachmentContext
+                });
+              }
+              messages.push({ role: "user", content: prompt });
+            }
           }
 
           // 🧠 DYNAMIC SEARCH PAYLOAD
