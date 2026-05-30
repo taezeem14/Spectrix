@@ -4143,8 +4143,11 @@
     const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
     const MAX_ATTACHMENT_BYTES_MULTIMODAL = 100 * 1024 * 1024;
     const MAX_ATTACHMENT_TEXT_PER_FILE = 4000;
+    const MAX_ATTACHMENT_TEXT_PER_FILE_MULTIMODAL = 800000;
     const MAX_ATTACHMENT_TOTAL_TEXT = 16000;
+    const MAX_ATTACHMENT_TOTAL_TEXT_MULTIMODAL = 1200000;
     const MAX_ATTACHMENT_PDF_PAGES = 16;
+    const MAX_ATTACHMENT_PDF_PAGES_MULTIMODAL = 1000;
     const MAX_ATTACHMENT_OCR_IMAGE_DIMENSION = 1700;
     const MAX_ATTACHMENT_OCR_TIMEOUT_MS = 18000;
     const MAX_ATTACHMENT_PDF_LOAD_TIMEOUT_MS = 12000;
@@ -5078,7 +5081,7 @@ Factuality guardrails:
     }
 
     async function extractTextFromPdfAttachment(file, options = {}) {
-      const { allowOcrFallback = false } = options;
+      const { allowOcrFallback = false, gemmaSelected = false } = options;
       const ready = await ensurePdfRuntimeLoaded();
       if (!ready || !window.pdfjsLib?.getDocument) {
         throw new Error('PDF parser unavailable');
@@ -5094,7 +5097,8 @@ Factuality guardrails:
           `PDF parser timed out while opening ${file.name}`
         );
 
-        const pageCount = Math.min(pdf.numPages || 0, MAX_ATTACHMENT_PDF_PAGES);
+        const maxPages = gemmaSelected ? MAX_ATTACHMENT_PDF_PAGES_MULTIMODAL : MAX_ATTACHMENT_PDF_PAGES;
+        const pageCount = Math.min(pdf.numPages || 0, maxPages);
         let output = '';
         let failedPages = 0;
 
@@ -5118,6 +5122,10 @@ Factuality guardrails:
             }
 
             if (!pageText && allowOcrFallback) {
+              if (pageIndex > MAX_ATTACHMENT_PDF_PAGES) {
+                // Skip client-side OCR on deep pages to prevent browser lockup
+                continue;
+              }
               const labelBase = `${file.name} page ${pageIndex}`;
               const scales = [1.5, 2, 3];
 
@@ -5299,8 +5307,9 @@ Factuality guardrails:
           continue;
         }
 
-        const isNative = gemmaSelected && (isImageAttachment(file) || isPdfAttachment(file));
-        const sizeLimit = isNative ? MAX_ATTACHMENT_BYTES_MULTIMODAL : MAX_ATTACHMENT_BYTES;
+        const isNative = gemmaSelected && isImageAttachment(file);
+        const isLargeParser = gemmaSelected && (isImageAttachment(file) || isPdfAttachment(file));
+        const sizeLimit = isLargeParser ? MAX_ATTACHMENT_BYTES_MULTIMODAL : MAX_ATTACHMENT_BYTES;
 
         if (file.size > sizeLimit) {
           bundle.skippedCount += 1;
@@ -5334,11 +5343,13 @@ Factuality guardrails:
             continue;
           }
 
-          if (text.length > MAX_ATTACHMENT_TEXT_PER_FILE) {
-            text = `${text.slice(0, MAX_ATTACHMENT_TEXT_PER_FILE)}\n...[truncated]`;
+          const textLimit = gemmaSelected ? MAX_ATTACHMENT_TEXT_PER_FILE_MULTIMODAL : MAX_ATTACHMENT_TEXT_PER_FILE;
+          if (text.length > textLimit) {
+            text = `${text.slice(0, textLimit)}\n...[truncated]`;
           }
 
-          const remaining = MAX_ATTACHMENT_TOTAL_TEXT - totalChars;
+          const totalLimit = gemmaSelected ? MAX_ATTACHMENT_TOTAL_TEXT_MULTIMODAL : MAX_ATTACHMENT_TOTAL_TEXT;
+          const remaining = totalLimit - totalChars;
           if (remaining <= 80) break;
 
           if (text.length > remaining) {
@@ -6328,22 +6339,12 @@ Factuality guardrails:
 
       for (const file of attachments) {
         const fileType = String(file.type || '').toLowerCase();
-        const fileName = String(file.name || '').toLowerCase();
 
         if (fileType.startsWith('image/')) {
           contentParts.push({
             type: "image_url",
             image_url: {
               url: `data:${file.type || 'image/jpeg'};base64,${file.data}`
-            }
-          });
-          hasNativeAttachments = true;
-        } else if (fileType === 'application/pdf' || fileName.endsWith('.pdf')) {
-          contentParts.push({
-            type: "file",
-            file: {
-              filename: file.name,
-              file_data: `data:${file.type || 'application/pdf'};base64,${file.data}`
             }
           });
           hasNativeAttachments = true;
