@@ -224,14 +224,11 @@ async function markOpenRouterKeyFailure(keyName) {
 function getRotatingOpenRouterKeyOrder(keyPool) {
   if (!Array.isArray(keyPool) || keyPool.length === 0) return [];
 
-  // Shuffle the key pool randomly
-  const shuffledPool = [...keyPool].sort(() => Math.random() - 0.5);
-
   const now = Date.now();
   const available = [];
   const coolingDown = [];
 
-  for (const key of shuffledPool) {
+  for (const key of keyPool) {
     const state = getOpenRouterKeyState(key.name);
     if (Number(state.cooldownUntil || 0) > now) {
       coolingDown.push(key);
@@ -240,6 +237,18 @@ function getRotatingOpenRouterKeyOrder(keyPool) {
     }
   }
 
+  // Priority mapping (4 -> 2 -> 1 -> 3 -> 5)
+  const KEY_PRIORITIES = {
+    'WORKER_OPENROUTER_KEY_4': 1,
+    'WORKER_OPENROUTER_KEY_2': 2,
+    'WORKER_OPENROUTER_KEY': 3,
+    'WORKER_OPENROUTER_KEY_3': 4,
+    'WORKER_OPENROUTER_KEY_5': 5
+  };
+
+  // Sort available keys strictly by priority
+  const sortedAvailable = available.sort((a, b) => (KEY_PRIORITIES[a.name] || 99) - (KEY_PRIORITIES[b.name] || 99));
+
   // If all are cooling down, sort by remaining cooldown ascending
   coolingDown.sort((a, b) => {
     const stateA = getOpenRouterKeyState(a.name);
@@ -247,7 +256,7 @@ function getRotatingOpenRouterKeyOrder(keyPool) {
     return (stateA.cooldownUntil || 0) - (stateB.cooldownUntil || 0);
   });
 
-  return [...available, ...coolingDown];
+  return [...sortedAvailable, ...coolingDown];
 }
 
 function mergeSystemPrompt(messages) {

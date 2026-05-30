@@ -118,24 +118,30 @@ export default async function handler(req) {
       plugins
     };
 
-    // Grab a random key from the pool
+    // Grab key from the pool with priority 4 -> 2 -> 1 -> 3 -> 5
     const keyEnvNames = [
-      'WORKER_OPENROUTER_KEY',
-      'WORKER_OPENROUTER_KEY_2',
-      'WORKER_OPENROUTER_KEY_3',
       'WORKER_OPENROUTER_KEY_4',
+      'WORKER_OPENROUTER_KEY_2',
+      'WORKER_OPENROUTER_KEY',
+      'WORKER_OPENROUTER_KEY_3',
       'WORKER_OPENROUTER_KEY_5'
     ];
     
-    // Process.env in edge
-    const availableKeys = keyEnvNames.map(name => process.env[name]).filter(val => val && typeof val === 'string' && val.trim().length > 0);
-    if (availableKeys.length === 0) {
+    let selectedKey = null;
+    for (const name of keyEnvNames) {
+      const val = process.env[name];
+      if (val && typeof val === 'string' && val.trim().length > 0) {
+        selectedKey = val;
+        break;
+      }
+    }
+
+    if (!selectedKey) {
       return new Response(JSON.stringify({ error: 'OpenRouter API keys not configured' }), { status: 500 });
     }
-    const randomKey = availableKeys[Math.floor(Math.random() * availableKeys.length)];
 
     const openrouter = new OpenRouter({
-      apiKey: randomKey,
+      apiKey: selectedKey,
       defaultHeaders: {
         'HTTP-Referer': 'https://spectrix-ai.vercel.app',
         'X-Title': 'Spectrix AI'

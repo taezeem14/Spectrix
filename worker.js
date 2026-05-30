@@ -82,11 +82,11 @@ export default {
     // Helper to get API keys from env
     function getApiKeys() {
       const keys = [];
-      if (env.WORKER_OPENROUTER_KEY)   keys.push(env.WORKER_OPENROUTER_KEY);
-      if (env.WORKER_OPENROUTER_KEY_2) keys.push(env.WORKER_OPENROUTER_KEY_2);
-      if (env.WORKER_OPENROUTER_KEY_3) keys.push(env.WORKER_OPENROUTER_KEY_3);
-      if (env.WORKER_OPENROUTER_KEY_4) keys.push(env.WORKER_OPENROUTER_KEY_4);
-      if (env.WORKER_OPENROUTER_KEY_5) keys.push(env.WORKER_OPENROUTER_KEY_5);
+      if (env.WORKER_OPENROUTER_KEY)   keys.push({ name: 'WORKER_OPENROUTER_KEY', value: env.WORKER_OPENROUTER_KEY });
+      if (env.WORKER_OPENROUTER_KEY_2) keys.push({ name: 'WORKER_OPENROUTER_KEY_2', value: env.WORKER_OPENROUTER_KEY_2 });
+      if (env.WORKER_OPENROUTER_KEY_3) keys.push({ name: 'WORKER_OPENROUTER_KEY_3', value: env.WORKER_OPENROUTER_KEY_3 });
+      if (env.WORKER_OPENROUTER_KEY_4) keys.push({ name: 'WORKER_OPENROUTER_KEY_4', value: env.WORKER_OPENROUTER_KEY_4 });
+      if (env.WORKER_OPENROUTER_KEY_5) keys.push({ name: 'WORKER_OPENROUTER_KEY_5', value: env.WORKER_OPENROUTER_KEY_5 });
       return keys;
     }
 
@@ -116,8 +116,8 @@ export default {
 
     // Retrieve and rotate API keys using KV store
     async function getRotatingWorkerKeys(keys) {
-      const keyStates = await Promise.all(keys.map(async (key) => {
-        const hash = hashKey(key);
+      const keyStates = await Promise.all(keys.map(async (keyObj) => {
+        const hash = hashKey(keyObj.value);
         let cooldownUntil = 0;
         try {
           if (env.LEADERBOARD) {
@@ -125,7 +125,7 @@ export default {
             if (stored) cooldownUntil = Number(stored);
           }
         } catch {}
-        return { key, hash, cooldownUntil };
+        return { name: keyObj.name, key: keyObj.value, hash, cooldownUntil };
       }));
 
       const now = Date.now();
@@ -140,12 +140,21 @@ export default {
         }
       }
 
-      // Shuffle available keys
-      const shuffledAvailable = available.sort(() => Math.random() - 0.5);
+      // Priority mapping (4 -> 2 -> 1 -> 3 -> 5)
+      const KEY_PRIORITIES = {
+        'WORKER_OPENROUTER_KEY_4': 1,
+        'WORKER_OPENROUTER_KEY_2': 2,
+        'WORKER_OPENROUTER_KEY': 3,
+        'WORKER_OPENROUTER_KEY_3': 4,
+        'WORKER_OPENROUTER_KEY_5': 5
+      };
+
+      // Sort available keys strictly by priority
+      const sortedAvailable = available.sort((a, b) => (KEY_PRIORITIES[a.name] || 99) - (KEY_PRIORITIES[b.name] || 99));
       // Sort coolingDown keys by remaining cooldown time ascending
       const sortedCoolingDown = coolingDown.sort((a, b) => a.cooldownUntil - b.cooldownUntil);
 
-      return [...shuffledAvailable, ...sortedCoolingDown];
+      return [...sortedAvailable, ...sortedCoolingDown];
     }
 
     // Helper to fetch with retry on 429
