@@ -5189,34 +5189,66 @@ Factuality guardrails:
         showStatus(`Decoding audio: ${file.name}...`);
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
         const arrayBuffer = await file.arrayBuffer();
-        
+
         let audioBuffer;
         try {
-          audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+          audioBuffer = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
         } catch {
           audioBuffer = await new Promise((resolve, reject) => {
-            audioCtx.decodeAudioData(arrayBuffer, resolve, reject);
+            audioCtx.decodeAudioData(arrayBuffer.slice(0), resolve, reject);
           });
         }
-        
-        const float32Data = audioBuffer.getChannelData(0);
-        
-        showStatus(`Loading speech model: ${file.name}...`);
+
+        // Mix down to mono Float32 at 16 kHz
+        let float32Data;
+        if (audioBuffer.numberOfChannels === 1) {
+          float32Data = audioBuffer.getChannelData(0);
+        } else {
+          const ch0 = audioBuffer.getChannelData(0);
+          const ch1 = audioBuffer.getChannelData(1);
+          float32Data = new Float32Array(ch0.length);
+          for (let i = 0; i < ch0.length; i++) {
+            float32Data[i] = (ch0[i] + ch1[i]) / 2;
+          }
+        }
+
+        showStatus(`Loading speech model (first time may take a moment)...`);
         const { pipeline, env } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2');
         env.allowLocalModels = false;
-        
-        const transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en');
-        
-        showStatus(`Transcribing audio: ${file.name}...`);
-        const result = await transcriber(float32Data);
-        
-        if (result && result.text) {
+
+        const transcriber = await pipeline(
+          'automatic-speech-recognition',
+          'Xenova/whisper-base.en',
+          { progress_callback: (p) => {
+              if (p.status === 'progress' && p.progress) {
+                showStatus(`Downloading speech model: ${Math.round(p.progress)}%`);
+              }
+            }
+          }
+        );
+
+        // For audio longer than 30s, use chunked transcription
+        const durationSec = float32Data.length / 16000;
+        showStatus(`Transcribing ${Math.round(durationSec)}s of audio: ${file.name}...`);
+
+        let result;
+        if (durationSec > 30) {
+          result = await transcriber(float32Data, {
+            chunk_length_s: 30,
+            stride_length_s: 5,
+            return_timestamps: false
+          });
+        } else {
+          result = await transcriber(float32Data);
+        }
+
+        if (result && result.text && result.text.trim()) {
           return `[Audio Transcription of ${file.name}]:\n"${result.text.trim()}"`;
         }
-        return `[Audio file: ${file.name} - Local transcription returned empty]`;
+        return `[Audio file: ${file.name} - Transcription returned empty. The audio may not contain speech.]`;
       } catch (err) {
-        console.warn('Local audio transcription failed:', err);
-        return `[Audio file: ${file.name} - Details: Size ${formatAttachmentSize(file.size)}, Type ${file.type || 'unknown'} - Local transcription failed: ${err.message}]`;
+        console.warn('Audio transcription failed:', err);
+        return `[Audio file: ${file.name} - Size ${formatAttachmentSize(file.size)}, Type ${file.type || 'unknown'} - Transcription failed: ${err.message}]`;
       }
     }
 
