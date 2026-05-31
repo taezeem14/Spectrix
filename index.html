@@ -5665,6 +5665,8 @@ Factuality guardrails:
       return seed.replace(/\s+/g, ' ').trim().slice(0, 700);
     }
 
+    const DEFAULT_CONVERSATION_TEMPLATE = 'default';
+
     function normalizeConversationTemplateId(value) {
       return 'default';
     }
