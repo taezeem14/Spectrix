@@ -292,7 +292,8 @@ export default {
           model: selectedModel,
           messages: finalMessages,
           max_tokens: 20000,
-          plugins: body.plugins
+          plugins: body.plugins,
+          tools: body.tools
         };
 
         const res = await fetchWithRetry(
@@ -373,7 +374,8 @@ export default {
           messages: finalMessages,
           max_tokens: maxTokens,
           stream: true,
-          plugins: body.plugins
+          plugins: body.plugins,
+          tools: body.tools
         };
 
         if (isThinkingModel) {

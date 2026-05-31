@@ -452,7 +452,8 @@ function buildOpenRouterPayload(body) {
     model: selectedModel,
     messages: finalMessages,
     max_tokens: maxTokens,
-    plugins: body.plugins
+    plugins: body.plugins,
+    tools: body.tools
   };
 }
 

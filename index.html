@@ -568,8 +568,6 @@
       font-size: 15px;
       border: 1px solid transparent;
       backdrop-filter: none;
-      content-visibility: auto;
-      contain-intrinsic-size: 0 170px;
     }
 
     .msg:hover .msg-actions {
@@ -1240,6 +1238,9 @@
     .msg.bot.thinking {
       position: relative;
       overflow: hidden;
+      display: inline-flex;
+      align-items: center;
+      min-height: 48px;
     }
 
     .msg.bot.thinking::before {
@@ -5635,7 +5636,7 @@ Factuality guardrails:
 
     function resolveTextModelForRequest(modelId, webSearchOn = false) {
       if (webSearchOn) {
-        return "openai/gpt-oss-120b:free:online";
+        return "openai/gpt-oss-120b:free";
       }
       return normalizeTextModelId(modelId);
     }
@@ -6964,6 +6965,11 @@ Factuality guardrails:
             id: "web",
             engine: "firecrawl",
             max_results: 5
+          }
+        ];
+        payload.tools = [
+          {
+            type: "web_search"
           }
         ];
       }
@@ -10081,6 +10087,11 @@ Create a concise title that captures the main topic of this conversation.
                 id: "web",
                 engine: "firecrawl",
                 max_results: 5
+              }
+            ];
+            payload.tools = [
+              {
+                type: "web_search"
               }
             ];
           }

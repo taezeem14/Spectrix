@@ -92,7 +92,7 @@ export default async function handler(req) {
 
   try {
     const body = await req.json();
-    const { messages, model, plugins } = body;
+    const { messages, model, plugins, tools } = body;
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return new Response(JSON.stringify({ error: 'No messages provided' }), { status: 400 });
@@ -115,7 +115,8 @@ export default async function handler(req) {
       messages: finalMessages,
       max_tokens: 20000,
       stream: true,
-      plugins
+      plugins,
+      tools
     };
 
     // Grab key from the pool with priority 4 -> 2 -> 1 -> 3 -> 5
@@ -152,7 +153,8 @@ export default async function handler(req) {
       model: selectedModel,
       messages: finalMessages,
       stream: true,
-      include_reasoning: true
+      include_reasoning: true,
+      tools
     });
 
     const encoder = new TextEncoder();
