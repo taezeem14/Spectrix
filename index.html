@@ -1272,7 +1272,62 @@
       to { transform: translateX(50%); }
     }
 
-
+    /* Thinking block styling */
+    .thinking-block {
+      background: rgba(255, 255, 255, 0.02);
+      border-left: 3px solid var(--accent, #6366f1);
+      border-radius: 6px;
+      margin: 12px 0;
+      padding: 10px 14px;
+      font-size: 0.9em;
+      color: var(--muted);
+      transition: all 0.2s ease;
+    }
+    body.light .thinking-block {
+      background: rgba(0, 0, 0, 0.015);
+    }
+    .thinking-block[open] {
+      background: rgba(255, 255, 255, 0.035);
+    }
+    body.light .thinking-block[open] {
+      background: rgba(0, 0, 0, 0.03);
+    }
+    .thinking-summary {
+      cursor: pointer;
+      font-weight: 500;
+      user-select: none;
+      outline: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+    }
+    .thinking-summary:hover {
+      color: var(--text);
+    }
+    .thinking-summary::-webkit-details-marker {
+      display: none;
+    }
+    .thinking-summary::before {
+      content: '▶';
+      display: inline-block;
+      font-size: 0.8em;
+      transition: transform 0.2s ease;
+      color: var(--muted);
+    }
+    .thinking-block[open] .thinking-summary::before {
+      transform: rotate(90deg);
+    }
+    .thinking-content {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px dashed rgba(255, 255, 255, 0.08);
+      font-family: var(--font-fallback), sans-serif;
+      line-height: 1.6;
+    }
+    body.light .thinking-content {
+      border-top-color: rgba(0, 0, 0, 0.06);
+    }
 
     @keyframes fadeIn {
       to {
@@ -6231,14 +6286,17 @@ Factuality guardrails:
     const ALLOWED_TAGS = new Set([
       'a', 'p', 'br', 'strong', 'em', 'code', 'pre', 'blockquote', 'ul', 'ol', 'li',
       'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td',
-      'img', 'del', 's', 'mark', 'sup', 'sub', 'span'
+      'img', 'del', 's', 'mark', 'sup', 'sub', 'span', 'details', 'summary', 'div'
     ]);
 
     const ALLOWED_ATTRS = {
       a: new Set(['href', 'title', 'target', 'rel']),
       img: new Set(['src', 'alt', 'title', 'loading', 'decoding']),
       code: new Set(['class']),
-      span: new Set(['class'])
+      span: new Set(['class']),
+      details: new Set(['open', 'class']),
+      summary: new Set(['class']),
+      div: new Set(['class'])
     };
 
     // ===== INIT =====
@@ -7293,10 +7351,6 @@ Factuality guardrails:
         }
       }
 
-      if (attachments && Array.isArray(attachments) && attachments.length > 0) {
-        appendAttachmentPreviewsToMessageNode(d, attachments);
-      }
-
       if (typeof content === "object" && content.type === "image") {
         if (!content.src) {
           const pending = document.createElement('div');
@@ -7334,6 +7388,10 @@ Factuality guardrails:
           d.textContent = String(content);
         }
         renderMath(d);
+      }
+
+      if (attachments && Array.isArray(attachments) && attachments.length > 0) {
+        appendAttachmentPreviewsToMessageNode(d, attachments);
       }
 
       if (role === "user" && typeof content === "string") {
@@ -8463,6 +8521,30 @@ Factuality guardrails:
         }
 
         const tag = node.tagName.toLowerCase();
+        if (tag === 'think') {
+          const details = doc.createElement('details');
+          details.className = 'thinking-block';
+          details.setAttribute('open', '');
+
+          const summary = doc.createElement('summary');
+          summary.className = 'thinking-summary';
+          summary.textContent = 'Thinking Process';
+
+          const contentDiv = doc.createElement('div');
+          contentDiv.className = 'thinking-content';
+
+          while (node.firstChild) {
+            contentDiv.appendChild(node.firstChild);
+          }
+
+          details.appendChild(summary);
+          details.appendChild(contentDiv);
+
+          node.replaceWith(details);
+          sanitizeNode(details);
+          return;
+        }
+
         if (!ALLOWED_TAGS.has(tag)) {
           const text = doc.createTextNode(node.textContent || '');
           node.replaceWith(text);
