@@ -3667,12 +3667,9 @@
               <option value="gpt-image-1.5">GPT Image 1.5</option>
             </select>
           </div>
-          <div class="select-wrap">
+          <div class="select-wrap" style="display: none;">
             <select id="textModelSelect" title="Choose text model">
-              <option value="moonshotai/kimi-k2.6:free">Kimi K2.6 (Main • Multimodal Reasoning)</option>
-              <option value="google/gemma-4-31b-it:free">Gemma 4 31B IT (Instruction Tuned)</option>
               <option value="poolside/laguna-m.1:free">Laguna M.1 (Coding • Fast)</option>
-              <option value="arcee-ai/trinity-large-thinking:free">Arcee Trinity (Fast • Reasoning)</option>
             </select>
           </div>
           <div class="select-wrap active-skill-indicator" id="activeSkillIndicator" style="display:none;">
@@ -3733,7 +3730,7 @@
         <div class="input-container">
           <input class="attachment-input" id="attachmentInput" type="file" multiple
             onchange="handleAttachmentInput(event)"
-            accept=".txt,.md,.markdown,.csv,.json,.xml,.yml,.yaml,.html,.htm,.css,.scss,.js,.jsx,.ts,.tsx,.mjs,.cjs,.py,.java,.go,.rs,.php,.rb,.kt,.swift,.sql,.sh,.ps1,.bat,.c,.cpp,.h,.hpp,.cs,.pdf,.docx,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tif,.tiff,text/plain,text/markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg,image/webp,image/gif,image/bmp,image/tiff">
+            accept=".txt,.md,.markdown,.csv,.json,.xml,.yml,.yaml,.html,.htm,.css,.scss,.js,.jsx,.ts,.tsx,.mjs,.cjs,.py,.java,.go,.rs,.php,.rb,.kt,.swift,.sql,.sh,.ps1,.bat,.c,.cpp,.h,.hpp,.cs,.pdf,.docx,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tif,.tiff,.mp3,.wav,.ogg,.m4a,.aac,.flac,.mp4,.webm,.mov,.avi,.mkv,text/plain,text/markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg,image/webp,image/gif,image/bmp,image/tiff,audio/*,video/*">
           <div class="attachment-tray" id="attachmentTray" aria-live="polite"></div>
           <textarea id="input" placeholder="Type or speak... (Ctrl+B for new chat)"
             aria-label="Message input"></textarea>
@@ -4525,6 +4522,22 @@ Factuality guardrails:
       return ATTACHMENT_IMAGE_EXTENSIONS.has(ext);
     }
 
+    function isVideoAttachment(file) {
+      const ext = getAttachmentExtension(file?.name);
+      const type = String(file?.type || '').toLowerCase();
+      if (type.startsWith('video/')) return true;
+      const videoExtensions = new Set(['mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv', 'flv', 'wmv']);
+      return videoExtensions.has(ext);
+    }
+
+    function isAudioAttachment(file) {
+      const ext = getAttachmentExtension(file?.name);
+      const type = String(file?.type || '').toLowerCase();
+      if (type.startsWith('audio/')) return true;
+      const audioExtensions = new Set(['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac', 'wma']);
+      return audioExtensions.has(ext);
+    }
+
     function isTextAttachment(file) {
       const ext = getAttachmentExtension(file?.name);
       const type = String(file?.type || '').toLowerCase();
@@ -5240,6 +5253,124 @@ Factuality guardrails:
       return sanitizeAttachmentText(text || '');
     }
 
+    async function extractTextFromAudioAttachment(file) {
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        
+        let apiUrl = '/hf/audio';
+        if (activeChatApiUrl && activeChatApiUrl.startsWith('http') && activeChatApiUrl.includes('workers.dev')) {
+          apiUrl = 'https://spectrix-worker.tariqmtaezeem.workers.dev/hf/audio';
+        }
+
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/octet-stream'
+          },
+          body: arrayBuffer
+        });
+
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(`Server returned status ${response.status}: ${errText}`);
+        }
+
+        const data = await response.json();
+        if (data && data.text) {
+          return `[Audio Transcription of ${file.name}]:\n"${data.text.trim()}"`;
+        }
+        return `[Audio file: ${file.name} - Transcription returned empty]`;
+      } catch (err) {
+        console.warn('Audio transcription failed:', err);
+        return `[Audio file: ${file.name} - Details: Size ${formatAttachmentSize(file.size)}, Type ${file.type || 'unknown'} - Transcription failed: ${err.message}]`;
+      }
+    }
+
+    function formatVideoTimestamp(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    async function extractTextFromVideoAttachment(file) {
+      return new Promise((resolve) => {
+        const video = document.createElement('video');
+        video.src = URL.createObjectURL(file);
+        video.muted = true;
+        video.playsInline = true;
+
+        video.onloadedmetadata = async () => {
+          try {
+            const duration = video.duration;
+            if (!duration || isNaN(duration)) {
+              resolve(`[Video file: ${file.name} - Duration metadata unavailable]`);
+              return;
+            }
+
+            // Sample every 4 seconds, up to 10 frames to avoid browser lockup/lag.
+            const interval = Math.max(4, duration / 10);
+            const timestamps = [];
+            for (let t = 0.5; t < duration; t += interval) {
+              timestamps.push(t);
+            }
+
+            let outputText = '';
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            for (const t of timestamps) {
+              await new Promise((resSeek) => {
+                const onSeeked = () => {
+                  video.removeEventListener('seeked', onSeeked);
+                  resSeek();
+                };
+                video.addEventListener('seeked', onSeeked);
+                video.currentTime = t;
+              });
+
+              canvas.width = video.videoWidth || 640;
+              canvas.height = video.videoHeight || 360;
+              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+              const blob = await new Promise((resBlob) => canvas.toBlob(resBlob, 'image/png'));
+              if (!blob) continue;
+
+              const tsLabel = formatVideoTimestamp(t);
+              showStatus(`Running Video OCR at ${tsLabel} for ${file.name}...`);
+
+              try {
+                const text = await extractTextFromOcrSource(blob, `${file.name} [Frame ${tsLabel}]`, {
+                  timeoutMs: 8000
+                });
+                if (text && text.trim()) {
+                  outputText += `[Video Frame at ${tsLabel}]\n${text.trim()}\n\n`;
+                }
+              } catch (ocrErr) {
+                console.warn(`Video OCR failed at ${tsLabel}:`, ocrErr);
+              }
+            }
+
+            URL.revokeObjectURL(video.src);
+
+            const trimmed = outputText.trim();
+            if (!trimmed) {
+              resolve(`[Video file: ${file.name} - Size ${formatAttachmentSize(file.size)}, Duration ${formatVideoTimestamp(duration)} - No readable text extracted via OCR]`);
+            } else {
+              resolve(`[Video OCR Transcription of ${file.name} (Duration ${formatVideoTimestamp(duration)})]:\n\n${trimmed}`);
+            }
+          } catch (err) {
+            URL.revokeObjectURL(video.src);
+            resolve(`[Video file: ${file.name} - Extraction encountered an error: ${err.message}]`);
+          }
+        };
+
+        video.onerror = () => {
+          URL.revokeObjectURL(video.src);
+          resolve(`[Video file: ${file.name} - Failed to load video source for local OCR]`);
+        };
+      });
+    }
+
     async function extractTextFromAttachment(file, options = {}) {
       const { gemmaSelected = false } = options;
 
@@ -5260,6 +5391,14 @@ Factuality guardrails:
       if (isImageAttachment(file)) {
         showStatus(`Running OCR: ${file.name}`);
         return extractTextFromImageAttachment(file, { gemmaSelected });
+      }
+      if (isVideoAttachment(file)) {
+        showStatus(`Running Video OCR: ${file.name}`);
+        return extractTextFromVideoAttachment(file);
+      }
+      if (isAudioAttachment(file)) {
+        showStatus(`Transcribing Audio: ${file.name}`);
+        return extractTextFromAudioAttachment(file);
       }
       if (isTextAttachment(file)) {
         const rawText = await file.text();
@@ -5422,21 +5561,21 @@ Factuality guardrails:
 
       throw lastError || new Error('Chat request failed');
     }
-    const DEFAULT_TEXT_MODEL = KIMI_MULTIMODAL_MODEL;
+    const DEFAULT_TEXT_MODEL = "poolside/laguna-m.1:free";
     const ALLOWED_TEXT_MODELS = new Set([
-      KIMI_MULTIMODAL_MODEL,
-      GEMMA_MULTIMODAL_MODEL,
-      "poolside/laguna-m.1:free",
-      "arcee-ai/trinity-large-thinking:free"
+      "poolside/laguna-m.1:free"
     ]);
     const LEGACY_TEXT_MODEL_MIGRATIONS = new Map([
-      ["openai/gpt-oss-20b:free", GEMMA_MULTIMODAL_MODEL]
+      ["openai/gpt-oss-20b:free", "poolside/laguna-m.1:free"]
     ]);
     const DEPRECATED_TEXT_MODELS = new Set([
       "stepfun/step-3.5-flash:free",
       "qwen/qwen3.6-plus:free",
       "z-ai/glm-4.5-air:free",
-      "nvidia/nemotron-3-super-120b-a12b:free"
+      "nvidia/nemotron-3-super-120b-a12b:free",
+      "moonshotai/kimi-k2.6:free",
+      "google/gemma-4-31b-it:free",
+      "arcee-ai/trinity-large-thinking:free"
     ]);
 
     function normalizeTextModelId(modelId) {
@@ -5450,20 +5589,11 @@ Factuality guardrails:
     }
 
     function isGemmaMultimodalSelected(modelId = FIXED_TEXT_MODEL) {
-      const normalized = normalizeTextModelId(modelId);
-      return normalized === GEMMA_MULTIMODAL_MODEL || normalized === KIMI_MULTIMODAL_MODEL;
+      return true;
     }
 
     function resolveTextModelForRequest(modelId, webSearchOn = false) {
-      const baseModel = normalizeTextModelId(modelId);
-      if (!webSearchOn) return baseModel;
-
-      // Gemma and Kimi work better with standard model id + plugin search (no :online suffix).
-      if (baseModel === GEMMA_MULTIMODAL_MODEL || baseModel === KIMI_MULTIMODAL_MODEL) {
-        return baseModel;
-      }
-
-      return `${baseModel}:online`;
+      return normalizeTextModelId(modelId);
     }
 
     let FIXED_TEXT_MODEL = normalizeTextModelId(localStorage.getItem('Spectrix_text_model'));
