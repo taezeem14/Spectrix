@@ -7353,10 +7353,6 @@ Factuality guardrails:
 
       if (Number.isInteger(resolvedIndex)) {
         d.dataset.msgIndex = String(resolvedIndex);
-        const currentHighlights = tldrHighlightsBySession.get(getTldrSessionKey()) || new Set();
-        if (currentHighlights.has(resolvedIndex)) {
-          d.classList.add('tldr-key-highlight');
-        }
       }
 
       return d;
@@ -7396,7 +7392,7 @@ Factuality guardrails:
       }
 
       chat.appendChild(fragment);
-      refreshCurrentTldrHighlights();
+
       chatWindowState.enabled = true;
       chatWindowState.sessionId = String(session.id || '');
       chatWindowState.start = safeStart;
@@ -7489,7 +7485,7 @@ Factuality guardrails:
       }
 
       chat.appendChild(fragment);
-      refreshCurrentTldrHighlights();
+
       scrollToBottom();
     }
 
@@ -10029,7 +10025,7 @@ Create a concise title that captures the main topic of this conversation.
             }, 3000);
           }
 
-          maybeSuggestTldrForSession(getCurrentSession());
+
         }
       } catch (err) {
         if (err?.isUserAbort || err?.name === 'AbortError') {
