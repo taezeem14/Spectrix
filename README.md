@@ -85,19 +85,17 @@ Core strengths:
 ### 🤖 AI Engine
 - **Unlimited SSE streaming** via Cloudflare Worker proxy — bypasses Vercel's 30s timeout for massive generations
 - **Smart Failover** — automatically falls back to Vercel Node.js routes if Cloudflare is unreachable
-- **Multi-model routing** via OpenRouter — switch models from the header, including Kimi K2.6, Gemma 4 31B IT, Laguna M.1, and Arcee Trinity
+- **Laguna M.1 default engine** — powered by `poolside/laguna-m.1:free` for fast, coding-optimized responses, with automatic failover to `openai/gpt-oss-120b:free:online` for real-time web search grounding
 - **Advanced API key rotation** — strict round-robin across OpenRouter keys per request, with retry failover/cooldown, plus model-sticky routing for title and memory-extraction model calls
 - **Rate-limit UX** — friendly in-app message, not a dead crash
 - **Web search mode** — powered by Firecrawl via OpenRouter (`Ctrl+Shift+S` to toggle)
 - **Anti-hallucination guardrails** — avoids made-up facts/specs and asks for Web search when verification is needed for fast-changing information
-- **Enthusiastic full-detail responses** — default style is energetic and comprehensive; strict step-by-step formatting appears only when explicitly requested
+- **Enthusiastic full-detail responses** — default style is energetic and comprehensive
 - **Auto-titled chats** — AI names your conversations after the first exchange
 - **Title model pinned** — `liquid/lfm-2.5-1.2b-instruct:free`
 - **Direct-answer guardrails** — avoids made-up headings like "Quick Concept" / "Game Plan" unless requested
-- **Request-only structured steps** — step-by-step templates are used only when explicitly requested by the user
 - **Continuous code-block formatting** — adjacent same-language code fences are auto-merged to prevent fragmented snippets
-- **Advanced `/tldr` assistant** — supports modes (`/tldr short`, `/tldr bullets`, `/tldr keypoints`, `/tldr 40`), auto-suggests on long chats, highlights key messages in-chat, and supports quick copy/download of the latest summary
-- **Retry + Edit** — re-run any response or tweak your message mid-conversation; retry always uses the currently selected model from the dropdown, not the model that originally generated the response
+- **Retry + Edit** — re-run any response or tweak your message mid-conversation
 - **Targeted Retry** — clicking Retry on a bot message regenerates that exact reply in place (later messages stay intact)
 - **No hard prompt cap** — very long prompts are accepted (subject to model/provider token limits)
 - **Stream continuation v2** — uses content-aware heuristics (detects unclosed code blocks, mid-sentence cuts, or silent drops) and shows a one-click ⚡ Continue button to seamlessly resume exactly where it left off without wiping existing content
@@ -130,7 +128,7 @@ Core strengths:
 ### 🎤 Voice & Interaction
 - **Voice input** via Web Speech API — tap 🎤, speak, done
 - **Text-to-Speech output** — AI responses read aloud via the 🔊 toggle
-- **`+` quick-actions menu** — includes TL;DR modes, summary copy/download, attachments, voice input, and web search toggle
+- **`+` quick-actions menu** — includes attachments, voice input, and web search toggle
 - **TTS audio unlock** — mobile-compatible auto-unlock on first user interaction
 - **Voice confirmation** — audible "Voice enabled" on toggle so you know it works
 - **Keyboard shortcuts:**
@@ -228,12 +226,9 @@ User sends message
 
 | Mode | Model | Best For |
 |------|-------|----------|
-| 🌟 Main | `moonshotai/kimi-k2.6:free` | Multimodal reasoning, long-horizon coding, and agentic workflows |
-| 🎨 Instruction Tuned | `google/gemma-4-31b-it:free` | General productivity and multimodal tasks |
-| ⚡ Quick Coding | `poolside/laguna-m.1:free` | Rapid code generation and technical responses |
-| 🧠 Reasoning | `arcee-ai/trinity-large-thinking:free` | Fast inference and deep reasoning |
+| 🌟 Main | `poolside/laguna-m.1:free` | Rapid code generation, technical tasks, and reasoning |
 
-> 💾 Model preference saved to `localStorage → Spectrix_text_model` and persists across sessions.
+> 💾 Automatically switches to `openai/gpt-oss-120b:free:online` under the hood when Web Search is enabled.
 
 ---
 
