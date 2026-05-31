@@ -25,10 +25,7 @@
       "source": "/hf/vid",
       "destination": "/api/hf/vid"
     },
-    {
-      "source": "/hf/audio",
-      "destination": "/api/hf/audio"
-    },
+
     {
       "source": "/leaderboard/top",
       "destination": "/api/leaderboard/top"

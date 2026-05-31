@@ -5255,34 +5255,37 @@ Factuality guardrails:
 
     async function extractTextFromAudioAttachment(file) {
       try {
+        showStatus(`Decoding audio: ${file.name}...`);
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
         const arrayBuffer = await file.arrayBuffer();
         
-        let apiUrl = '/hf/audio';
-        if (activeChatApiUrl && activeChatApiUrl.startsWith('http') && activeChatApiUrl.includes('workers.dev')) {
-          apiUrl = 'https://spectrix-worker.tariqmtaezeem.workers.dev/hf/audio';
+        let audioBuffer;
+        try {
+          audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+        } catch {
+          audioBuffer = await new Promise((resolve, reject) => {
+            audioCtx.decodeAudioData(arrayBuffer, resolve, reject);
+          });
         }
-
-        const response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/octet-stream'
-          },
-          body: arrayBuffer
-        });
-
-        if (!response.ok) {
-          const errText = await response.text();
-          throw new Error(`Server returned status ${response.status}: ${errText}`);
+        
+        const float32Data = audioBuffer.getChannelData(0);
+        
+        showStatus(`Loading speech model: ${file.name}...`);
+        const { pipeline, env } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2');
+        env.allowLocalModels = false;
+        
+        const transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en');
+        
+        showStatus(`Transcribing audio: ${file.name}...`);
+        const result = await transcriber(float32Data);
+        
+        if (result && result.text) {
+          return `[Audio Transcription of ${file.name}]:\n"${result.text.trim()}"`;
         }
-
-        const data = await response.json();
-        if (data && data.text) {
-          return `[Audio Transcription of ${file.name}]:\n"${data.text.trim()}"`;
-        }
-        return `[Audio file: ${file.name} - Transcription returned empty]`;
+        return `[Audio file: ${file.name} - Local transcription returned empty]`;
       } catch (err) {
-        console.warn('Audio transcription failed:', err);
-        return `[Audio file: ${file.name} - Details: Size ${formatAttachmentSize(file.size)}, Type ${file.type || 'unknown'} - Transcription failed: ${err.message}]`;
+        console.warn('Local audio transcription failed:', err);
+        return `[Audio file: ${file.name} - Details: Size ${formatAttachmentSize(file.size)}, Type ${file.type || 'unknown'} - Local transcription failed: ${err.message}]`;
       }
     }
 

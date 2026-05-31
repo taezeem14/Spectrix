@@ -104,16 +104,6 @@ function sendJson(req, res, statusCode, payload, extraHeaders = {}) {
   res.end(JSON.stringify(payload));
 }
 
-async function getRawBody(req) {
-  if (Buffer.isBuffer(req.body)) return req.body;
-  if (req.body instanceof Uint8Array) return Buffer.from(req.body);
-  const chunks = [];
-  for await (const chunk of req) {
-    chunks.push(chunk);
-  }
-  return Buffer.concat(chunks);
-}
-
 async function safeJson(req) {
   if (req.body && typeof req.body === 'object') return req.body;
 
@@ -815,43 +805,6 @@ async function handleHfVideo(req, res) {
   }
 }
 
-async function handleHfAudio(req, res) {
-  if (handleOptions(req, res)) return;
-  if (req.method !== 'POST') {
-    return sendJson(req, res, 405, { error: 'Method not allowed' });
-  }
-
-  try {
-    const hfToken = process.env.HUGGINGFACE_KEY;
-    if (!hfToken) {
-      return sendJson(req, res, 500, { error: 'Hugging Face key not configured' });
-    }
-
-    const audioBuffer = await getRawBody(req);
-    if (!audioBuffer || audioBuffer.length === 0) {
-      return sendJson(req, res, 400, { error: 'No audio data provided' });
-    }
-
-    const model = 'openai/whisper-large-v3';
-    const upstream = await fetch(`https://router.huggingface.co/hf-inference/models/${model}`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${hfToken}`
-      },
-      body: audioBuffer
-    });
-
-    const data = await upstream.json();
-    if (!upstream.ok) {
-      return sendJson(req, res, upstream.status || 500, data);
-    }
-
-    sendJson(req, res, 200, data);
-  } catch (error) {
-    sendJson(req, res, 500, { error: error.message || 'Unknown server error' });
-  }
-}
-
 async function kvPipeline(commands) {
   const kvUrl = process.env.KV_REST_API_URL;
   const kvToken = process.env.KV_REST_API_TOKEN;
@@ -959,7 +912,6 @@ module.exports = {
   handleGithubChat,
   handleHfImage,
   handleHfVideo,
-  handleHfAudio,
   handleLeaderboardTop,
   handleLeaderboardSubmit
 };

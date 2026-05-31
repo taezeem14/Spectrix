@@ -527,39 +527,7 @@ export default {
       }
     }
 
-    /* ============================
-       🗣 HUGGINGFACE AUDIO TRANSCRIBE
-       ============================ */
-    if (url.pathname === "/hf/audio" && request.method === "POST") {
-      try {
-        const HF_TOKEN = env.HUGGINGFACE_KEY;
-        if (!HF_TOKEN) return new Response(JSON.stringify({ error: "Hugging Face key not configured" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-        const audioBuffer = await request.arrayBuffer();
-        if (audioBuffer.byteLength === 0) {
-          throw new Error("Empty audio buffer");
-        }
-
-        const model = "openai/whisper-large-v3";
-        const res = await fetch(`https://router.huggingface.co/hf-inference/models/${model}`, {
-          method: "POST",
-          headers: { "Authorization": `Bearer ${HF_TOKEN}` },
-          body: audioBuffer
-        });
-
-        const data = await res.json();
-        if (!res.ok) {
-          return new Response(JSON.stringify(data), { status: res.status || 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        }
-
-        return new Response(JSON.stringify(data), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        });
-
-      } catch (err) {
-        return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-    }
 
     return new Response(JSON.stringify({ error: "Unsupported route / method" }), { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
