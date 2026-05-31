@@ -5566,7 +5566,9 @@ Factuality guardrails:
     }
     const DEFAULT_TEXT_MODEL = "poolside/laguna-m.1:free";
     const ALLOWED_TEXT_MODELS = new Set([
-      "poolside/laguna-m.1:free"
+      "poolside/laguna-m.1:free",
+      "openai/gpt-oss-120b:free",
+      "openai/gpt-oss-120b:free:online"
     ]);
     const LEGACY_TEXT_MODEL_MIGRATIONS = new Map([
       ["openai/gpt-oss-20b:free", "poolside/laguna-m.1:free"]
@@ -5596,6 +5598,9 @@ Factuality guardrails:
     }
 
     function resolveTextModelForRequest(modelId, webSearchOn = false) {
+      if (webSearchOn) {
+        return "openai/gpt-oss-120b:free:online";
+      }
       return normalizeTextModelId(modelId);
     }
 
