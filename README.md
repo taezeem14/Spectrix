@@ -85,10 +85,13 @@ Core strengths:
 ### 🤖 AI Engine
 - **Unlimited SSE streaming** via Cloudflare Worker proxy — bypasses Vercel's 30s timeout for massive generations
 - **Smart Failover** — automatically falls back to Vercel Node.js routes if Cloudflare is unreachable
-- **Laguna M.1 default engine** — powered by `poolside/laguna-m.1:free` for fast, coding-optimized responses, with automatic failover to `openai/gpt-oss-120b:free:online` for real-time web search grounding
+- **Laguna M.1 default engine** — powered by `poolside/laguna-m.1:free` for fast, coding-optimized responses, with automatic failover to `openai/gpt-oss-120b:free` for real-time web search grounding using OpenRouter's tools API
 - **Advanced API key rotation** — strict round-robin across OpenRouter keys per request, with retry failover/cooldown, plus model-sticky routing for title and memory-extraction model calls
 - **Rate-limit UX** — friendly in-app message, not a dead crash
 - **Web search mode** — powered by Firecrawl via OpenRouter (`Ctrl+Shift+S` to toggle)
+- **DeepSeek-style Collapsible Thinking Blocks** — parses and intercepts `<think>` tags inside the markdown sanitizer, turning reasoning streams into glassmorphic collapsible Details elements with rotating disclosure indicators and whitelisted sanitizer attributes
+- **Smooth Typewriter Streaming & Cursor** — renders text at an optimized 30ms throttle with frame-rescheduling to prevent dropped text blocks, and displays a terminal-style blinking cursor (`▊`) at the end of active text streams
+- **Loader Pill Sizing & Alignment** — fixes crooked/cropped layout engine boxes, aligning the "Thinking" placeholder into a centered, vertically aligned bubble with a minimum height of 48px
 - **Anti-hallucination guardrails** — avoids made-up facts/specs and asks for Web search when verification is needed for fast-changing information
 - **Enthusiastic full-detail responses** — default style is energetic and comprehensive
 - **Auto-titled chats** — AI names your conversations after the first exchange
@@ -148,6 +151,8 @@ Core strengths:
 - **Multi-file attachments** in chat input (up to 8 files)
 - **Text extraction** from plain/code files, PDF, and DOCX
 - **Image OCR extraction** via Tesseract.js with fallback passes (TextDetector + enhanced high-contrast retry)
+- **Video OCR (Client-side)** — detects video formats, samples frames at regular intervals (every 4s, up to 10 frames), and runs local Tesseract.js OCR to compile timeline-annotated text logs (e.g. `[Video Frame at 00:04]...`)
+- **Local Audio Transcription (100% Free Whisper)** — decodes audio locally using the browser's built-in `AudioContext` and transcribes speech using a local Whisper model (`Xenova/whisper-tiny.en`) via `Transformers.js` loaded inside the sandbox with 0 server costs or API keys
 - **Gemma attachment behavior** — image files and scanned PDFs use external OCR fallback; DOCX extraction (Mammoth.js) stays bypassed for Gemma mode
 - **Clipboard image attachments** — paste copied images directly into the composer; they appear as attachment preview chips and in the sent user bubble
 - **Safe truncation caps** for per-file and total extracted context
@@ -228,7 +233,7 @@ User sends message
 |------|-------|----------|
 | 🌟 Main | `poolside/laguna-m.1:free` | Rapid code generation, technical tasks, and reasoning |
 
-> 💾 Automatically switches to `openai/gpt-oss-120b:free:online` under the hood when Web Search is enabled.
+> 💾 Automatically switches to `openai/gpt-oss-120b:free` under the hood when Web Search is enabled.
 
 ---
 
