@@ -4971,73 +4971,177 @@ Factuality guardrails:
       }
     }
 
-    async function buildOcrImageSource(file) {
-      if (typeof createImageBitmap !== 'function') return file;
+    function preprocessOcrImageCanvas(canvas, forceInvert = null) {
+      const ctx = canvas.getContext('2d', { alpha: false, willReadFrequently: true });
+      if (!ctx) return;
 
-      const bitmap = await createImageBitmap(file);
-      try {
-        const largestSide = Math.max(bitmap.width, bitmap.height);
-        if (largestSide <= MAX_ATTACHMENT_OCR_IMAGE_DIMENSION) {
-          return file;
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      const len = data.length;
+
+      // 1. Grayscale & Find min/max luminance
+      let min = 255;
+      let max = 0;
+      const lums = new Uint8Array(len / 4);
+      let lumIdx = 0;
+
+      for (let i = 0; i < len; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const lum = Math.round((r * 0.299) + (g * 0.587) + (b * 0.114));
+        lums[lumIdx++] = lum;
+        if (lum < min) min = lum;
+        if (lum > max) max = lum;
+      }
+
+      // 2. Determine if background is dark via boundary sampling
+      const w = canvas.width;
+      const h = canvas.height;
+      let shouldInvert = false;
+
+      if (forceInvert !== null) {
+        shouldInvert = forceInvert;
+      } else {
+        const insetX = Math.max(1, Math.round(w * 0.04));
+        const insetY = Math.max(1, Math.round(h * 0.04));
+        let borderSum = 0;
+        let borderCount = 0;
+
+        // Top & bottom rows
+        for (let x = insetX; x < w - insetX; x += 5) {
+          borderSum += lums[insetY * w + x];
+          borderSum += lums[(h - 1 - insetY) * w + x];
+          borderCount += 2;
+        }
+        // Left & right columns
+        for (let y = insetY; y < h - insetY; y += 5) {
+          borderSum += lums[y * w + insetX];
+          borderSum += lums[y * w + (w - 1 - insetX)];
+          borderCount += 2;
         }
 
-        const scale = MAX_ATTACHMENT_OCR_IMAGE_DIMENSION / largestSide;
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-        canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+        const avgBorder = borderCount > 0 ? (borderSum / borderCount) : 128;
+        shouldInvert = avgBorder < 125; // Dark border background -> invert to white background
+      }
 
-        const ctx = canvas.getContext('2d', { alpha: false });
-        if (!ctx) return file;
-        ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      // 3. Apply contrast stretching, inversion, and soft binarization
+      const range = max - min;
+      const canStretch = range > 15;
 
-        const blob = await new Promise((resolve) => {
-          canvas.toBlob(resolve, 'image/png', 0.92);
-        });
+      for (let i = 0; i < len; i += 4) {
+        let lum = lums[i / 4];
+        if (canStretch) {
+          lum = Math.round(((lum - min) / range) * 255);
+        }
 
-        return blob || file;
-      } finally {
-        if (typeof bitmap.close === 'function') bitmap.close();
+        if (shouldInvert) {
+          lum = 255 - lum;
+        }
+
+        // Soft-binarize/stretch contrast to clean up noise
+        let val;
+        if (lum > 215) {
+          val = 255;
+        } else if (lum < 40) {
+          val = 0;
+        } else {
+          val = Math.round(((lum - 40) / 175) * 255);
+        }
+
+        data[i] = val;
+        data[i + 1] = val;
+        data[i + 2] = val;
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+    }
+
+    async function buildOcrImageSource(file, options = {}) {
+      if (typeof createImageBitmap !== 'function') return file;
+
+      const { forceInvert = null } = options;
+      try {
+        const bitmap = await createImageBitmap(file);
+        try {
+          const largestSide = Math.max(bitmap.width, bitmap.height);
+          
+          // Adaptive scaling for optimal character recognition
+          let scale = 1.0;
+          if (largestSide > 1800) {
+            scale = 1800 / largestSide;
+          } else if (largestSide < 1000) {
+            scale = Math.min(2.5, 1500 / largestSide);
+          } else {
+            scale = 1.3;
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+          canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+
+          const ctx = canvas.getContext('2d', { alpha: false });
+          if (!ctx) return file;
+          ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+
+          // Preprocess the colors/contrast
+          preprocessOcrImageCanvas(canvas, forceInvert);
+
+          const blob = await new Promise((resolve) => {
+            canvas.toBlob(resolve, 'image/png', 0.94);
+          });
+
+          return blob || file;
+        } finally {
+          if (typeof bitmap.close === 'function') bitmap.close();
+        }
+      } catch (err) {
+        console.warn('Error building OCR image source:', err);
+        return file;
       }
     }
 
     async function buildEnhancedOcrImageSource(source) {
       if (typeof createImageBitmap !== 'function') return source;
 
-      const bitmap = await createImageBitmap(source);
       try {
-        const largestSide = Math.max(bitmap.width, bitmap.height);
-        const targetLargest = Math.min(2400, Math.max(MAX_ATTACHMENT_OCR_IMAGE_DIMENSION, Math.round(largestSide * 1.6)));
-        const scale = largestSide > 0 ? (targetLargest / largestSide) : 1;
+        const bitmap = await createImageBitmap(source);
+        let avgBorder = 128;
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(bitmap.width * 0.2));
+          canvas.height = Math.max(1, Math.round(bitmap.height * 0.2));
+          const ctx = canvas.getContext('2d', { alpha: false, willReadFrequently: true });
+          if (ctx) {
+            ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            let borderSum = 0;
+            let borderCount = 0;
+            const w = canvas.width;
+            const h = canvas.height;
 
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-        canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-
-        const ctx = canvas.getContext('2d', { alpha: false, willReadFrequently: true });
-        if (!ctx) return source;
-
-        ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imageData.data;
-
-        for (let i = 0; i < data.length; i += 4) {
-          const luminance = Math.round((data[i] * 0.299) + (data[i + 1] * 0.587) + (data[i + 2] * 0.114));
-          const normalized = Math.min(255, Math.max(0, (luminance - 110) * 2.1));
-          const bw = normalized > 120 ? 255 : 0;
-          data[i] = bw;
-          data[i + 1] = bw;
-          data[i + 2] = bw;
+            for (let x = 0; x < w; x++) {
+              borderSum += Math.round((data[x * 4] * 0.299) + (data[x * 4 + 1] * 0.587) + (data[x * 4 + 2] * 0.114));
+              borderSum += Math.round((data[((h - 1) * w + x) * 4] * 0.299) + (data[((h - 1) * w + x) * 4 + 1] * 0.587) + (data[((h - 1) * w + x) * 4 + 2] * 0.114));
+              borderCount += 2;
+            }
+            avgBorder = borderCount > 0 ? (borderSum / borderCount) : 128;
+          }
+        } catch {
+          // fallback
+        } finally {
+          if (typeof bitmap.close === 'function') bitmap.close();
         }
 
-        ctx.putImageData(imageData, 0, 0);
+        const originalShouldInvert = avgBorder < 125;
+        const oppositeInvert = !originalShouldInvert;
 
-        const blob = await new Promise((resolve) => {
-          canvas.toBlob(resolve, 'image/png', 0.94);
-        });
-
-        return blob || source;
-      } finally {
-        if (typeof bitmap.close === 'function') bitmap.close();
+        // Force the opposite inversion for enhanced fallback pass
+        return await buildOcrImageSource(source, { forceInvert: oppositeInvert });
+      } catch (err) {
+        console.warn('Error building enhanced OCR source:', err);
+        return source;
       }
     }
 
@@ -5046,22 +5150,24 @@ Factuality guardrails:
         return '';
       }
 
-      const detector = new TextDetector();
-      const bitmap = await createImageBitmap(source);
       try {
-        const blocks = await detector.detect(bitmap);
-        if (!Array.isArray(blocks) || blocks.length === 0) return '';
+        const detector = new TextDetector();
+        const bitmap = await createImageBitmap(source);
+        try {
+          const blocks = await detector.detect(bitmap);
+          if (!Array.isArray(blocks) || blocks.length === 0) return '';
 
-        const text = blocks
-          .map((block) => String(block?.rawValue || block?.text || '').trim())
-          .filter(Boolean)
-          .join('\n');
+          const text = blocks
+            .map((block) => String(block?.rawValue || block?.text || '').trim())
+            .filter(Boolean)
+            .join('\n');
 
-        return sanitizeAttachmentText(text);
+          return sanitizeAttachmentText(text);
+        } finally {
+          if (typeof bitmap.close === 'function') bitmap.close();
+        }
       } catch {
         return '';
-      } finally {
-        if (typeof bitmap.close === 'function') bitmap.close();
       }
     }
 
@@ -5093,6 +5199,9 @@ Factuality guardrails:
 
       await page.render({ canvasContext: ctx, viewport }).promise;
 
+      // Smart pre-process PDF page to make it clean high-contrast
+      preprocessOcrImageCanvas(canvas);
+
       const blob = await new Promise((resolve) => {
         canvas.toBlob(resolve, 'image/png', 0.92);
       });
@@ -5100,19 +5209,72 @@ Factuality guardrails:
       return blob || canvas;
     }
 
-    async function extractTextFromOcrSource(source, label, options = {}) {
-      const { timeoutMs = MAX_ATTACHMENT_OCR_TIMEOUT_MS } = options;
+    function evaluateOcrQuality(text, confidence) {
+      if (!text || !text.trim()) return 0;
+      
+      const trimmed = text.trim();
+      if (trimmed.length < 3) return 0;
+
+      // Alphanumeric character density
+      const cleanChars = trimmed.replace(/[^a-zA-Z0-9\s.,!?;:'"()\-]/g, '');
+      const cleanRatio = cleanChars.length / trimmed.length;
+
+      // Basic dictionary/english word heuristics
+      const words = trimmed.split(/\s+/).filter(Boolean);
+      let validWordCount = 0;
+      for (const w of words) {
+        if (/^[0-9]+$/.test(w)) {
+          validWordCount++;
+        } else if (w.length === 1 && /^[a-z0-9]$/i.test(w)) {
+          validWordCount++;
+        } else if (w.length > 1) {
+          const hasVowel = /[aeiouy]/i.test(w);
+          const hasLetter = /[a-z]/i.test(w);
+          if (hasLetter && hasVowel) {
+            validWordCount++;
+          } else if (!hasLetter) {
+            validWordCount++;
+          }
+        }
+      }
+
+      const wordRatio = words.length > 0 ? (validWordCount / words.length) : 0;
+
+      // Composite Quality Score out of 100
+      const score = (confidence * 0.45) + (cleanRatio * 30) + (wordRatio * 25);
+      return score;
+    }
+
+    async function extractTextFromOcrSourceWithDetails(source, label, options = {}) {
+      const { timeoutMs = MAX_ATTACHMENT_OCR_TIMEOUT_MS, worker = null } = options;
       const ready = await ensureOcrRuntimeLoaded();
       if (!ready || !window.Tesseract?.recognize) {
         throw new Error('OCR parser unavailable');
       }
 
-      const result = await withOperationTimeout(
-        window.Tesseract.recognize(source, 'eng', { logger: () => { } }),
-        timeoutMs,
-        `OCR timed out for ${label}`
-      );
-      return sanitizeAttachmentText(result?.data?.text || '');
+      let result;
+      if (worker && typeof worker.recognize === 'function') {
+        result = await withOperationTimeout(
+          worker.recognize(source),
+          timeoutMs,
+          `OCR timed out for ${label}`
+        );
+      } else {
+        result = await withOperationTimeout(
+          window.Tesseract.recognize(source, 'eng', { logger: () => { } }),
+          timeoutMs,
+          `OCR timed out for ${label}`
+        );
+      }
+      
+      const text = sanitizeAttachmentText(result?.data?.text || '');
+      const confidence = typeof result?.data?.confidence === 'number' ? result.data.confidence : 0;
+      return { text, confidence };
+    }
+
+    async function extractTextFromOcrSource(source, label, options = {}) {
+      const res = await extractTextFromOcrSourceWithDetails(source, label, options);
+      return res.text;
     }
 
     async function extractTextFromPdfAttachment(file, options = {}) {
@@ -5248,31 +5410,143 @@ Factuality guardrails:
       const { gemmaSelected = false } = options;
       const primaryTimeoutMs = gemmaSelected ? Math.round(MAX_ATTACHMENT_OCR_TIMEOUT_MS * 1.8) : MAX_ATTACHMENT_OCR_TIMEOUT_MS;
 
-      const source = await withOperationTimeout(
+      // 1. Prepare primary preprocessed source
+      const primarySource = await withOperationTimeout(
         buildOcrImageSource(file),
-        5000,
+        6000,
         `OCR preprocessing timed out for ${file.name}`
       );
 
-      let text = await extractTextFromOcrSource(source, file.name, { timeoutMs: primaryTimeoutMs });
-      if (text) return text;
+      // Create a shared Tesseract worker for maximum efficiency across multiple passes
+      const ready = await ensureOcrRuntimeLoaded();
+      let worker = null;
+      if (ready && window.Tesseract?.createWorker) {
+        try {
+          worker = await window.Tesseract.createWorker('eng');
+        } catch (workerErr) {
+          console.warn('Failed to create persistent Tesseract worker, using fallback:', workerErr);
+        }
+      }
 
-      text = await extractTextWithTextDetector(source);
-      if (text) return text;
+      const results = [];
 
-      const enhancedSource = await withOperationTimeout(
-        buildEnhancedOcrImageSource(source),
-        7000,
-        `OCR enhancement timed out for ${file.name}`
-      );
+      try {
+        // --- Pass 1: Primary Preprocessed Source ---
+        try {
+          const res1 = await extractTextFromOcrSourceWithDetails(primarySource, file.name, {
+            timeoutMs: primaryTimeoutMs,
+            worker
+          });
+          const score1 = evaluateOcrQuality(res1.text, res1.confidence);
+          results.push({ text: res1.text, confidence: res1.confidence, score: score1, type: 'preprocessed' });
+          console.log(`OCR Pass 1 (Preprocessed) - Confidence: ${res1.confidence}%, Quality Score: ${score1.toFixed(1)}`);
+          
+          if (score1 >= 75) {
+            return res1.text;
+          }
+        } catch (err1) {
+          console.warn('OCR Pass 1 failed:', err1);
+        }
 
-      text = await extractTextFromOcrSource(enhancedSource, `${file.name} (enhanced)`, {
-        timeoutMs: Math.round(primaryTimeoutMs * 1.2)
-      });
-      if (text) return text;
+        // --- Pass 2: Raw/Scaled Source (No pre-binarization/auto-inversion) ---
+        let rawSource = file;
+        if (typeof createImageBitmap === 'function') {
+          try {
+            const bitmap = await createImageBitmap(file);
+            try {
+              const largestSide = Math.max(bitmap.width, bitmap.height);
+              let scale = largestSide > 1800 ? 1800 / largestSide : 1.0;
+              if (scale < 1.0) {
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+                canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+                const ctx = canvas.getContext('2d', { alpha: false });
+                if (ctx) {
+                  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+                  rawSource = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 0.92)) || file;
+                }
+              }
+            } finally {
+              if (typeof bitmap.close === 'function') bitmap.close();
+            }
+          } catch {
+            // fallback to original file
+          }
+        }
 
-      text = await extractTextWithTextDetector(enhancedSource);
-      return sanitizeAttachmentText(text || '');
+        try {
+          const res2 = await extractTextFromOcrSourceWithDetails(rawSource, `${file.name} (raw)`, {
+            timeoutMs: primaryTimeoutMs,
+            worker
+          });
+          const score2 = evaluateOcrQuality(res2.text, res2.confidence);
+          results.push({ text: res2.text, confidence: res2.confidence, score: score2, type: 'raw' });
+          console.log(`OCR Pass 2 (Raw) - Confidence: ${res2.confidence}%, Quality Score: ${score2.toFixed(1)}`);
+          
+          if (score2 >= 75) {
+            return res2.text;
+          }
+        } catch (err2) {
+          console.warn('OCR Pass 2 failed:', err2);
+        }
+
+        // --- Pass 3: Enhanced (Opposite Invert) Source ---
+        try {
+          const enhancedSource = await withOperationTimeout(
+            buildEnhancedOcrImageSource(primarySource),
+            7000,
+            `OCR enhancement timed out for ${file.name}`
+          );
+          if (enhancedSource) {
+            const res3 = await extractTextFromOcrSourceWithDetails(enhancedSource, `${file.name} (enhanced)`, {
+              timeoutMs: Math.round(primaryTimeoutMs * 1.2),
+              worker
+            });
+            const score3 = evaluateOcrQuality(res3.text, res3.confidence);
+            results.push({ text: res3.text, confidence: res3.confidence, score: score3, type: 'enhanced' });
+            console.log(`OCR Pass 3 (Opposite-Invert) - Confidence: ${res3.confidence}%, Quality Score: ${score3.toFixed(1)}`);
+            
+            if (score3 >= 75) {
+              return res3.text;
+            }
+          }
+        } catch (err3) {
+          console.warn('OCR Pass 3 failed:', err3);
+        }
+
+        // --- Fallback Pass: TextDetector ---
+        const bestScore = results.length > 0 ? Math.max(...results.map(r => r.score)) : 0;
+        if (bestScore < 50 && typeof TextDetector === 'function') {
+          try {
+            const detectorText = await extractTextWithTextDetector(primarySource);
+            if (detectorText && detectorText.trim()) {
+              results.push({ text: detectorText, confidence: 50, score: 55, type: 'text_detector' });
+              console.log('OCR Fallback Pass (TextDetector) succeeded');
+            }
+          } catch (detErr) {
+            console.warn('TextDetector failed:', detErr);
+          }
+        }
+
+      } finally {
+        if (worker) {
+          try {
+            await worker.terminate();
+          } catch (termErr) {
+            console.warn('Error terminating Tesseract worker:', termErr);
+          }
+        }
+      }
+
+      // Choose the result with the highest quality score
+      if (results.length > 0) {
+        results.sort((a, b) => b.score - a.score);
+        const bestResult = results[0];
+        console.log(`OCR Completed for ${file.name}. Best result type: '${bestResult.type}' with quality score: ${bestResult.score.toFixed(1)}`);
+        return bestResult.text;
+      }
+
+      return '';
     }
 
     async function extractTextFromAudioAttachment(file) {
@@ -5388,6 +5662,9 @@ Factuality guardrails:
               canvas.width = video.videoWidth || 640;
               canvas.height = video.videoHeight || 360;
               ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+              // Preprocess video frame to boost text readability and invert if IDE/theme is dark
+              preprocessOcrImageCanvas(canvas);
 
               const blob = await new Promise((resBlob) => canvas.toBlob(resBlob, 'image/png'));
               if (!blob) continue;
