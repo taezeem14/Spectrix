@@ -1330,6 +1330,23 @@
       border-top-color: rgba(0, 0, 0, 0.06);
     }
 
+    /* Streaming Cursor */
+    .msg.streaming > p:last-of-type::after,
+    .msg.streaming > li:last-of-type::after,
+    .msg.streaming > div:last-of-type:not(.msg-actions):not(.thinking-block)::after {
+      content: '▊';
+      display: inline-block;
+      margin-left: 4px;
+      color: var(--accent, #6366f1);
+      animation: blinkCursor 0.8s steps(2, start) infinite;
+      vertical-align: baseline;
+    }
+    
+    @keyframes blinkCursor {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
     @keyframes fadeIn {
       to {
         opacity: 1;
@@ -9254,9 +9271,11 @@ Factuality guardrails:
       const isThinkingModel = String(payload?.model || '').toLowerCase().includes('thinking') || String(payload?.model || '').toLowerCase().includes('r1') || String(payload?.model || '').toLowerCase().includes('qwq');
       
       if (!options.targetNode) {
-        d.className = "msg bot thinking";
+        d.className = "msg bot thinking streaming";
         if (isGemmaStream || isThinkingModel) d.classList.add("gemma-theme");
         chat.appendChild(d);
+      } else {
+        d.classList.add("streaming");
       }
       // When continuing from truncation, keep existing content — don't show "Thinking"
       if (!options.continueFrom) {
@@ -9285,6 +9304,7 @@ Factuality guardrails:
       };
       document.addEventListener('visibilitychange', onVisibilityChange);
       const cleanupStreamState = () => {
+        d.classList.remove("streaming");
         document.removeEventListener('visibilitychange', onVisibilityChange);
         streamResumeRenderCallback = null;
       };
@@ -9299,7 +9319,7 @@ Factuality guardrails:
       };
 
       let lastStreamRenderAt = 0;
-      const STREAM_RENDER_MIN_INTERVAL_MS = 40;
+      const STREAM_RENDER_MIN_INTERVAL_MS = 30;
       const STREAM_RENDER_MIN_INTERVAL_WHILE_REVIEWING_MS = 85;
       const STREAM_RENDER_MIN_INTERVAL_WHILE_POINTER_ACTIVE_MS = 95;
       let streamParseEventsSinceYield = 0;
@@ -9338,6 +9358,7 @@ Factuality guardrails:
       };
 
       const finalizeRenderedMessage = async () => {
+        d.classList.remove("streaming");
         if (pendingDeltaText) {
           if (!streamTextNode) {
             d.textContent = "";
@@ -9362,6 +9383,7 @@ Factuality guardrails:
       const scheduleRender = () => {
         if (streamPaused) return;
         if (frameScheduled) return;
+        if (!pendingDeltaText) return;
         frameScheduled = true;
         requestAnimationFrame(() => {
           frameScheduled = false;
@@ -9373,7 +9395,10 @@ Factuality guardrails:
           const minInterval = pointerBoostActive
             ? Math.max(baseInterval, STREAM_RENDER_MIN_INTERVAL_WHILE_POINTER_ACTIVE_MS)
             : baseInterval;
-          if (now - lastStreamRenderAt < minInterval) return;
+          if (now - lastStreamRenderAt < minInterval) {
+            scheduleRender();
+            return;
+          }
           lastStreamRenderAt = now;
           renderCurrentState();
         });
