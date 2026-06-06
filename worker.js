@@ -541,7 +541,7 @@ export default {
         }
 
         const apiKey = env.OCR_SPACE_KEY || "helloworld";
-        const formData = new FormData();
+        const formData = new URLSearchParams();
         formData.append("apikey", apiKey);
         formData.append("base64image", base64image);
         formData.append("OCREngine", "2");
@@ -549,7 +549,10 @@ export default {
 
         const res = await fetch("https://api.ocr.space/parse/image", {
           method: "POST",
-          body: formData
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+          },
+          body: formData.toString()
         });
 
         if (!res.ok) {

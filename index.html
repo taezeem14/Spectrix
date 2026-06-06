@@ -1333,19 +1333,13 @@
     /* Streaming Cursor */
     .msg.streaming > p:last-of-type::after,
     .msg.streaming > li:last-of-type::after,
-    .msg.streaming > div:last-of-type:not(.msg-actions):not(.thinking-block)::after,
-    .msg.streaming::after {
+    .msg.streaming > div:last-of-type:not(.msg-actions):not(.thinking-block)::after {
       content: '▊';
-      display: inline;
+      display: inline-block;
       margin-left: 4px;
       color: var(--accent, #6366f1);
       animation: blinkCursor 0.8s steps(2, start) infinite;
-      will-change: opacity;
       vertical-align: baseline;
-    }
-    /* Hide the fallback cursor when child elements exist (p/li/div already show their own) */
-    .msg.streaming:has(> p, > li, > div:not(.msg-actions):not(.thinking-block))::after {
-      display: none;
     }
     .msg.streaming {
       word-break: break-word;
@@ -2373,6 +2367,25 @@
 
     /* ===== MOBILE OPTIMIZED ===== */
     @media(max-width:768px) {
+      /* Mobile Streaming Cursor Override */
+      .msg.streaming > p:last-of-type::after,
+      .msg.streaming > li:last-of-type::after,
+      .msg.streaming > div:last-of-type:not(.msg-actions):not(.thinking-block)::after,
+      .msg.streaming::after {
+        content: '▊';
+        display: inline;
+        margin-left: 4px;
+        color: var(--accent, #6366f1);
+        animation: blinkCursor 0.8s steps(2, start) infinite;
+        will-change: opacity;
+        vertical-align: baseline;
+      }
+      /* Hide the fallback cursor on mobile when content elements exist or if currently thinking */
+      .msg.streaming.thinking::after,
+      .msg.streaming:has(> p, > li, > div:not(.msg-actions):not(.thinking-block))::after {
+        display: none !important;
+      }
+
       body {
         padding: 0;
         margin: 0;
