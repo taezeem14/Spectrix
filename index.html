@@ -5648,8 +5648,8 @@ Factuality guardrails:
     }
 
     async function optimizeImageForVision(file) {
-      // If the file is small (under 800KB), use it directly
-      if (file.size < 800 * 1024) {
+      // If the file is small (under 250KB), use it directly
+      if (file.size < 250 * 1024) {
         try {
           return await fileToBase64(file);
         } catch (err) {
@@ -9994,10 +9994,9 @@ Factuality guardrails:
       };
 
       let lastStreamRenderAt = 0;
-      const _isMobileViewport = window.innerWidth <= 768;
-      const STREAM_RENDER_MIN_INTERVAL_MS = _isMobileViewport ? 50 : 30;
-      const STREAM_RENDER_MIN_INTERVAL_WHILE_REVIEWING_MS = _isMobileViewport ? 110 : 85;
-      const STREAM_RENDER_MIN_INTERVAL_WHILE_POINTER_ACTIVE_MS = _isMobileViewport ? 120 : 95;
+      const STREAM_RENDER_MIN_INTERVAL_MS = 30;
+      const STREAM_RENDER_MIN_INTERVAL_WHILE_REVIEWING_MS = 85;
+      const STREAM_RENDER_MIN_INTERVAL_WHILE_POINTER_ACTIVE_MS = 95;
       let streamParseEventsSinceYield = 0;
       let lastStreamParseYieldAt = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
       const STREAM_PARSE_YIELD_EVENT_COUNT = 24;
