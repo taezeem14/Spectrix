@@ -194,6 +194,7 @@ Core strengths:
 ### ☁️ Google Auth + Cloud Sync
 - **Google Sign-In** via Firebase Auth (popup with redirect fallback)
 - **Persistent login sessions** — Firebase Auth is configured for local persistence, with session fallback when local persistence is unavailable
+- **Cookie Session Backup & Recovery** — Automatically backs up the serialized Firebase Auth credentials to a base64-encoded cookie. On boot, if storage (IndexedDB/LocalStorage) was evicted or blocked by the browser, the app restores the credentials from the cookie before initialization to keep the session alive.
 - **Session keepalive hardening** — redirect sign-in results are recovered on boot and ID tokens are periodically refreshed while signed in
 - **Real-time Firestore sync** — chats and memories auto-mirror create/update/delete when logged in
 - **Firebase Storage media sync** — image/video messages upload to cloud and render across signed-in devices
