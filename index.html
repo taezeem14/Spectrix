@@ -13536,8 +13536,12 @@ ${existingFacts.slice(0, 20).join('\n')}`;
         } else {
           const cloudTs = Number(data.timestamp || 0);
           const localTs = Number(local.timestamp || 0);
-          if (cloudTs > localTs) {
-            sessions[data.id] = data;
+          const localIncomplete = !local.messagesLoaded || !Array.isArray(local.messages) || (local.messages.length === 0 && Array.isArray(data.messages) && data.messages.length > 0);
+          if (cloudTs > localTs || localIncomplete) {
+            sessions[data.id] = {
+              ...data,
+              messagesLoaded: true
+            };
             await saveChatLocal(data);
             changed = true;
           } else if (localTs > cloudTs) {
@@ -13602,8 +13606,12 @@ ${existingFacts.slice(0, 20).join('\n')}`;
 
         const cloudTs = Number(data.timestamp || 0);
         const localTs = Number(local.timestamp || 0);
-        if (cloudTs > localTs) {
-          sessions[data.id] = data;
+        const localIncomplete = !local.messagesLoaded || !Array.isArray(local.messages) || (local.messages.length === 0 && Array.isArray(data.messages) && data.messages.length > 0);
+        if (cloudTs > localTs || localIncomplete) {
+          sessions[data.id] = {
+            ...data,
+            messagesLoaded: true
+          };
           await saveChatLocal(data);
           changed = true;
         } else if (localTs > cloudTs) {
