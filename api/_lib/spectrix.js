@@ -907,6 +907,50 @@ async function handleLeaderboardSubmit(req, res) {
   }
 }
 
+async function handleOcrRequest(req, res) {
+  if (handleOptions(req, res)) return;
+  if (req.method !== 'POST') {
+    return sendJson(req, res, 405, { error: 'Method not allowed' });
+  }
+
+  try {
+    const body = await safeJson(req);
+    const { base64image } = body;
+    if (!base64image) {
+      return sendJson(req, res, 400, { error: 'No image provided' });
+    }
+
+    const apiKey = process.env.OCR_SPACE_KEY || 'helloworld';
+    const formData = new URLSearchParams();
+    formData.append('apikey', apiKey);
+    formData.append('base64image', base64image);
+    formData.append('OCREngine', '2');
+    formData.append('language', 'eng');
+
+    const upstream = await fetch('https://api.ocr.space/parse/image', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: formData.toString()
+    });
+
+    if (!upstream.ok) {
+      const errorText = await upstream.text();
+      applyCors(req, res);
+      res.statusCode = upstream.status;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(errorText);
+      return;
+    }
+
+    const data = await upstream.json();
+    sendJson(req, res, 200, data);
+  } catch (error) {
+    sendJson(req, res, 500, { error: error.message || 'Unknown server error' });
+  }
+}
+
 module.exports = {
   handleChatJson,
   handleChatStream,
@@ -914,5 +958,6 @@ module.exports = {
   handleHfImage,
   handleHfVideo,
   handleLeaderboardTop,
-  handleLeaderboardSubmit
+  handleLeaderboardSubmit,
+  handleOcrRequest
 };

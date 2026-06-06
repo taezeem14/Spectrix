@@ -5625,8 +5625,149 @@ Factuality guardrails:
       return sanitizeAttachmentText(result?.value || '');
     }
 
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = (err) => reject(err);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function optimizeImageForVision(file) {
+      // If the file is small (under 800KB), use it directly
+      if (file.size < 800 * 1024) {
+        try {
+          return await fileToBase64(file);
+        } catch (err) {
+          console.warn('fileToBase64 failed, falling back to canvas resize:', err);
+        }
+      }
+
+      // Otherwise, scale it down using Canvas to ensure it fits comfortably within limits
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.src = url;
+        img.onload = () => {
+          URL.revokeObjectURL(url);
+          const largestSide = Math.max(img.width, img.height);
+          const maxDim = 1600;
+          let width = img.width;
+          let height = img.height;
+          
+          if (largestSide > maxDim) {
+            const scale = maxDim / largestSide;
+            width = Math.round(img.width * scale);
+            height = Math.round(img.height * scale);
+          }
+          
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            fileToBase64(file).then(resolve).catch(reject);
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          // Use image/jpeg with 0.85 quality to keep size small
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          resolve(dataUrl);
+        };
+        img.onerror = (err) => {
+          URL.revokeObjectURL(url);
+          fileToBase64(file).then(resolve).catch(reject);
+        };
+      });
+    }
+
+    async function getVisionBase64(source) {
+      if (typeof source === 'string' && source.startsWith('data:')) {
+        return source;
+      }
+      if (source instanceof HTMLCanvasElement) {
+        const largestSide = Math.max(source.width, source.height);
+        const maxDim = 1600;
+        if (largestSide > maxDim) {
+          const scale = maxDim / largestSide;
+          const tempCanvas = document.createElement('canvas');
+          tempCanvas.width = Math.round(source.width * scale);
+          tempCanvas.height = Math.round(source.height * scale);
+          const tempCtx = tempCanvas.getContext('2d');
+          if (tempCtx) {
+            tempCtx.drawImage(source, 0, 0, tempCanvas.width, tempCanvas.height);
+            return tempCanvas.toDataURL('image/jpeg', 0.85);
+          }
+        }
+        return source.toDataURL('image/jpeg', 0.85);
+      }
+      if (source instanceof Blob || source instanceof File) {
+        return optimizeImageForVision(source);
+      }
+      return fileToBase64(source);
+    }
+
+    async function extractTextViaOcrSpace(file) {
+      const base64DataUrl = await getVisionBase64(file);
+      
+      // OCR.space API proxy endpoint candidates.
+      const ocrCandidates = [
+        normalizeOrigin(CF_WORKER_ORIGIN) + '/ocr',
+        ...buildChatApiCandidates(['/ocr', '/api/ocr'])
+      ];
+
+      let lastError = null;
+      for (const url of ocrCandidates) {
+        try {
+          console.log(`Attempting OCR.space via proxy: ${url}`);
+          const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ base64image: base64DataUrl })
+          });
+
+          if (!res.ok) {
+            throw new Error(`Proxy responded with status ${res.status}`);
+          }
+
+          const data = await res.json();
+          if (data?.IsErroredOnProcessing) {
+            throw new Error(data.ErrorMessage || "OCR.space error");
+          }
+
+          const parsedText = data?.ParsedResults?.[0]?.ParsedText;
+          if (parsedText && parsedText.trim()) {
+            console.log("OCR.space extraction succeeded.");
+            return parsedText.trim();
+          }
+        } catch (err) {
+          console.warn(`OCR.space proxy failed for ${url}:`, err);
+          lastError = err;
+        }
+      }
+      throw lastError || new Error("All OCR.space endpoints failed");
+    }
+
     async function extractTextFromImageAttachment(file, options = {}) {
       const { gemmaSelected = false } = options;
+
+      // Try OCR.space API proxy first if online
+      if (navigator.onLine) {
+        try {
+          console.log(`Online: Attempting OCR.space for image: ${file.name}`);
+          showStatus(`Running OCR: ${file.name}...`);
+          const ocrText = await extractTextViaOcrSpace(file);
+          if (ocrText && ocrText.trim()) {
+            return ocrText;
+          }
+        } catch (ocrErr) {
+          console.warn('OCR.space failed, falling back to local Tesseract OCR:', ocrErr);
+        }
+      } else {
+        console.log(`Offline: Skipping OCR.space for image: ${file.name}, using local Tesseract OCR fallback.`);
+      }
+
       const primaryTimeoutMs = gemmaSelected ? Math.round(MAX_ATTACHMENT_OCR_TIMEOUT_MS * 1.8) : MAX_ATTACHMENT_OCR_TIMEOUT_MS;
 
       // 1. Prepare primary preprocessed source
