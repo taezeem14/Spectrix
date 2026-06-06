@@ -90,7 +90,7 @@ Core strengths:
 - **Rate-limit UX** — friendly in-app message, not a dead crash
 - **Web search mode** — powered by Firecrawl via OpenRouter (`Ctrl+Shift+S` to toggle)
 - **DeepSeek-style Collapsible Thinking Blocks** — parses and intercepts `<think>` tags inside the markdown sanitizer, turning reasoning streams into glassmorphic collapsible Details elements with rotating disclosure indicators and whitelisted sanitizer attributes
-- **Smooth Typewriter Streaming & Cursor** — renders text at an optimized 30ms throttle with frame-rescheduling to prevent dropped text blocks, and displays a terminal-style blinking cursor (`▊`) at the end of active text streams
+- **Smooth Typewriter Streaming & Cursor** — renders text at an optimized 30ms throttle (dynamic 50ms throttle on mobile viewports to prevent GPU/CPU jank) with frame-rescheduling to prevent dropped text blocks, and displays a terminal-style blinking cursor (`▊`) at the end of active text streams (featuring inline fallback support for early-stage text rendering)
 - **Loader Pill Sizing & Alignment** — fixes crooked/cropped layout engine boxes, aligning the "Thinking" placeholder into a centered, vertically aligned bubble with a minimum height of 48px
 - **Anti-hallucination guardrails** — avoids made-up facts/specs and asks for Web search when verification is needed for fast-changing information
 - **Enthusiastic full-detail responses** — default style is energetic and comprehensive
@@ -150,7 +150,12 @@ Core strengths:
 ### 📎 Multi-file Context
 - **Multi-file attachments** in chat input (up to 8 files)
 - **Text extraction** from plain/code files, PDF, and DOCX
-- **Image OCR extraction** via Tesseract.js with fallback passes (TextDetector + enhanced high-contrast retry)
+- **High-Fidelity Multi-Pass Image OCR** — client-side extraction pipeline utilizing Tesseract.js:
+  - *Pass 1 (Otsu + Sigmoid)*: Applies Otsu's Adaptive Thresholding and a Sigmoid contrast stretching curve to preserve mid-range details and eliminate background noise.
+  - *Pass 2 (Opposite-Invert)*: Inverts background colors as fallback if Pass 1 is rejected.
+  - *Pass 3 (Sharpened/Unsharp Mask)*: Performs client-side image sharpening using a 3x3 box blur unsharp mask to rescue blurry/anti-aliased text.
+  - *Pass 4 (TextDetector)*: Falls back to the native browser TextDetector API.
+  - *Quality Evaluator Heuristics*: Automatically scores OCR confidence, penalizing repetitive garbled characters, consecutive consonant runs, and single-character word floods to pick the cleanest result.
 - **Video OCR (Client-side)** — detects video formats, samples frames at regular intervals (every 4s, up to 10 frames), and runs local Tesseract.js OCR to compile timeline-annotated text logs (e.g. `[Video Frame at 00:04]...`)
 - **Local Audio Transcription (100% Free Whisper)** — decodes audio locally using the browser's built-in `AudioContext` and transcribes speech using a local Whisper model (`Xenova/whisper-tiny.en`) via `Transformers.js` loaded inside the sandbox with 0 server costs or API keys
 - **Gemma attachment behavior** — image files and scanned PDFs use external OCR fallback; DOCX extraction (Mammoth.js) stays bypassed for Gemma mode
@@ -184,6 +189,7 @@ Core strengths:
 - **Fresh-start opening** — app opens to a draft New Chat on page load; it is created/saved only after the first message
 - **Role-based link colors** — links are black in user messages and green in Spectrix/bot messages
 - **Centered status notifications** — in-app message popups appear centered just below the header (not over model selectors)
+- **Mobile-Optimized Layout Polish** — momentum scrolling (`-webkit-overflow-scrolling: touch`) on iOS, auto-wrapping attachment preview grids, code-block actions toolbar flex layout fixes (preventing overlapping buttons), and message horizontal overflow handling
 
 ### ☁️ Google Auth + Cloud Sync
 - **Google Sign-In** via Firebase Auth (popup with redirect fallback)
