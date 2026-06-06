@@ -6859,6 +6859,7 @@ Factuality guardrails:
       initCompatibilityEnhancements();
       updateThemeColorMeta();
       initMemorySystem();
+      runChatDeduplication().catch((err) => console.warn(err));
     }
 
 
@@ -13576,6 +13577,7 @@ ${existingFacts.slice(0, 20).join('\n')}`;
         updateHeaderTitle();
         await loadChatMessages();
       }
+      await runChatDeduplication();
     }
   }
 
@@ -13656,6 +13658,7 @@ ${existingFacts.slice(0, 20).join('\n')}`;
           await loadChatMessages();
         }
       }
+      await runChatDeduplication();
     } catch (e) {
       console.error("Sync error: ", e);
       const msg = String(e?.message || e || '').toLowerCase();
@@ -13663,6 +13666,89 @@ ${existingFacts.slice(0, 20).join('\n')}`;
         showStatus('Cloud sync blocked by a browser extension. Local IndexedDB is still working.');
       }
     }
+  }
+
+  let deduplicationInFlight = false;
+  async function runChatDeduplication() {
+    if (incognitoEnabled || deduplicationInFlight) return;
+    deduplicationInFlight = true;
+    try {
+      const allChats = await getAllChats();
+      if (!Array.isArray(allChats) || allChats.length <= 1) return;
+
+      const uniqueChats = [];
+      const duplicatesToRemove = [];
+
+      // Sort chats: current active chat first, then by timestamp descending
+      const sortedChats = [...allChats].sort((a, b) => {
+        if (a.id === currentId) return -1;
+        if (b.id === currentId) return 1;
+        return Number(b.timestamp || 0) - Number(a.timestamp || 0);
+      });
+
+      for (const chat of sortedChats) {
+        if (chat.transient) continue;
+
+        let isDuplicate = false;
+        for (const unique of uniqueChats) {
+          if (areChatsDuplicate(chat, unique)) {
+            isDuplicate = true;
+            break;
+          }
+        }
+
+        if (isDuplicate) {
+          duplicatesToRemove.push(chat);
+        } else {
+          uniqueChats.push(chat);
+        }
+      }
+
+      if (duplicatesToRemove.length > 0) {
+        console.log(`Deduplication: removing ${duplicatesToRemove.length} duplicate chats.`);
+        for (const duplicate of duplicatesToRemove) {
+          const idStr = String(duplicate.id);
+          if (sessions[idStr]) {
+            delete sessions[idStr];
+          }
+          await deleteChatFromDB(idStr);
+          await deleteChatFromCloud(idStr);
+          deletedChatTombstones.add(idStr);
+        }
+        persistDeletedChatTombstones();
+        renderHistory();
+      }
+    } catch (err) {
+      console.warn('Chat deduplication failed:', err);
+    } finally {
+      deduplicationInFlight = false;
+    }
+  }
+
+  function areChatsDuplicate(chatA, chatB) {
+    if (chatA.branchOf || chatB.branchOf) return false;
+
+    const msgsA = Array.isArray(chatA.messages) ? chatA.messages : [];
+    const msgsB = Array.isArray(chatB.messages) ? chatB.messages : [];
+
+    if (msgsA.length === 0 && msgsB.length === 0) {
+      return true;
+    }
+
+    if (msgsA.length !== msgsB.length) return false;
+
+    for (let i = 0; i < msgsA.length; i++) {
+      const msgA = msgsA[i];
+      const msgB = msgsB[i];
+      if (msgA.role !== msgB.role) return false;
+      if (msgA.content !== msgB.content) return false;
+
+      const attsA = Array.isArray(msgA.attachments) ? msgA.attachments : [];
+      const attsB = Array.isArray(msgB.attachments) ? msgB.attachments : [];
+      if (attsA.length !== attsB.length) return false;
+    }
+
+    return true;
   }
 
   async function syncMemories(uid) {

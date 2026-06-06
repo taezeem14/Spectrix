@@ -190,6 +190,7 @@ Core strengths:
 - **Role-based link colors** — links are black in user messages and green in Spectrix/bot messages
 - **Centered status notifications** — in-app message popups appear centered just below the header (not over model selectors)
 - **Mobile-Optimized Layout Polish** — momentum scrolling (`-webkit-overflow-scrolling: touch`) on iOS, auto-wrapping attachment preview grids, code-block actions toolbar flex layout fixes (preventing overlapping buttons), and message horizontal overflow handling
+- **Automatic Chat Deduplication** — automatically scans and removes duplicate chats (with identical message histories and attachments, excluding branched chats) across local IndexedDB and Firestore cloud databases on page load, database syncs, and real-time updates to keep the sidebar history clean.
 
 ### ☁️ Google Auth + Cloud Sync
 - **Google Sign-In** via Firebase Auth (popup with redirect fallback)
