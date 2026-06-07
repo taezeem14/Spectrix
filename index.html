@@ -8880,7 +8880,7 @@ Factuality guardrails:
       return chat.scrollHeight - chat.scrollTop - chat.clientHeight < threshold;
     }
 
-    function scrollChatToLatest({ smooth = false, force = false } = {}) {
+    function scrollChatToLatest({ smooth = false, force = false, sync = false } = {}) {
       if (!chat) return;
       if (!force && !autoScrollToLatest) return;
 
@@ -8896,7 +8896,7 @@ Factuality guardrails:
         return;
       }
 
-      if (force) {
+      if (force || sync) {
         chat.scrollTop = targetTop;
         return;
       }
@@ -9997,7 +9997,7 @@ Factuality guardrails:
       };
 
       let lastStreamRenderAt = 0;
-      const STREAM_RENDER_MIN_INTERVAL_MS = 30;
+      const STREAM_RENDER_MIN_INTERVAL_MS = 16;
       const STREAM_RENDER_MIN_INTERVAL_WHILE_REVIEWING_MS = 85;
       const STREAM_RENDER_MIN_INTERVAL_WHILE_POINTER_ACTIVE_MS = 95;
       let streamParseEventsSinceYield = 0;
@@ -10024,10 +10024,11 @@ Factuality guardrails:
           d.classList.remove("gemma-theme");
         }
 
-        renderMath(d);
+        // Defer renderMath during active streaming to prevent massive layout thrashing and LaTeX flashing.
+        // MathJax/KaTeX rendering will run once when stream finishes in finalizeRenderedMessage().
 
         pendingDeltaText = "";
-        scrollChatToLatest({ smooth: false });
+        scrollChatToLatest({ smooth: false, sync: true });
       };
 
       streamResumeRenderCallback = () => {
