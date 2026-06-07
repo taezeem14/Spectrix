@@ -3818,8 +3818,8 @@
           </div>
           <div class="select-wrap" style="display: none;">
             <select id="textModelSelect" title="Choose text model">
-              <option value="nvidia/nemotron-3-ultra-550b-a55b:free">Nemotron 3 Ultra (Temporary)</option>
               <option value="poolside/laguna-m.1:free">Laguna M.1 (Coding • Fast)</option>
+              <option value="nvidia/nemotron-3-ultra-550b-a55b:free">Nemotron 3 Ultra (Temporary)</option>
             </select>
           </div>
           <div class="select-wrap active-skill-indicator" id="activeSkillIndicator" style="display:none;">
@@ -6293,7 +6293,7 @@ Factuality guardrails:
 
       throw lastError || new Error('Chat request failed');
     }
-    const DEFAULT_TEXT_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free";
+    const DEFAULT_TEXT_MODEL = "poolside/laguna-m.1:free";
     const ALLOWED_TEXT_MODELS = new Set([
       "nvidia/nemotron-3-ultra-550b-a55b:free",
       "poolside/laguna-m.1:free",
@@ -6301,8 +6301,8 @@ Factuality guardrails:
       "openai/gpt-oss-120b:free:online"
     ]);
     const LEGACY_TEXT_MODEL_MIGRATIONS = new Map([
-      ["openai/gpt-oss-20b:free", "nvidia/nemotron-3-ultra-550b-a55b:free"],
-      ["poolside/laguna-m.1:free", "nvidia/nemotron-3-ultra-550b-a55b:free"]
+      ["openai/gpt-oss-20b:free", "poolside/laguna-m.1:free"],
+      ["nvidia/nemotron-3-ultra-550b-a55b:free", "poolside/laguna-m.1:free"]
     ]);
     const DEPRECATED_TEXT_MODELS = new Set([
       "stepfun/step-3.5-flash:free",
