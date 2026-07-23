@@ -39,6 +39,7 @@
   <script src="https://js.puter.com/v2/"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/styles/github-dark.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/highlight.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/languages/go.min.js"></script>
   <script>
@@ -3759,34 +3760,32 @@
 
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
     <div class="sidebar" id="sidebar" aria-label="Chat history sidebar">
-      <button class="menu-close-btn" onclick="toggleSidebar()" aria-label="Close sidebar">✕</button>
+      <button class="menu-close-btn" onclick="toggleSidebar()" aria-label="Close sidebar"><i class="fas fa-times"></i></button>
       <div class="sidebar-header">
-        <input type="text" class="search-box" id="searchBox" placeholder="🔍 Search chats..." aria-label="Search chats">
+        <input type="text" class="search-box" id="searchBox" placeholder="Search chats..." aria-label="Search chats">
         <div class="sidebar-controls">
           <button class="new-chat-btn" id="newChatBtn" onclick="newChat()" aria-label="Create new chat">+ New</button>
-          <button class="export-btn" onclick="exportAll()" aria-label="Export all chats">📥</button>
-          <button class="import-btn" onclick="importAll()" aria-label="Import chats">📤</button>
+          <button class="export-btn" onclick="exportAll()" aria-label="Export all chats"><i class="fas fa-download"></i></button>
+          <button class="import-btn" onclick="importAll()" aria-label="Import chats"><i class="fas fa-upload"></i></button>
         </div>
       </div>
       <div class="history-list" id="historyList"></div>
       <div class="sidebar-footer">
         <div class="settings-wrap" id="settingsWrap">
           <button class="sidebar-settings-btn" id="settingsBtn" onclick="toggleSettingsMenu(event)"
-            aria-expanded="false" aria-haspopup="menu" aria-label="Open settings">⚙️ Settings</button>
+            aria-expanded="false" aria-haspopup="menu" aria-label="Open settings"><i class="fas fa-cog"></i> Settings</button>
           <div class="settings-menu" id="settingsMenu" role="menu" aria-label="Settings menu">
             <button class="settings-item" id="settingsAuthBtn" type="button"
-              onclick="openProfileActions();closeSettingsMenu();" role="menuitem" title="Sign in with Google">🔐 Sign in
-              with Google</button>
-            <button class="settings-item" type="button" onclick="exportChat();closeSettingsMenu();" role="menuitem">💾
-              Export current chat</button>
+              onclick="openProfileActions();closeSettingsMenu();" role="menuitem" title="Sign in with Google"><i class="fas fa-lock"></i> Sign in with Google</button>
+            <button class="settings-item" type="button" onclick="exportChat();closeSettingsMenu();" role="menuitem"><i class="fas fa-save"></i> Export current chat</button>
             <button class="settings-item" type="button" onclick="exportChatPdf();closeSettingsMenu();"
-              role="menuitem">📄 Export chat as PDF</button>
+              role="menuitem"><i class="fas fa-file-pdf"></i> Export chat as PDF</button>
             <button class="settings-item" type="button" onclick="exportChatDocx();closeSettingsMenu();"
-              role="menuitem">📝 Export chat as DOCX</button>
+              role="menuitem"><i class="fas fa-file-word"></i> Export chat as DOCX</button>
             <button class="settings-item" type="button" onclick="clearAllChats();closeSettingsMenu();"
-              role="menuitem" style="color: #ef4444;">🗑️ Clear all chats</button>
+              role="menuitem" style="color: #ef4444;"><i class="fas fa-trash-alt"></i> Clear all chats</button>
             <button class="settings-item memory-toggle" type="button" onclick="toggleMemoryPanel();closeSettingsMenu();"
-              role="menuitem">🧠 AI Memory <span class="memory-badge" id="memoryBadge"
+              role="menuitem"><i class="fas fa-brain"></i> AI Memory <span class="memory-badge" id="memoryBadge"
                 style="display:none;">0</span></button>
           </div>
         </div>
@@ -3796,17 +3795,17 @@
     <div class="app">
       <header>
         <div style="display:flex;align-items:center;gap:10px">
-          <button class="menu-btn" onclick="toggleSidebar()" aria-label="Open sidebar" aria-expanded="false">☰</button>
+          <button class="menu-btn" onclick="toggleSidebar()" aria-label="Open sidebar" aria-expanded="false"><i class="fas fa-bars"></i></button>
           <span id="headerTitle" ondblclick="editTitle()">Spectrix AI</span>
         </div>
         <div class="controls">
-          <button class="toggle" onclick="copyAll()" aria-label="Copy all messages">📋</button>
-          <button class="toggle" onclick="clearChat()" aria-label="Clear current chat">🗑️</button>
-          <button class="toggle" onclick="toggleTheme()" aria-label="Toggle theme" title="Toggle theme">🌗</button>
+          <button class="toggle" onclick="copyAll()" aria-label="Copy all messages"><i class="fas fa-copy"></i></button>
+          <button class="toggle" onclick="clearChat()" aria-label="Clear current chat"><i class="fas fa-trash-alt"></i></button>
+          <button class="toggle" onclick="toggleTheme()" aria-label="Toggle theme" title="Toggle theme"><i class="fas fa-adjust"></i></button>
           <button class="toggle" id="incognitoToggle" onclick="toggleIncognitoMode()" aria-label="Toggle incognito mode"
-            title="Incognito: OFF">🕶️</button>
+            title="Incognito: OFF"><i class="fas fa-user-secret"></i></button>
           <button class="toggle tts-toggle" id="ttsToggle" onclick="toggleTTS()"
-            title="Toggle Text-to-Speech">🔊</button>
+            title="Toggle Text-to-Speech"><i class="fas fa-volume-up"></i></button>
           <div class="select-wrap">
             <select id="imageModel">
               <option value="google/imagen-4.0-ultra">Imagen 4 Ultra</option>
@@ -3824,7 +3823,7 @@
           </div>
           <div class="select-wrap active-skill-indicator" id="activeSkillIndicator" style="display:none;">
             <div class="custom-select-trigger" style="cursor:default; pointer-events:none;">
-              <span class="custom-select-label"><span style="color:#fbbf24;">★</span> <span id="activeSkillName">Skill</span></span>
+              <span class="custom-select-label"><span style="color:#fbbf24;"><i class="fas fa-star"></i></span> <span id="activeSkillName">Skill</span></span>
             </div>
           </div>
           <img class="auth-pill-avatar header-avatar" id="headerAvatar" src="" alt="" style="display:none;" onclick="openProfileActions()">
@@ -3833,7 +3832,7 @@
 
       <main id="chat" role="log" aria-live="polite" aria-label="Chat messages"></main>
       <button class="scroll-bottom" id="scrollBottom" onclick="scrollToBottom()"
-        aria-label="Scroll to latest message">↓</button>
+        aria-label="Scroll to latest message"><i class="fas fa-arrow-down"></i></button>
 
       <footer>
         <div class="quick-actions" id="quickActions">
@@ -3842,19 +3841,18 @@
           <div class="quick-actions-menu" id="quickActionsMenu" role="menu" aria-label="Quick actions">
 
             <button class="quick-action-item" type="button" onclick="openAttachmentPicker();closeQuickActionsMenu();"
-              role="menuitem">📎 Add files or photos</button>
+              role="menuitem"><i class="fas fa-paperclip"></i> Add files or photos</button>
             <button class="quick-action-item" id="voiceBtn" type="button"
-              onclick="toggleVoiceInput();closeQuickActionsMenu();" aria-label="Start voice input" role="menuitem">🎤
-              Voice input</button>
+              onclick="toggleVoiceInput();closeQuickActionsMenu();" aria-label="Start voice input" role="menuitem"><i class="fas fa-microphone"></i> Voice input</button>
             <button class="quick-action-item" id="searchToggleBtn" type="button"
               onclick="toggleWebSearch();closeQuickActionsMenu();" aria-label="Toggle web search"
-              title="Web Search: OFF" role="menuitem">🌐 Web search: OFF</button>
+              title="Web Search: OFF" role="menuitem"><i class="fas fa-globe"></i> Web search: OFF</button>
             <button class="quick-action-item" type="button"
               onclick="openCommandPalette();closeQuickActionsMenu();" aria-label="Open Command Palette"
-              role="menuitem">⌨️ Command Palette</button>
+              role="menuitem"><i class="fas fa-keyboard"></i> Command Palette</button>
             <button class="quick-action-item" type="button"
               onclick="toggleSkillsPanel();closeQuickActionsMenu();" aria-label="Open Skills"
-              role="menuitem">🛠️ Skills Manager</button>
+              role="menuitem"><i class="fas fa-tools"></i> Skills Manager</button>
           </div>
         </div>
         <div class="input-container">
@@ -3881,12 +3879,12 @@
   <div class="memory-overlay" id="memoryOverlay" onclick="toggleMemoryPanel()"></div>
   <div class="memory-panel" id="memoryPanel">
     <div class="memory-panel-header">
-      <h3>🧠 AI Memory <span class="memory-count" id="memoryPanelCount"></span></h3>
+      <h3><i class="fas fa-brain"></i> AI Memory <span class="memory-count" id="memoryPanelCount"></span></h3>
       <div class="memory-panel-actions">
         <button onclick="addManualMemory()">+ Add</button>
         <button onclick="cleanupMemories()">Clean up</button>
         <button class="danger" onclick="clearAllMemories()">Clear All</button>
-        <button onclick="toggleMemoryPanel()">✕</button>
+        <button onclick="toggleMemoryPanel()"><i class="fas fa-times"></i></button>
       </div>
     </div>
     <div class="memory-list" id="memoryList"></div>
@@ -3902,10 +3900,10 @@
   <div class="memory-overlay" id="skillsOverlay" onclick="toggleSkillsPanel()"></div>
   <div class="memory-panel" id="skillsPanel">
     <div class="memory-panel-header">
-      <h3>🛠️ Skills <span class="memory-count" id="skillsPanelCount"></span></h3>
+      <h3><i class="fas fa-tools"></i> Skills <span class="memory-count" id="skillsPanelCount"></span></h3>
       <div class="memory-panel-actions">
         <button onclick="addSkill()">+ Add</button>
-        <button onclick="toggleSkillsPanel()">✕</button>
+        <button onclick="toggleSkillsPanel()"><i class="fas fa-times"></i></button>
       </div>
     </div>
     <div class="memory-list" id="skillsList"></div>
@@ -7271,7 +7269,7 @@ Factuality guardrails:
       const btn = document.getElementById('voiceBtn');
       if (!btn) return;
       btn.classList.toggle('recording', !!isRecording);
-      btn.textContent = isRecording ? '⏺ Stop voice input' : '🎤 Voice input';
+      btn.innerHTML = isRecording ? '<i class="fas fa-stop"></i> Stop voice input' : '<i class="fas fa-microphone"></i> Voice input';
     }
 
     function initVoiceUiState() {
@@ -7280,17 +7278,17 @@ Factuality guardrails:
       if (micBtn) {
         if (supportsMic) {
           micBtn.classList.remove('disabled');
-          micBtn.textContent = '🎤 Voice input';
+          micBtn.innerHTML = '<i class="fas fa-microphone"></i> Voice input';
         } else {
           micBtn.classList.add('disabled');
-          micBtn.textContent = '🎤 Voice unavailable';
+          micBtn.innerHTML = '<i class="fas fa-microphone-slash"></i> Voice unavailable';
         }
       }
 
       const btn = document.getElementById('ttsToggle');
       if (btn) {
         btn.classList.toggle('active', ttsEnabled);
-        btn.textContent = ttsEnabled ? '🔊' : '🔇';
+        btn.innerHTML = ttsEnabled ? '<i class="fas fa-volume-up"></i>' : '<i class="fas fa-volume-mute"></i>';
       }
     }
 
@@ -7323,7 +7321,7 @@ Factuality guardrails:
 
         if (event.error === 'no-speech') return;
         if (event.error === 'not-allowed') {
-          showAppAlert('Mic permission denied, dawg. Check browser settings 🎤❌', 'Voice Permission');
+          showAppAlert('Mic permission denied. Check browser settings.', 'Voice Permission');
         } else {
           showAppAlert(`Voice input error: ${event.error}`, 'Voice Error');
         }
@@ -7351,7 +7349,7 @@ Factuality guardrails:
     async function toggleVoiceInput() {
       const ready = await ensureVoiceRecognitionReady();
       if (!ready || !recognition) {
-        await showAppAlert('Speech recognition not supported in your browser 😢', 'Unsupported');
+        await showAppAlert('Speech recognition not supported in your browser.', 'Unsupported');
         return;
       }
 
@@ -7376,7 +7374,7 @@ Factuality guardrails:
       localStorage.setItem(TTS_KEY, ttsEnabled);
       const btn = document.getElementById('ttsToggle');
       btn.classList.toggle('active', ttsEnabled);
-      btn.textContent = ttsEnabled ? '🔊' : '🔇';
+      btn.innerHTML = ttsEnabled ? '<i class="fas fa-volume-up"></i>' : '<i class="fas fa-volume-mute"></i>';
 
       if (!ttsEnabled && currentUtterance) {
         window.speechSynthesis.cancel();
@@ -7588,7 +7586,7 @@ Factuality guardrails:
         req.onblocked = () => resolve(); // unblock and continue
       });
 
-      await showAppAlert("Don't Get Greedy, Now Enjoy 💀", 'Spectrix Reset');
+      await showAppAlert("Don't Get Greedy, Now Enjoy", 'Spectrix Reset');
       location.reload();
     }
 
@@ -7826,7 +7824,7 @@ Factuality guardrails:
 
         const titleDiv = document.createElement("div");
         titleDiv.className = "history-group-title";
-        titleDiv.textContent = title;
+        titleDiv.innerHTML = title;
         groupDiv.appendChild(titleDiv);
 
         items.forEach(s => {
@@ -7846,7 +7844,7 @@ Factuality guardrails:
 
           const pin = document.createElement("button");
           pin.className = "pin-chat";
-          pin.textContent = s.pinned ? "⭐" : "☆";
+          pin.innerHTML = s.pinned ? '<i class="fas fa-thumbtack" style="color: #fbbf24;"></i>' : '<i class="fas fa-thumbtack" style="opacity: 0.5;"></i>';
           pin.onclick = (e) => {
             e.stopPropagation();
             togglePin(s.id);
@@ -7854,7 +7852,7 @@ Factuality guardrails:
 
           const del = document.createElement("button");
           del.className = "delete-chat";
-          del.textContent = "✕";
+          del.innerHTML = '<i class="fas fa-trash-alt"></i>';
           del.onclick = (e) => {
             e.stopPropagation();
             deleteChatHandler(s.id);
@@ -7873,7 +7871,7 @@ Factuality guardrails:
         historyList.appendChild(groupDiv);
       };
 
-      renderGroup("📌 PINNED", groups.pinned);
+      renderGroup('<i class="fas fa-thumbtack"></i> PINNED', groups.pinned);
       renderGroup("TODAY", groups.today);
       renderGroup("YESTERDAY", groups.yesterday);
       renderGroup("THIS WEEK", groups.week);
@@ -8309,7 +8307,7 @@ Factuality guardrails:
     }
 
     async function clearAllChats() {
-      const shouldDelete = await showAppConfirm("Clear ALL chats? This will wipe them from all your devices. Memories will be kept. 💀", {
+      const shouldDelete = await showAppConfirm("Clear ALL chats? This will wipe them from all your devices. Memories will be kept.", {
         title: 'Clear All Chats',
         okText: 'Wipe Everything'
       });
@@ -8331,7 +8329,7 @@ Factuality guardrails:
 
     async function deleteChatHandler(id) {
       if (localStorage.getItem(DELETE_CONFIRM_SKIP_KEY) !== 'true') {
-        const shouldDelete = await showAppConfirm("Delete this chat? 💀", {
+        const shouldDelete = await showAppConfirm("Delete this chat?", {
           title: 'Delete Chat',
           okText: 'Delete',
           dontAskAgainKey: DELETE_CONFIRM_SKIP_KEY
@@ -8358,7 +8356,7 @@ Factuality guardrails:
     }
 
     async function clearChat() {
-      const shouldClear = await showAppConfirm("Clear current chat? This cannot be undone 💀", {
+      const shouldClear = await showAppConfirm("Clear current chat? This cannot be undone.", {
         title: 'Clear Chat',
         okText: 'Clear'
       });
@@ -8369,7 +8367,7 @@ Factuality guardrails:
       session.autoTitled = false;
       await saveSessions();
       chat.innerHTML = "";
-      render("bot", "**Chat cleared. Fresh slate 😎✨**", false);
+      render("bot", "**Chat cleared. Fresh slate.**", false);
     }
 
     function toggleSidebar() {
@@ -8447,7 +8445,7 @@ Factuality guardrails:
 
       btn.classList.toggle('active', webSearchEnabled);
       btn.title = webSearchEnabled ? 'Web Search: ON' : 'Web Search: OFF';
-      btn.textContent = webSearchEnabled ? '🌐 Web search: ON' : '🌐 Web search: OFF';
+      btn.innerHTML = webSearchEnabled ? '<i class="fas fa-globe"></i> Web search: ON' : '<i class="fas fa-globe"></i> Web search: OFF';
     }
 
     function toggleWebSearch() {
@@ -8753,7 +8751,7 @@ Factuality guardrails:
         }
       });
       copyTextPortable(text).then((ok) => {
-        showStatus(ok ? "📋 Chat copied!" : "Could not copy on this device.");
+        showStatus(ok ? "Chat copied!" : "Could not copy on this device.");
       });
     }
 
@@ -8816,10 +8814,10 @@ Factuality guardrails:
               showStatus(`Skipped ${skipped} invalid chat entr${skipped === 1 ? 'y' : 'ies'} during import.`, 3200);
             }
             renderHistory();
-            await showAppAlert("✅ Chats imported successfully!", 'Import Complete');
+            await showAppAlert("Chats imported successfully!", 'Import Complete');
           }
         } catch {
-          await showAppAlert("❌ Invalid file format!", 'Import Failed');
+          await showAppAlert("Invalid file format!", 'Import Failed');
         }
       };
       reader.readAsText(file);
@@ -10276,7 +10274,7 @@ Factuality guardrails:
       }
 
       if (showContinue && renderedText.trim()) {
-        showStatus('⚡ Response appears incomplete. Use "Continue" below to resume.', 5000);
+        showStatus('Response appears incomplete. Use "Continue" below to resume.', 5000);
       }
 
       // Play TTS once final text is complete.
@@ -10612,7 +10610,7 @@ Create a concise title that captures the main topic of this conversation.
             canceledMediaGenerationTokens.delete(mediaToken);
             loading.remove();
             if (activeGenerationLoadingNode === loading) activeGenerationLoadingNode = null;
-            render("bot", "**Error generating response 💀** " + err.message);
+            render("bot", "**Error generating response** " + err.message);
           }
         }
         else if (isVideo) {
@@ -10674,7 +10672,7 @@ Create a concise title that captures the main topic of this conversation.
             canceledMediaGenerationTokens.delete(mediaToken);
             loading.remove();
             if (activeGenerationLoadingNode === loading) activeGenerationLoadingNode = null;
-            render("bot", "**Error generating response 💀** " + err.message);
+            render("bot", "**Error generating response** " + err.message);
           }
         }
         else {
@@ -10889,10 +10887,10 @@ Create a concise title that captures the main topic of this conversation.
 
         if (err.isRateLimit) {
           const secs = err.retryAfter || 30;
-          const rateLimitMsg = `**⏳ Whoa, slow down bro!** The AI provider is rate-limiting us right now.\n\nTry again in about **${secs} seconds**. This usually happens when too many requests are sent in a short time.\n\n> 💡 *Tip: Wait a moment, then tap 🔄 Retry below.*`;
+          const rateLimitMsg = `**Whoa, slow down!** The AI provider is rate-limiting us right now.\n\nTry again in about **${secs} seconds**. This usually happens when too many requests are sent in a short time.\n\n> *Tip: Wait a moment, then tap Retry below.*`;
           render("bot", rateLimitMsg);
         } else {
-          render("bot", "**Error generating response 💀** " + err.message);
+          render("bot", "**Error generating response** " + err.message);
         }
       } finally {
         isGenerating = false;
@@ -11401,7 +11399,7 @@ Create a concise title that captures the main topic of this conversation.
       }
 
       if (action === 'voice') {
-        showStatus('Tap 🎤 to start voice input');
+        showStatus('Tap the microphone icon to start voice input');
       }
 
       const launchText = [sharedTitle, sharedText, sharedUrl, promptParam]
@@ -11643,7 +11641,7 @@ Create a concise title that captures the main topic of this conversation.
           if (!lastBot) return;
           e.preventDefault();
           copyTextPortable(lastBot.content).then((ok) => {
-            showStatus(ok ? '📋 Last response copied.' : 'Could not copy on this device.');
+            showStatus(ok ? 'Last response copied.' : 'Could not copy on this device.');
           });
         }
       });
@@ -11671,12 +11669,12 @@ Create a concise title that captures the main topic of this conversation.
 
     // ===== AI MEMORY SYSTEM =====
     const MEMORY_CATEGORIES = {
-      personal: '👤',
-      preference: '⭐',
-      technical: '💻',
-      interest: '🎯',
-      context: '📌',
-      general: '🧠'
+      personal: '<i class="fas fa-user"></i>',
+      preference: '<i class="fas fa-star"></i>',
+      technical: '<i class="fas fa-code"></i>',
+      interest: '<i class="fas fa-bullseye"></i>',
+      context: '<i class="fas fa-thumbtack"></i>',
+      general: '<i class="fas fa-brain"></i>'
     };
 
     const MEMORY_NOISE_SINGLETONS = new Set([
@@ -11756,7 +11754,7 @@ Create a concise title that captures the main topic of this conversation.
       if (memories.length === 0) {
         list.innerHTML = `
       <div class="memory-empty">
-        <div class="empty-icon">🧠</div>
+        <div class="empty-icon"><i class="fas fa-brain"></i></div>
         <div class="empty-text">No memories yet</div>
         <div class="empty-hint">Chat with AI and it will automatically remember important things about you.</div>
       </div>
@@ -11771,7 +11769,7 @@ Create a concise title that captures the main topic of this conversation.
 
         const icon = document.createElement('span');
         icon.className = 'memory-icon';
-        icon.textContent = MEMORY_CATEGORIES[mem.category] || '🧠';
+        icon.innerHTML = MEMORY_CATEGORIES[mem.category] || '<i class="fas fa-brain"></i>';
 
         const text = document.createElement('span');
         text.className = 'memory-text';
@@ -11783,7 +11781,7 @@ Create a concise title that captures the main topic of this conversation.
 
         const del = document.createElement('button');
         del.className = 'memory-delete';
-        del.textContent = '✕';
+        del.innerHTML = '<i class="fas fa-times"></i>';
         del.onclick = async () => {
           await deleteMemory(mem.id);
           await renderMemoryList();
@@ -11825,11 +11823,11 @@ Create a concise title that captures the main topic of this conversation.
       await saveMemory(memory);
       await renderMemoryList();
       await updateMemoryBadge();
-      showStatus('Memory saved 🧠');
+      showStatus('Memory saved');
     }
 
     async function clearAllMemories() {
-      const shouldClear = await showAppConfirm('Delete all AI memories? This cannot be undone. 💀', {
+      const shouldClear = await showAppConfirm('Delete all AI memories? This cannot be undone.', {
         title: 'Clear AI Memory',
         okText: 'Delete'
       });
@@ -11838,7 +11836,7 @@ Create a concise title that captures the main topic of this conversation.
       await clearAllMemoriesFromCloud();
       await renderMemoryList();
       await updateMemoryBadge();
-      showStatus('All memories cleared 🗑️');
+      showStatus('All memories cleared');
     }
 
     function normalizeMemoryTextForCleanup(value) {
@@ -12799,7 +12797,7 @@ ${existingFacts.slice(0, 20).join('\n')}`;
 
       const btn = document.createElement('button');
       btn.id = "installBtn";
-      btn.textContent = '📲 Install App';
+      btn.innerHTML = '<i class="fas fa-mobile-alt"></i> Install App';
 
       btn.style.cssText = `
     position:fixed;bottom:calc(80px + env(safe-area-inset-bottom, 0px));right:20px;
@@ -13555,10 +13553,10 @@ ${existingFacts.slice(0, 20).join('\n')}`;
     const settingsAuthBtn = document.getElementById('settingsAuthBtn');
     if (settingsAuthBtn) {
       if (user) {
-        settingsAuthBtn.textContent = '👤 Account actions';
+        settingsAuthBtn.innerHTML = '<i class="fas fa-user"></i> Account actions';
         settingsAuthBtn.title = 'Open profile actions and backup options';
       } else {
-        settingsAuthBtn.textContent = '🔐 Sign in with Google';
+        settingsAuthBtn.innerHTML = '<i class="fas fa-lock"></i> Sign in with Google';
         settingsAuthBtn.title = 'Sign in with Google';
       }
     }
@@ -14249,7 +14247,7 @@ Remember:  Spectrix is capable of extraordinary creative work. Don't hold back, 
 
     list.innerHTML = '';
     if (spectrixSkills.length === 0) {
-      list.innerHTML = `<div class="memory-empty"><div class="empty-icon">🛠️</div><div class="empty-text">No skills added</div></div>`;
+      list.innerHTML = `<div class="memory-empty"><div class="empty-icon"><i class="fas fa-tools"></i></div><div class="empty-text">No skills added</div></div>`;
       return;
     }
 
@@ -14265,7 +14263,7 @@ Remember:  Spectrix is capable of extraordinary creative work. Don't hold back, 
 
       const icon = document.createElement('span');
       icon.className = 'memory-icon';
-      icon.textContent = skill.id === spectrixActiveSkillId ? '★' : '🛠️';
+      icon.innerHTML = skill.id === spectrixActiveSkillId ? '<i class="fas fa-star"></i>' : '<i class="fas fa-tools"></i>';
       if (skill.id === spectrixActiveSkillId) {
         icon.style.color = '#fbbf24';
       }
@@ -14288,13 +14286,13 @@ Remember:  Spectrix is capable of extraordinary creative work. Don't hold back, 
 
       const editBtn = document.createElement('button');
       editBtn.className = 'memory-delete';
-      editBtn.textContent = '✎';
+      editBtn.innerHTML = '<i class="fas fa-edit"></i>';
       editBtn.style.marginRight = '8px';
       editBtn.onclick = async () => await editSkill(skill.id);
 
       const delBtn = document.createElement('button');
       delBtn.className = 'memory-delete';
-      delBtn.textContent = '✕';
+      delBtn.innerHTML = '<i class="fas fa-times"></i>';
       delBtn.onclick = async () => await deleteSkill(skill.id);
 
       item.appendChild(icon);
