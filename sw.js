@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v7';
+const CACHE_VERSION = 'v8';
 const CACHE_PREFIX = 'spectrix';
 const SHELL_CACHE = `${CACHE_PREFIX}-shell-${CACHE_VERSION}`;
 const PAGE_CACHE = `${CACHE_PREFIX}-pages-${CACHE_VERSION}`;
@@ -7,7 +7,7 @@ const IMAGE_CACHE = `${CACHE_PREFIX}-images-${CACHE_VERSION}`;
 
 const APP_SHELL = [
   '/',
-  '/chat.html',
+  '/styles.css',
   '/site.webmanifest',
   '/favicon.ico',
   '/favicon-16x16.png',
