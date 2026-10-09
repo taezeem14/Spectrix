@@ -3717,6 +3717,7 @@
       box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
     }
   </style>
+  <link rel="stylesheet" href="/styles.css">
 
   <!-- Firebase Compat -->
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -3760,33 +3761,52 @@
 
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
     <div class="sidebar" id="sidebar" aria-label="Chat history sidebar">
-      <button class="menu-close-btn" onclick="toggleSidebar()" aria-label="Close sidebar"><i class="fas fa-times"></i></button>
+      <div class="sidebar-top">
+        <div class="sidebar-brand-row">
+          <div class="sidebar-brand">
+            <div class="brand-icon-chip"><i class="fas fa-bolt"></i></div>
+            <span>Spectrix</span>
+            <span class="brand-badge-version">v2.0</span>
+          </div>
+          <button class="menu-close-btn" onclick="toggleSidebar()" aria-label="Close sidebar"><i class="fas fa-times"></i></button>
+        </div>
+        <button class="new-chat-btn" id="newChatBtn" onclick="newChat()" aria-label="Create new chat">
+          <span><i class="fas fa-plus"></i> New Chat</span>
+          <kbd>Ctrl+B</kbd>
+        </button>
+      </div>
+
       <div class="sidebar-header">
-        <input type="text" class="search-box" id="searchBox" placeholder="Search chats..." aria-label="Search chats">
+        <div class="search-wrap">
+          <i class="fas fa-search search-icon"></i>
+          <input type="text" class="search-box" id="searchBox" placeholder="Search chats..." aria-label="Search chats">
+        </div>
         <div class="sidebar-controls">
-          <button class="new-chat-btn" id="newChatBtn" onclick="newChat()" aria-label="Create new chat">+ New</button>
-          <button class="export-btn" onclick="exportAll()" aria-label="Export all chats"><i class="fas fa-download"></i></button>
-          <button class="import-btn" onclick="importAll()" aria-label="Import chats"><i class="fas fa-upload"></i></button>
+          <button class="sidebar-tool-btn export-btn" onclick="exportAll()" aria-label="Export all chats"><i class="fas fa-download"></i> Backup</button>
+          <button class="sidebar-tool-btn import-btn" onclick="importAll()" aria-label="Import chats"><i class="fas fa-upload"></i> Restore</button>
         </div>
       </div>
+
       <div class="history-list" id="historyList"></div>
+
       <div class="sidebar-footer">
         <div class="settings-wrap" id="settingsWrap">
           <button class="sidebar-settings-btn" id="settingsBtn" onclick="toggleSettingsMenu(event)"
-            aria-expanded="false" aria-haspopup="menu" aria-label="Open settings"><i class="fas fa-cog"></i> Settings</button>
+            aria-expanded="false" aria-haspopup="menu" aria-label="Open settings">
+            <i class="fas fa-cog"></i>
+            <span>Settings & Tools</span>
+          </button>
           <div class="settings-menu" id="settingsMenu" role="menu" aria-label="Settings menu">
             <button class="settings-item" id="settingsAuthBtn" type="button"
               onclick="openProfileActions();closeSettingsMenu();" role="menuitem" title="Sign in with Google"><i class="fas fa-lock"></i> Sign in with Google</button>
-            <button class="settings-item" type="button" onclick="exportChat();closeSettingsMenu();" role="menuitem"><i class="fas fa-save"></i> Export current chat</button>
-            <button class="settings-item" type="button" onclick="exportChatPdf();closeSettingsMenu();"
-              role="menuitem"><i class="fas fa-file-pdf"></i> Export chat as PDF</button>
-            <button class="settings-item" type="button" onclick="exportChatDocx();closeSettingsMenu();"
-              role="menuitem"><i class="fas fa-file-word"></i> Export chat as DOCX</button>
-            <button class="settings-item" type="button" onclick="clearAllChats();closeSettingsMenu();"
-              role="menuitem" style="color: #ef4444;"><i class="fas fa-trash-alt"></i> Clear all chats</button>
             <button class="settings-item memory-toggle" type="button" onclick="toggleMemoryPanel();closeSettingsMenu();"
-              role="menuitem"><i class="fas fa-brain"></i> AI Memory <span class="memory-badge" id="memoryBadge"
-                style="display:none;">0</span></button>
+              role="menuitem"><i class="fas fa-brain"></i> AI Memory <span class="memory-badge" id="memoryBadge" style="display:none;">0</span></button>
+            <button class="settings-item" type="button" onclick="toggleSkillsPanel();closeSettingsMenu();" role="menuitem"><i class="fas fa-tools"></i> Skills Manager</button>
+            <button class="settings-item" type="button" onclick="openCommandPalette();closeSettingsMenu();" role="menuitem"><i class="fas fa-keyboard"></i> Command Palette</button>
+            <button class="settings-item" type="button" onclick="exportChat();closeSettingsMenu();" role="menuitem"><i class="fas fa-save"></i> Export current chat</button>
+            <button class="settings-item" type="button" onclick="exportChatPdf();closeSettingsMenu();" role="menuitem"><i class="fas fa-file-pdf"></i> Export as PDF</button>
+            <button class="settings-item" type="button" onclick="exportChatDocx();closeSettingsMenu();" role="menuitem"><i class="fas fa-file-word"></i> Export as DOCX</button>
+            <button class="settings-item" type="button" onclick="clearAllChats();closeSettingsMenu();" role="menuitem" style="color: #ef4444;"><i class="fas fa-trash-alt"></i> Clear all chats</button>
           </div>
         </div>
       </div>
@@ -3794,19 +3814,72 @@
 
     <div class="app">
       <header>
-        <div style="display:flex;align-items:center;gap:10px">
+        <div class="header-left">
           <button class="menu-btn" onclick="toggleSidebar()" aria-label="Open sidebar" aria-expanded="false"><i class="fas fa-bars"></i></button>
-          <span id="headerTitle" ondblclick="editTitle()">Spectrix AI</span>
+          <div class="chat-title-wrap">
+            <span id="headerTitle" ondblclick="editTitle()">Spectrix AI</span>
+          </div>
+          <div class="select-wrap active-skill-indicator" id="activeSkillIndicator" style="display:none;">
+            <div class="custom-select-trigger" style="cursor:default; pointer-events:none;">
+              <span class="custom-select-label"><span style="color:#fbbf24;"><i class="fas fa-star"></i></span> <span id="activeSkillName">Skill</span></span>
+            </div>
+          </div>
         </div>
+
+        <!-- Center: OpenRouter Model Switcher Pill -->
+        <div class="model-badge-wrap" id="modelBadgeWrap">
+          <button class="model-badge-btn" id="modelBadgeBtn" onclick="toggleModelDropdown(event)" title="Change AI Model">
+            <span class="model-icon"><i class="fas fa-cube"></i></span>
+            <span class="model-name" id="modelBadgeName">OpenRouter Free</span>
+            <i class="fas fa-chevron-down model-chevron"></i>
+          </button>
+          <div class="model-dropdown-menu" id="modelDropdownMenu">
+            <div class="model-menu-header">Select Model (Free)</div>
+            <button class="model-menu-item active" onclick="selectModelDirectly('openrouter/free')">
+              <div class="model-item-info">
+                <div class="model-item-title"><i class="fas fa-sparkles"></i> OpenRouter Free (Best)</div>
+                <div class="model-item-desc">Smart auto-routing to highest quality active free model</div>
+              </div>
+            </button>
+            <button class="model-menu-item" onclick="selectModelDirectly('meta-llama/llama-3.3-70b-instruct:free')">
+              <div class="model-item-info">
+                <div class="model-item-title"><i class="fas fa-brain"></i> Llama 3.3 70B (Free)</div>
+                <div class="model-item-desc">Flagship 70B open model for deep reasoning & analysis</div>
+              </div>
+            </button>
+            <button class="model-menu-item" onclick="selectModelDirectly('qwen/qwen-2.5-coder-32b-instruct:free')">
+              <div class="model-item-info">
+                <div class="model-item-title"><i class="fas fa-code"></i> Qwen 2.5 Coder 32B (Free)</div>
+                <div class="model-item-desc">Top-rated specialist model for coding & debugging</div>
+              </div>
+            </button>
+            <button class="model-menu-item" onclick="selectModelDirectly('nvidia/nemotron-3-super-120b:free')">
+              <div class="model-item-info">
+                <div class="model-item-title"><i class="fas fa-microchip"></i> Nemotron 3 Super (Free)</div>
+                <div class="model-item-desc">High-power reasoning & multi-step agentic workflows</div>
+              </div>
+            </button>
+            <button class="model-menu-item" onclick="selectModelDirectly('cohere/north-mini-code:free')">
+              <div class="model-item-info">
+                <div class="model-item-title"><i class="fas fa-bolt"></i> Cohere North Mini (Free)</div>
+                <div class="model-item-desc">Ultra-fast lightweight coding model</div>
+              </div>
+            </button>
+          </div>
+        </div>
+
         <div class="controls">
-          <button class="toggle" onclick="copyAll()" aria-label="Copy all messages"><i class="fas fa-copy"></i></button>
-          <button class="toggle" onclick="clearChat()" aria-label="Clear current chat"><i class="fas fa-trash-alt"></i></button>
-          <button class="toggle" onclick="toggleTheme()" aria-label="Toggle theme" title="Toggle theme"><i class="fas fa-adjust"></i></button>
-          <button class="toggle" id="incognitoToggle" onclick="toggleIncognitoMode()" aria-label="Toggle incognito mode"
-            title="Incognito: OFF"><i class="fas fa-user-secret"></i></button>
-          <button class="toggle tts-toggle" id="ttsToggle" onclick="toggleTTS()"
-            title="Toggle Text-to-Speech"><i class="fas fa-volume-up"></i></button>
-          <div class="select-wrap">
+          <!-- Canvas Toggle Button -->
+          <button class="toggle" id="canvasToggleBtn" onclick="toggleArtifactCanvas()" aria-label="Toggle Code Canvas" title="Open Code Canvas"><i class="fas fa-laptop-code"></i></button>
+          <button class="toggle search-toggle-chip" id="searchHeaderToggle" onclick="toggleWebSearch()" aria-label="Toggle web search" title="Web Search: OFF"><i class="fas fa-globe"></i> <span id="webSearchStatusText">Search Off</span></button>
+          <button class="toggle" onclick="copyAll()" aria-label="Copy all messages" title="Copy Chat"><i class="fas fa-copy"></i></button>
+          <button class="toggle" onclick="clearChat()" aria-label="Clear current chat" title="Clear Chat"><i class="fas fa-trash-alt"></i></button>
+          <button class="toggle" onclick="toggleTheme()" aria-label="Toggle theme" title="Toggle Theme"><i class="fas fa-adjust"></i></button>
+          <button class="toggle" id="incognitoToggle" onclick="toggleIncognitoMode()" aria-label="Toggle incognito mode" title="Incognito: OFF"><i class="fas fa-user-secret"></i></button>
+          <button class="toggle tts-toggle" id="ttsToggle" onclick="toggleTTS()" title="Toggle Text-to-Speech"><i class="fas fa-volume-up"></i></button>
+
+          <!-- Hidden selects preserved for background script compatibility -->
+          <div class="select-wrap" style="display: none;">
             <select id="imageModel">
               <option value="google/imagen-4.0-ultra">Imagen 4 Ultra</option>
               <option value="google/imagen-4.0-fast">Imagen 4 Fast</option>
@@ -3817,59 +3890,94 @@
           </div>
           <div class="select-wrap" style="display: none;">
             <select id="textModelSelect" title="Choose text model">
-              <option value="cohere/north-mini-code:free">North Mini Code (Default)</option>
-              <option value="poolside/laguna-m.1:free">Laguna M.1</option>
+              <option value="openrouter/free">OpenRouter Free (Auto-Best)</option>
+              <option value="meta-llama/llama-3.3-70b-instruct:free">Llama 3.3 70B (Free)</option>
+              <option value="qwen/qwen-2.5-coder-32b-instruct:free">Qwen 2.5 Coder 32B (Free)</option>
+              <option value="nvidia/nemotron-3-super-120b:free">Nemotron 3 Super (Free)</option>
+              <option value="cohere/north-mini-code:free">Cohere North Mini (Free)</option>
             </select>
-          </div>
-          <div class="select-wrap active-skill-indicator" id="activeSkillIndicator" style="display:none;">
-            <div class="custom-select-trigger" style="cursor:default; pointer-events:none;">
-              <span class="custom-select-label"><span style="color:#fbbf24;"><i class="fas fa-star"></i></span> <span id="activeSkillName">Skill</span></span>
-            </div>
           </div>
           <img class="auth-pill-avatar header-avatar" id="headerAvatar" src="" alt="" style="display:none;" onclick="openProfileActions()">
         </div>
       </header>
 
       <main id="chat" role="log" aria-live="polite" aria-label="Chat messages"></main>
-      <button class="scroll-bottom" id="scrollBottom" onclick="scrollToBottom()"
-        aria-label="Scroll to latest message"><i class="fas fa-arrow-down"></i></button>
+      <button class="scroll-bottom" id="scrollBottom" onclick="scrollToBottom()" aria-label="Scroll to latest message"><i class="fas fa-arrow-down"></i></button>
 
-      <footer>
-        <div class="quick-actions" id="quickActions">
-          <button class="quick-actions-btn" id="quickActionsBtn" onclick="toggleQuickActionsMenu(event)"
-            aria-label="Open quick actions" aria-expanded="false" aria-haspopup="menu">+</button>
-          <div class="quick-actions-menu" id="quickActionsMenu" role="menu" aria-label="Quick actions">
-
-            <button class="quick-action-item" type="button" onclick="openAttachmentPicker();closeQuickActionsMenu();"
-              role="menuitem"><i class="fas fa-paperclip"></i> Add files or photos</button>
-            <button class="quick-action-item" id="voiceBtn" type="button"
-              onclick="toggleVoiceInput();closeQuickActionsMenu();" aria-label="Start voice input" role="menuitem"><i class="fas fa-microphone"></i> Voice input</button>
-            <button class="quick-action-item" id="searchToggleBtn" type="button"
-              onclick="toggleWebSearch();closeQuickActionsMenu();" aria-label="Toggle web search"
-              title="Web Search: OFF" role="menuitem"><i class="fas fa-globe"></i> Web search: OFF</button>
-            <button class="quick-action-item" type="button"
-              onclick="openCommandPalette();closeQuickActionsMenu();" aria-label="Open Command Palette"
-              role="menuitem"><i class="fas fa-keyboard"></i> Command Palette</button>
-            <button class="quick-action-item" type="button"
-              onclick="toggleSkillsPanel();closeQuickActionsMenu();" aria-label="Open Skills"
-              role="menuitem"><i class="fas fa-tools"></i> Skills Manager</button>
+      <!-- Live Code & Artifact Canvas Panel -->
+      <aside class="artifact-canvas" id="artifactCanvas" aria-label="Interactive Code Canvas">
+        <div class="canvas-header">
+          <div class="canvas-title"><i class="fas fa-laptop-code"></i> Live Canvas</div>
+          <div class="canvas-tabs">
+            <button class="canvas-tab active" id="canvasTabPreview" onclick="switchCanvasTab('preview')"><i class="fas fa-play"></i> Preview</button>
+            <button class="canvas-tab" id="canvasTabCode" onclick="switchCanvasTab('code')"><i class="fas fa-code"></i> Code</button>
+          </div>
+          <div class="canvas-controls">
+            <button class="canvas-btn" onclick="refreshCanvas()" title="Refresh preview"><i class="fas fa-sync-alt"></i></button>
+            <button class="canvas-btn" onclick="openCanvasInNewTab()" title="Open in new window"><i class="fas fa-external-link-alt"></i></button>
+            <button class="canvas-btn" onclick="closeArtifactCanvas()" title="Close"><i class="fas fa-times"></i></button>
           </div>
         </div>
-        <div class="input-container">
+        <div class="canvas-body">
+          <iframe id="canvasIframe" sandbox="allow-scripts allow-modals" title="Live Preview"></iframe>
+          <div id="canvasCodeView" class="canvas-code-view" style="display:none;">
+            <pre><code id="canvasCodeBlock"></code></pre>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Composer Dock Footer -->
+      <footer>
+        <div class="composer-box">
           <input class="attachment-input" id="attachmentInput" type="file" multiple
             onchange="handleAttachmentInput(event)"
             accept=".txt,.md,.markdown,.csv,.json,.xml,.yml,.yaml,.html,.htm,.css,.scss,.js,.jsx,.ts,.tsx,.mjs,.cjs,.py,.java,.go,.rs,.php,.rb,.kt,.swift,.sql,.sh,.ps1,.bat,.c,.cpp,.h,.hpp,.cs,.pdf,.docx,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tif,.tiff,.mp3,.wav,.ogg,.m4a,.aac,.flac,.mp4,.webm,.mov,.avi,.mkv,text/plain,text/markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg,image/webp,image/gif,image/bmp,image/tiff,audio/*,video/*">
           <div class="attachment-tray" id="attachmentTray" aria-live="polite"></div>
-          <textarea id="input" placeholder="Type or speak... (Ctrl+B for new chat)"
-            aria-label="Message input"></textarea>
-          <div class="char-counter" id="charCounter">0 chars</div>
-        </div>
-        <div class="send-cluster" id="sendCluster">
-          <button class="stop-btn pause-btn hidden" id="pauseBtn" onclick="toggleStreamPause()"
-            aria-label="Pause stream">Pause</button>
-          <button class="stop-btn hidden" id="stopBtn" onclick="stopGeneration()"
-            aria-label="Stop generation">Stop</button>
-          <button class="send" id="sendBtn" onclick="send()" aria-label="Send message">Send</button>
+          
+          <textarea id="input" placeholder="Ask anything, write code, explore ideas... (Ctrl+B for new chat)"
+            aria-label="Message input" rows="1"></textarea>
+
+          <div class="composer-toolbar">
+            <div class="composer-toolbar-left">
+              <button class="composer-icon-btn" type="button" onclick="openAttachmentPicker()" title="Attach file or media"><i class="fas fa-paperclip"></i></button>
+              
+              <!-- Prompt Enhancer Magic Button -->
+              <button class="composer-pill enhancer-pill" id="promptEnhanceBtn" type="button" onclick="enhanceCurrentPrompt()" title="Enhance prompt with structured AI clarity">
+                <i class="fas fa-wand-magic-sparkles"></i> Enhance
+              </button>
+
+              <!-- Web Search Chip -->
+              <button class="composer-pill search-pill" id="searchToggleBtn" type="button" onclick="toggleWebSearch()" title="Toggle Web Search">
+                <i class="fas fa-globe"></i> Web Search
+              </button>
+
+              <!-- Voice Input -->
+              <button class="composer-icon-btn voice-btn" id="voiceBtn" type="button" onclick="toggleVoiceInput()" title="Voice input"><i class="fas fa-microphone"></i></button>
+
+              <!-- Quick Actions Menu Trigger -->
+              <div class="quick-actions" id="quickActions" style="position:relative;">
+                <button class="composer-icon-btn" id="quickActionsBtn" onclick="toggleQuickActionsMenu(event)"
+                  aria-label="Open quick actions" aria-expanded="false" aria-haspopup="menu" title="More tools"><i class="fas fa-ellipsis-h"></i></button>
+                <div class="quick-actions-menu" id="quickActionsMenu" role="menu" aria-label="Quick actions" style="display:none;position:absolute;bottom:calc(100% + 8px);left:0;background:var(--bg-elevated);border:1px solid var(--border-medium);border-radius:var(--radius-lg);padding:6px;box-shadow:var(--shadow-lg);z-index:130;flex-direction:column;gap:2px;">
+                  <button class="quick-action-item" type="button" onclick="openCommandPalette();closeQuickActionsMenu();"
+                    role="menuitem"><i class="fas fa-keyboard"></i> Command Palette</button>
+                  <button class="quick-action-item" type="button" onclick="toggleSkillsPanel();closeQuickActionsMenu();"
+                    role="menuitem"><i class="fas fa-tools"></i> Skills Manager</button>
+                  <button class="quick-action-item" type="button" onclick="toggleMemoryPanel();closeQuickActionsMenu();"
+                    role="menuitem"><i class="fas fa-brain"></i> AI Memory</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="composer-toolbar-right">
+              <div class="char-counter" id="charCounter">0 chars</div>
+              <div class="send-cluster" id="sendCluster">
+                <button class="stop-btn pause-btn hidden" id="pauseBtn" onclick="toggleStreamPause()" aria-label="Pause stream">Pause</button>
+                <button class="stop-btn hidden" id="stopBtn" onclick="stopGeneration()" aria-label="Stop generation">Stop</button>
+                <button class="send-btn send" id="sendBtn" onclick="send()" aria-label="Send message"><i class="fas fa-arrow-up"></i></button>
+              </div>
+            </div>
+          </div>
         </div>
       </footer>
     </div>
@@ -6291,17 +6399,21 @@ Factuality guardrails:
 
       throw lastError || new Error('Chat request failed');
     }
-    const DEFAULT_TEXT_MODEL = "cohere/north-mini-code:free";
+    const DEFAULT_TEXT_MODEL = "openrouter/free";
     const ALLOWED_TEXT_MODELS = new Set([
+      "openrouter/free",
+      "meta-llama/llama-3.3-70b-instruct:free",
+      "qwen/qwen-2.5-coder-32b-instruct:free",
+      "nvidia/nemotron-3-super-120b:free",
       "cohere/north-mini-code:free",
       "poolside/laguna-m.1:free",
       "openai/gpt-oss-120b:free",
       "openai/gpt-oss-120b:free:online"
     ]);
     const LEGACY_TEXT_MODEL_MIGRATIONS = new Map([
-      ["openai/gpt-oss-20b:free", "cohere/north-mini-code:free"],
-      ["nvidia/nemotron-3-ultra-550b-a55b:free", "cohere/north-mini-code:free"],
-      ["poolside/laguna-m.1:free", "cohere/north-mini-code:free"]
+      ["openai/gpt-oss-20b:free", "openrouter/free"],
+      ["nvidia/nemotron-3-ultra-550b-a55b:free", "nvidia/nemotron-3-super-120b:free"],
+      ["poolside/laguna-m.1:free", "openrouter/free"]
     ]);
     const DEPRECATED_TEXT_MODELS = new Set([
       "stepfun/step-3.5-flash:free",
@@ -7008,6 +7120,7 @@ Factuality guardrails:
 
       renderHistory();
       updateHeaderTitle();
+      renderWelcomeHero();
       initVoiceUiState();
       initEventListeners();
       initTextModelDropdown();
@@ -7936,6 +8049,7 @@ Factuality guardrails:
       try {
         await createNewChat();
         chat.innerHTML = "";
+        renderWelcomeHero();
         renderHistory();
         updateHeaderTitle();
         showStatus('New chat ready');
@@ -8141,6 +8255,41 @@ Factuality guardrails:
           actions.appendChild(continueBtn);
         }
         actions.appendChild(retryBtn);
+
+        const copyBtn = document.createElement("button");
+        copyBtn.className = "msg-btn";
+        copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copy';
+        copyBtn.onclick = () => {
+          copyTextPortable(content).then((ok) => showStatus(ok ? 'Copied to clipboard' : 'Copy failed', 2000));
+        };
+        actions.appendChild(copyBtn);
+
+        const ttsBtn = document.createElement("button");
+        ttsBtn.className = "msg-btn";
+        ttsBtn.innerHTML = '<i class="fas fa-volume-up"></i> Listen';
+        ttsBtn.onclick = () => {
+          speakText(content);
+        };
+        actions.appendChild(ttsBtn);
+
+        if (content.includes('```html') || content.includes('```xml') || content.includes('```svg') || content.includes('<!DOCTYPE') || content.includes('<html')) {
+          const canvasBtn = document.createElement("button");
+          canvasBtn.className = "msg-btn continue-action-btn";
+          canvasBtn.innerHTML = '<i class="fas fa-play"></i> Run Canvas';
+          canvasBtn.onclick = () => {
+            const match = content.match(/```(?:html|xml|svg)?\s*([\s\S]*?)```/i);
+            const snippet = match ? match[1].trim() : content;
+            openInCanvas(snippet, 'html');
+          };
+          actions.appendChild(canvasBtn);
+        }
+
+        const wordCount = content.trim().split(/\s+/).filter(Boolean).length;
+        const readTimeMin = Math.max(1, Math.ceil(wordCount / 200));
+        const statsEl = document.createElement("span");
+        statsEl.className = "msg-stats-badge";
+        statsEl.textContent = `${wordCount} words • ${readTimeMin}m read`;
+        actions.prepend(statsEl);
       }
 
       queueCodeBlockEnhancement(d);
@@ -8267,7 +8416,10 @@ Factuality guardrails:
       if (!session) return;
 
       const totalMessages = Array.isArray(session.messages) ? session.messages.length : 0;
-      if (totalMessages === 0) return;
+      if (totalMessages === 0) {
+        renderWelcomeHero();
+        return;
+      }
 
       if (totalMessages > CHAT_WINDOW_THRESHOLD) {
         const start = Math.max(0, totalMessages - CHAT_WINDOW_MAX_DOM);
@@ -8441,11 +8593,20 @@ Factuality guardrails:
 
     function updateWebSearchToggleUi() {
       const btn = document.getElementById('searchToggleBtn');
-      if (!btn) return;
-
-      btn.classList.toggle('active', webSearchEnabled);
-      btn.title = webSearchEnabled ? 'Web Search: ON' : 'Web Search: OFF';
-      btn.innerHTML = webSearchEnabled ? '<i class="fas fa-globe"></i> Web search: ON' : '<i class="fas fa-globe"></i> Web search: OFF';
+      if (btn) {
+        btn.classList.toggle('active', webSearchEnabled);
+        btn.title = webSearchEnabled ? 'Web Search: ON' : 'Web Search: OFF';
+        btn.innerHTML = webSearchEnabled ? '<i class="fas fa-globe"></i> Web Search: ON' : '<i class="fas fa-globe"></i> Web Search';
+      }
+      const headerChip = document.getElementById('searchHeaderToggle');
+      const statusText = document.getElementById('webSearchStatusText');
+      if (headerChip) {
+        headerChip.classList.toggle('active', webSearchEnabled);
+        headerChip.title = webSearchEnabled ? 'Web Search: ON' : 'Web Search: OFF';
+      }
+      if (statusText) {
+        statusText.textContent = webSearchEnabled ? 'Search ON' : 'Search Off';
+      }
     }
 
     function toggleWebSearch() {
@@ -10521,6 +10682,9 @@ Create a concise title that captures the main topic of this conversation.
         charCounter.style.color = "var(--muted)";
         charCounter.style.display = 'none';
 
+        const hero = document.getElementById('welcomeHero');
+        if (hero) hero.remove();
+
         const attachmentQueue = hasPendingAttachments ? pendingAttachments.slice() : [];
         let attachmentContext = '';
         let attachmentSummary = attachmentQueue.length ? formatAttachmentSummary(attachmentQueue) : '';
@@ -11648,14 +11812,18 @@ Create a concise title that captures the main topic of this conversation.
 
       document.addEventListener('click', (e) => {
         const quickActions = document.getElementById('quickActions');
-        if (!quickActions) return;
-        if (!quickActions.contains(e.target)) {
+        if (quickActions && !quickActions.contains(e.target)) {
           closeQuickActionsMenu();
         }
 
         const settingsWrap = document.getElementById('settingsWrap');
         if (settingsWrap && !settingsWrap.contains(e.target)) {
           closeSettingsMenu();
+        }
+
+        const modelWrap = document.getElementById('modelBadgeWrap');
+        if (modelWrap && !modelWrap.contains(e.target)) {
+          closeModelDropdown();
         }
       });
 
@@ -12563,25 +12731,255 @@ ${existingFacts.slice(0, 20).join('\n')}`;
       }
     }
 
+    const MODEL_FRIENDLY_NAMES = {
+      "openrouter/free": "OpenRouter Free (Auto)",
+      "meta-llama/llama-3.3-70b-instruct:free": "Llama 3.3 70B",
+      "qwen/qwen-2.5-coder-32b-instruct:free": "Qwen 2.5 Coder",
+      "nvidia/nemotron-3-super-120b:free": "Nemotron 3 Super",
+      "cohere/north-mini-code:free": "Cohere North Mini"
+    };
+
+    function updateModelBadgeUi() {
+      const nameEl = document.getElementById('modelBadgeName');
+      if (nameEl) {
+        nameEl.textContent = MODEL_FRIENDLY_NAMES[FIXED_TEXT_MODEL] || 'OpenRouter Free';
+      }
+      document.querySelectorAll('.model-menu-item').forEach((item) => {
+        const itemOnClick = item.getAttribute('onclick') || '';
+        if (itemOnClick.includes(FIXED_TEXT_MODEL)) {
+          item.classList.add('active');
+        } else {
+          item.classList.remove('active');
+        }
+      });
+    }
+
+    function toggleModelDropdown(event) {
+      if (event) event.stopPropagation();
+      const wrap = document.getElementById('modelBadgeWrap');
+      const menu = document.getElementById('modelDropdownMenu');
+      if (!wrap || !menu) return;
+      const isOpen = menu.classList.contains('open');
+      if (isOpen) {
+        wrap.classList.remove('open');
+        menu.classList.remove('open');
+      } else {
+        closeAllCustomSelectDropdowns();
+        closeSettingsMenu();
+        wrap.classList.add('open');
+        menu.classList.add('open');
+      }
+    }
+
+    function closeModelDropdown() {
+      const wrap = document.getElementById('modelBadgeWrap');
+      const menu = document.getElementById('modelDropdownMenu');
+      if (wrap) wrap.classList.remove('open');
+      if (menu) menu.classList.remove('open');
+    }
+
+    function selectModelDirectly(modelId) {
+      const normalized = normalizeTextModelId(modelId);
+      FIXED_TEXT_MODEL = normalized;
+      localStorage.setItem('Spectrix_text_model', normalized);
+      const sel = document.getElementById('textModelSelect');
+      if (sel) sel.value = normalized;
+      updateModelBadgeUi();
+      closeModelDropdown();
+      showStatus(`Model switched to ${MODEL_FRIENDLY_NAMES[normalized] || normalized}`, 2500);
+    }
+
+    // ===== NEW FEATURE: AI PROMPT ENHANCER =====
+    let previousUnenhancedPrompt = '';
+
+    function enhanceCurrentPrompt() {
+      const inputEl = document.getElementById('input');
+      if (!inputEl) return;
+      const original = inputEl.value.trim();
+
+      if (!original) {
+        showStatus('Type a rough idea or prompt first, then click Enhance!', 3000);
+        inputEl.focus();
+        return;
+      }
+
+      if (previousUnenhancedPrompt && inputEl.value === previousUnenhancedPrompt) {
+        return;
+      }
+
+      previousUnenhancedPrompt = original;
+
+      let enhanced = '';
+      const lower = original.toLowerCase();
+
+      if (lower.includes('code') || lower.includes('function') || lower.includes('bug') || lower.includes('api') || lower.includes('html') || lower.includes('javascript') || lower.includes('python')) {
+        enhanced = `Act as an expert software architect and senior developer.\n\nTask: ${original}\n\nRequirements:\n1. Provide a robust, production-grade, and well-structured implementation.\n2. Include clear architectural explanation and key implementation details.\n3. Address edge cases, error handling, and performance considerations.\n4. Provide complete, runnable code with clear comments.`;
+      } else if (lower.includes('explain') || lower.includes('what is') || lower.includes('how does') || lower.includes('why')) {
+        enhanced = `Provide a comprehensive, high-clarity explanation of the following topic:\n\n"${original}"\n\nPlease structure your answer as follows:\n1. Core Concept (intuitive mental model & definition)\n2. How It Works (step-by-step breakdown)\n3. Key Benefits, Real-World Examples & Trade-offs\n4. Common misconceptions or pitfalls to avoid`;
+      } else if (lower.includes('write') || lower.includes('email') || lower.includes('post') || lower.includes('article') || lower.includes('draft')) {
+        enhanced = `You are a world-class executive copywriter and strategist.\n\nPrompt: ${original}\n\nGuidelines:\n- Tone: Polished, engaging, authoritative, and concise.\n- Structure: Strong hook, clear value proposition, well-organized sections, and an actionable conclusion.\n- Deliver output ready for immediate publication.`;
+      } else {
+        enhanced = `Act as a top-tier specialist and consultant.\n\nInquiry: ${original}\n\nPlease deliver an in-depth, structured, and actionable response covering:\n- Direct, concise executive summary\n- Detailed analysis with key insights\n- Practical recommendations and next steps`;
+      }
+
+      inputEl.value = enhanced;
+      inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+      inputEl.focus();
+      showStatus('Prompt enhanced with expert structure!', 3500);
+    }
+
+    // ===== NEW FEATURE: LIVE ARTIFACT & CODE CANVAS PANEL =====
+    let currentCanvasCode = '';
+    let currentCanvasLang = 'html';
+
+    function toggleArtifactCanvas() {
+      const canvas = document.getElementById('artifactCanvas');
+      const btn = document.getElementById('canvasToggleBtn');
+      if (!canvas) return;
+      const isOpen = canvas.classList.contains('open');
+      if (isOpen) {
+        canvas.classList.remove('open');
+        if (btn) btn.classList.remove('active');
+      } else {
+        canvas.classList.add('open');
+        if (btn) btn.classList.add('active');
+        if (!currentCanvasCode) {
+          const lastCode = chat.querySelector('pre code');
+          if (lastCode) {
+            openInCanvas(lastCode.textContent, 'html');
+          } else {
+            openInCanvas('<!DOCTYPE html><html><body style="display:flex;justify-content:center;align-items:center;height:100vh;margin:0;font-family:sans-serif;background:#090d16;color:#e2e8f0;text-align:center;"><div><h2>Live Artifact Canvas</h2><p style="color:#94a3b8;">Click "Preview in Canvas" on any code output in chat to render it live here.</p></div></body></html>', 'html');
+          }
+        }
+      }
+    }
+
+    function closeArtifactCanvas() {
+      const canvas = document.getElementById('artifactCanvas');
+      const btn = document.getElementById('canvasToggleBtn');
+      if (canvas) canvas.classList.remove('open');
+      if (btn) btn.classList.remove('active');
+    }
+
+    function openInCanvas(code, lang = 'html') {
+      currentCanvasCode = code;
+      currentCanvasLang = lang;
+      const canvas = document.getElementById('artifactCanvas');
+      const btn = document.getElementById('canvasToggleBtn');
+      const iframe = document.getElementById('canvasIframe');
+      const codeBlock = document.getElementById('canvasCodeBlock');
+      
+      if (canvas) canvas.classList.add('open');
+      if (btn) btn.classList.add('active');
+
+      if (codeBlock) {
+        codeBlock.textContent = code;
+        if (window.hljs) hljs.highlightElement(codeBlock);
+      }
+
+      if (iframe) {
+        iframe.srcdoc = code;
+      }
+
+      switchCanvasTab('preview');
+      showStatus('Opened in Live Canvas', 2000);
+    }
+
+    function switchCanvasTab(tab) {
+      const previewTab = document.getElementById('canvasTabPreview');
+      const codeTab = document.getElementById('canvasTabCode');
+      const iframe = document.getElementById('canvasIframe');
+      const codeView = document.getElementById('canvasCodeView');
+
+      if (tab === 'preview') {
+        if (previewTab) previewTab.classList.add('active');
+        if (codeTab) codeTab.classList.remove('active');
+        if (iframe) iframe.style.display = 'block';
+        if (codeView) codeView.style.display = 'none';
+      } else {
+        if (previewTab) previewTab.classList.remove('active');
+        if (codeTab) codeTab.classList.add('active');
+        if (iframe) iframe.style.display = 'none';
+        if (codeView) codeView.style.display = 'block';
+      }
+    }
+
+    function refreshCanvas() {
+      const iframe = document.getElementById('canvasIframe');
+      if (iframe && currentCanvasCode) {
+        iframe.srcdoc = currentCanvasCode;
+        showStatus('Canvas refreshed', 1500);
+      }
+    }
+
+    function openCanvasInNewTab() {
+      if (!currentCanvasCode) return;
+      const blob = new Blob([currentCanvasCode], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    }
+
+    // ===== NEW FEATURE: WELCOME HERO & STARTER PROMPTS =====
+    function renderWelcomeHero() {
+      if (chat.querySelectorAll('.msg').length > 0) return;
+      chat.innerHTML = `
+        <div class="welcome-hero" id="welcomeHero">
+          <div class="hero-brand-icon"><i class="fas fa-brain"></i></div>
+          <h1 class="hero-title">Spectrix AI v2.0</h1>
+          <p class="hero-subtitle">High-speed intelligence powered by OpenRouter's best free models. Code, reason, brainstorm, and create without limits.</p>
+          <div class="starter-grid">
+            <div class="starter-card" onclick="useStarterPrompt('Build an interactive dashboard component in HTML, CSS, and modern JavaScript with real-time charts.')">
+              <div class="starter-card-icon"><i class="fas fa-laptop-code"></i></div>
+              <div class="starter-card-title">Interactive Web App</div>
+              <div class="starter-card-desc">Build a responsive frontend component with live canvas preview</div>
+            </div>
+            <div class="starter-card" onclick="useStarterPrompt('Explain quantum computing and qubit superposition using intuitive real-world analogies.')">
+              <div class="starter-card-icon"><i class="fas fa-microchip"></i></div>
+              <div class="starter-card-title">Deep Conceptual Reasoning</div>
+              <div class="starter-card-desc">Break down complex science and systems with vivid mental models</div>
+            </div>
+            <div class="starter-card" onclick="useStarterPrompt('Draft a high-impact executive product launch announcement for an innovative AI tool.')">
+              <div class="starter-card-icon"><i class="fas fa-pen-nib"></i></div>
+              <div class="starter-card-title">Strategic Writing</div>
+              <div class="starter-card-desc">Craft persuasive launch pitches, executive emails, and briefs</div>
+            </div>
+            <div class="starter-card" onclick="useStarterPrompt('Optimize this algorithm for O(n) runtime and minimal space complexity. Suggest edge test cases.')">
+              <div class="starter-card-icon"><i class="fas fa-bolt"></i></div>
+              <div class="starter-card-title">Algorithm & Debugging</div>
+              <div class="starter-card-desc">Refactor complex code, eliminate bottlenecks, and add tests</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function useStarterPrompt(text) {
+      const inputEl = document.getElementById('input');
+      if (!inputEl) return;
+      inputEl.value = text;
+      inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+      inputEl.focus();
+    }
+
     // Initialize the text model dropdown, wire selection to FIXED_TEXT_MODEL and persist
     function initTextModelDropdown() {
       const sel = document.getElementById('textModelSelect');
       if (!sel) return;
-      // Set initial value from persisted setting or current variable
       const persisted = localStorage.getItem('Spectrix_text_model');
       FIXED_TEXT_MODEL = normalizeTextModelId(persisted || FIXED_TEXT_MODEL);
       if (persisted !== FIXED_TEXT_MODEL) {
         localStorage.setItem('Spectrix_text_model', FIXED_TEXT_MODEL);
       }
-      // Ensure the select reflects the active model
       sel.value = FIXED_TEXT_MODEL;
+      updateModelBadgeUi();
 
       sel.addEventListener('change', (e) => {
         const nextModel = normalizeTextModelId(e.target.value);
-        if (nextModel === FIXED_TEXT_MODEL) return;  // No-op if same model
+        if (nextModel === FIXED_TEXT_MODEL) return;
 
         FIXED_TEXT_MODEL = nextModel;
         localStorage.setItem('Spectrix_text_model', nextModel);
+        updateModelBadgeUi();
         console.log('Text model set to', nextModel);
       });
     }
